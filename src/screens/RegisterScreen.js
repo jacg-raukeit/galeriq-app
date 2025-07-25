@@ -42,7 +42,7 @@ export default function RegisterScreen() {
   redirectUri: 'https://auth.expo.io/angel-rauke/galeriq'
 });
 
-  // Lógica cuando regresa de Google
+ 
   useEffect(() => {
     if (response?.type === 'success') {
       const { authentication } = response;

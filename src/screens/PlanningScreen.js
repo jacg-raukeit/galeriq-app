@@ -87,7 +87,7 @@ export default function PlanningScreen({ navigation, route }) {
       .then(newTask => {
         setTasks(prev => [newTask, ...prev]);
         setShowAdd(false);
-        // reset form
+        
         setChecklistName('');
         setTitle('');
         setDescription('');
@@ -255,14 +255,14 @@ export default function PlanningScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F9FAFB' },
+  screen: { flex: 1, backgroundColor: '#F9FAFB', marginTop: 25 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
   },
-  title: { fontSize: 20, fontWeight: '600', color: '#254236' },
+  title: { fontSize: 25, fontWeight: '600', color: '#254236' },
   container: { padding: 16 },
   taskRow: {
     flexDirection: 'row',
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   picker: { width: '100%' },
   saveButton: {
     marginTop: 24,
-    backgroundColor: '#254236',
+    backgroundColor: '#6B21A8',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',

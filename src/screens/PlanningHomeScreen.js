@@ -30,7 +30,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [newCategory, setNewCategory] = useState('');
 
-  // Normaliza un texto: sin espacios extremos y en minúsculas
+  // Normaliza los textos 
   const normalize = str => str.trim().toLowerCase();
 
   // Carga checklist y categorías dinámicas sin duplicados
@@ -44,10 +44,10 @@ export default function PlanningHomeScreen({ navigation, route }) {
       .then(data => {
         setTasks(data);
 
-        // Combina estáticas + dinámicas sin duplicar (case-insensitive)
+        
         const combined = [
-          ...categories,                           // estáticas
-          ...data.map(t => t.category || '')      // dinámicas
+          ...categories,                           
+          ...data.map(t => t.category || '')      
         ];
 
         const unique = Array.from(
@@ -164,7 +164,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F2F0E7' },
+  screen: { flex: 1, backgroundColor: '#F2F0E7', marginTop: 25 },
   container: { padding: 16 },
   header: {
     flexDirection: 'row',
