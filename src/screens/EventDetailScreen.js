@@ -88,7 +88,7 @@ export default function EventDetailScreen() {
         <TouchableOpacity
           style={styles.planButton}
           onPress={() =>
-            navigation.navigate('Planning', { eventId: event.event_id })
+            navigation.navigate('PlanningHome', { eventId: event.event_id })
           }
         >
           <Ionicons name="checkmark-done-circle-outline" size={24} color="#6B21A8" />

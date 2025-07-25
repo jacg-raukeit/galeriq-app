@@ -257,7 +257,7 @@ export default function CreateEventScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  screen:        { flex: 1, backgroundColor: '#F9FAFB' },
+  screen:        { flex: 1, backgroundColor: '#F9FAFB', marginTop: 10 },
   container:     { padding: 16, paddingBottom: 32 },
   label:         { marginTop: 16, fontSize: 14, fontWeight: '600', color: '#1F2937' },
   input:         { marginTop: 8, backgroundColor: '#FFF', borderRadius: 8, padding: 10 },
@@ -269,6 +269,6 @@ const styles = StyleSheet.create({
   imagePicker:   { marginTop: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: '#EDE9FE', borderRadius: 8, padding: 12 },
   imagePickerText:{ marginLeft: 8, color: '#6B21A8' },
   previewImage:  { marginTop: 8, width: '100%', height: 140, borderRadius: 8 },
-  submitButton:  { marginTop: 24, backgroundColor: '#6B21A8', paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
+  submitButton:  { marginTop: 24, backgroundColor: '#6B21A8', paddingVertical: 14, borderRadius: 8, alignItems: 'center',marginBottom: 19 },
   submitText:    { color: '#FFF', fontWeight: '600' },
 });

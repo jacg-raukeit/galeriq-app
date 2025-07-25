@@ -27,7 +27,7 @@ export default function EventsScreen() {
 
   return (
     <View style={styles.screen}>
-      <Header title="Mis Eventos" onBack={() => navigation.goBack()} />
+      <Header title="Mis Eventos" />
 
       <View style={styles.actionContainer}>
         <CreateEventButton
@@ -66,7 +66,7 @@ export default function EventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen:           { flex: 1, backgroundColor: '#F9FAFB' },
+  screen:           { flex: 1, backgroundColor: '#F9FAFB', marginTop: 10 },
   actionContainer:  { paddingHorizontal: 16, paddingVertical: 8 },
   listContainer:    { padding: 16, paddingBottom: 32 },
   emptyText:        {

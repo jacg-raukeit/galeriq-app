@@ -74,7 +74,7 @@ export default function LoginScreen() {
     }
   };
 
- 
+
   const discovery = { authorizationEndpoint: 'http://192.168.1.106:8000/auth/login-google' };
   const [request, response, promptAsync] = AuthSession.useAuthRequest({
     redirectUri: AuthSession.makeRedirectUri({ scheme: 'galeriq', useProxy: true }),

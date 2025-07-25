@@ -15,6 +15,7 @@ import EventsScreen from './src/screens/EventsScreen';
 import CreateEventScreen from './src/screens/CreateEventScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
 import PlanningScreen from './src/screens/PlanningScreen';
+import PlanningHomeScreen from './src/screens/PlanningHomeScreen';
 
 const Stack = createStackNavigator();
 
@@ -37,6 +38,7 @@ export default function App() {
             <Stack.Screen name="Events" component={EventsScreen} />
             <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
             <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+            <Stack.Screen name="PlanningHome" component={PlanningHomeScreen} />
             <Stack.Screen name="Planning" component={PlanningScreen} />
           </Stack.Navigator>
         </NavigationContainer>

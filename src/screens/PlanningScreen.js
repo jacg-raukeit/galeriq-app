@@ -1,5 +1,3 @@
-// src/screens/PlanningScreen.js
-
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
@@ -11,245 +9,307 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import Header from '../components/Header';
+import { AuthContext } from '../context/AuthContext';
 
-const TASKS = [
-  { label: 'Cotizar el lugar',         icon: 'cash-outline',            done: true  },
-  { label: 'Elegir una fecha',        icon: 'calendar-outline',        done: true  },
-  { label: 'Reservar el lugar',       icon: 'locate-outline',          done: false },
-  { label: 'Estructura tu presupuesto',icon: 'cash-outline',           done: false },
-  { label: 'Contrata lo indispensable',icon: 'people-outline',         done: false },
-  { label: 'Probar menú',             icon: 'restaurant-outline',      done: false },
-  { label: 'Agendar música',          icon: 'musical-notes-outline',  done: false },
-  { label: 'Contratar fotógrafo',     icon: 'camera-outline',          done: false },
-];
+const PRIORITY_COLORS = {
+  alta: '#DC2626',
+  media: '#D97706',
+  baja: '#16A34A',
+};
 
-const CATEGORIES = ['Proveedores','Banquete','Decoración'];
-const PRIORITIES = [
-  { label: 'Alta',   value: 'high',   color: '#DC2626' },
-  { label: 'Media',  value: 'medium', color: '#D97706' },
-  { label: 'Baja',   value: 'low',    color: '#16A34A' },
+const CATEGORIES = [
+  'Ceremonia', 'Salón', 'Música', 'Banquete',
+  'Fotografía', 'Decoración', 'Proveedores',
+  'Vestimenta', 'Invitaciones'
 ];
 
 export default function PlanningScreen({ navigation, route }) {
-  const total   = TASKS.length;
-  const done    = TASKS.filter(t => t.done).length;
-  const percent = Math.round(done / total * 100);
-
- 
-  const [showAdd, setShowAdd]           = useState(false);
-  const [title, setTitle]               = useState('');
-  const [desc, setDesc]                 = useState('');
-  const [dueDate, setDueDate]           = useState(null);
+  const { eventId, category: initialCategory } = route.params;
+  const { user } = useContext(AuthContext);
+  const [tasks, setTasks] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [checklistName, setChecklistName] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [category, setCategory]         = useState(CATEGORIES[0]);
-  const [priority, setPriority]         = useState(PRIORITIES[0].value);
+  const [category, setCategory] = useState(initialCategory || CATEGORIES[0]);
+  const [priority, setPriority] = useState('alta');
+  const [budget, setBudget] = useState('');
 
-  const onChangeDue = (_, selected) => {
-    setShowDatePicker(false);
-    if (selected) setDueDate(selected);
+  useEffect(() => {
+    if (!eventId || !category || !user) return;
+    fetch(`http://192.168.1.106:8000/checklists/event/${eventId}`, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    })
+      .then(res => (res.ok ? res.json() : Promise.reject(res.status)))
+      .then(data => {
+        const filtered = data.filter(
+          task => task.category.toLowerCase() === category.toLowerCase()
+        );
+        setTasks(filtered);
+      })
+      .catch(err => console.error('Error al cargar tareas:', err));
+  }, [eventId, category, user]);
+
+  const toggleDone = id => {
+    setTasks(prev =>
+      prev.map(t => (t.id === id ? { ...t, is_completed: !t.is_completed } : t))
+    );
   };
-
-  const formattedDue = dueDate
-    ? dueDate.toLocaleDateString('es-ES', { day:'2-digit',month:'long',year:'numeric' })
-    : '';
 
   const handleSave = () => {
-    // TODO: integrar con estado/Tu back
-    console.log({ title, desc, dueDate, category, priority });
-    setShowAdd(false);
-    // reset
-    setTitle(''); setDesc(''); setDueDate(null);
-    setCategory(CATEGORIES[0]);
-    setPriority(PRIORITIES[0].value);
+    const payload = {
+      event_id: eventId,
+      checklist_name: checklistName,
+      title: title,
+      description: description,
+      due_date: dueDate ? dueDate.toISOString() : null,
+      category: category.toLowerCase(),
+      priority: priority,
+      budget: budget ? parseFloat(budget) : undefined,
+    };
+    fetch('http://192.168.1.106:8000/checklists/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${user.token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+      .then(res => {
+        if (!res.ok) return res.text().then(text => Promise.reject(text));
+        return res.json();
+      })
+      .then(newTask => {
+        setTasks(prev => [newTask, ...prev]);
+        setShowAdd(false);
+        // reset form
+        setChecklistName('');
+        setTitle('');
+        setDescription('');
+        setDueDate(null);
+        setCategory(initialCategory || CATEGORIES[0]);
+        setPriority('alta');
+        setBudget('');
+      })
+      .catch(err => console.error('Error al crear tarea:', err));
   };
-
 
   return (
     <View style={styles.screen}>
-      <Header title="Planeación" onBack={() => navigation.goBack()} />
-
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#254236" />
+        </TouchableOpacity>
+        <Text style={styles.title}>{category}</Text>
+        <View style={{ width: 24 }} />
+      </View>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.subtitle}>No olvides agregar pendientes propios 💜</Text>
-
-        {/* Barra de progreso */}
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { flex: percent }]} />
-          <View style={[styles.progressEmpty, { flex: 100 - percent }]} />
-        </View>
-
-        {/* Texto % y conteo */}
-        <View style={styles.rowCenter}>
-          <Text style={styles.percent}>{percent}%</Text>
-          <Text style={styles.count}>{done} de {total} tareas completadas</Text>
-        </View>
-
-        {/* Lista de tareas */}
-        {TASKS.map((t, i) => (
-          <View key={i} style={styles.taskRow}>
+        {tasks.map(task => (
+          <TouchableOpacity
+            key={task.id}
+            style={styles.taskRow}
+            onPress={() => toggleDone(task.id)}
+          >
             <Ionicons
-              name={t.done ? 'checkmark-circle' : 'ellipse-outline'}
-              size={40}
-              color={t.done ? '#E1B2D4' : '#D1D5DB'}
+              name={task.is_completed ? 'checkmark-circle' : 'ellipse-outline'}
+              size={24}
+              color={task.is_completed ? '#999' : '#CCC'}
             />
-            <Ionicons
-              name={t.icon}
-              size={20}
-              color={t.done ? '#6B21A8' : '#9CA3AF'}
-              style={styles.taskIcon}
-            />
-            <Text style={[styles.taskLabel, t.done && styles.taskDone]}>
-              {t.label}
+            <Text
+              style={[
+                styles.taskLabel,
+                {
+                  color: PRIORITY_COLORS[task.priority] || '#111',
+                  textDecorationLine: task.is_completed
+                    ? 'line-through'
+                    : 'none',
+                },
+              ]}
+            >
+              {task.title}
             </Text>
-          </View>
+          </TouchableOpacity>
         ))}
-
         {/* Botón Agregar tarea */}
-        <TouchableOpacity style={styles.addButton} onPress={() => setShowAdd(true)}>
-        <Ionicons name="add-circle-outline" size={30} color="#FFF" />
-        <Text style={styles.addText}>Agregar tarea</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setShowAdd(true)}
+        >
+          <Ionicons name="add-circle-outline" size={28} color="#254236" />
+          <Text style={styles.addText}>Agregar tarea</Text>
         </TouchableOpacity>
       </ScrollView>
 
-        {/* Modal Agregar Tarea */}
+      {/* Modal Agregar Tarea */}
       <Modal visible={showAdd} animationType="slide">
         <View style={styles.modalScreen}>
-          <Header title="Crear tarea" onBack={() => setShowAdd(false)} />
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowAdd(false)}>
+              <Ionicons name="close" size={24} color="#254236" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Nueva tarea</Text>
+            <View style={{ width: 24 }} />
+          </View>
           <ScrollView contentContainerStyle={styles.modalContainer}>
-            {/* Título */}
-            <Text style={styles.modalLabel}>Título <Text style={{color:'#DC2626'}}>*</Text></Text>
+            <Text style={styles.label}>Checklist Name</Text>
             <TextInput
-              style={styles.modalInput}
+              style={styles.input}
+              value={checklistName}
+              onChangeText={setChecklistName}
+              placeholder="Ej. Montaje"
+            />
+            <Text style={styles.label}>Título</Text>
+            <TextInput
+              style={styles.input}
               value={title}
               onChangeText={setTitle}
               placeholder="Nombre de la tarea"
             />
-
-            {/* Descripción */}
-            <Text style={styles.modalLabel}>Descripción <Text style={styles.optional}>(opcional)</Text></Text>
+            <Text style={styles.label}>Descripción</Text>
             <TextInput
-              style={styles.modalInput}
-              value={desc}
-              onChangeText={setDesc}
+              style={styles.input}
+              value={description}
+              onChangeText={setDescription}
               placeholder="Detalles..."
             />
-
-            {/* Fecha límite */}
-            <Text style={styles.modalLabel}>Fecha límite <Text style={styles.optional}>(opcional)</Text></Text>
+            <Text style={styles.label}>Fecha límite</Text>
             <TouchableOpacity
-              style={styles.modalInput}
+              style={styles.input}
               onPress={() => setShowDatePicker(true)}
             >
-              <Text style={ formattedDue ? styles.modalText : styles.modalPlaceholder }>
-                { formattedDue || 'Seleccionar fecha' }
+              <Text>
+                {dueDate
+                  ? dueDate.toLocaleDateString('es-ES', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : 'Seleccionar fecha'}
               </Text>
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
                 value={dueDate || new Date()}
                 mode="date"
-                display={Platform.OS==='ios'?'spinner':'default'}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 minimumDate={new Date()}
-                onChange={onChangeDue}
+                onChange={(_, date) => {
+                  setShowDatePicker(false);
+                  if (date) setDueDate(date);
+                }}
               />
             )}
-
-            {/* Categoría */}
-            <Text style={styles.modalLabel}>Categoría</Text>
+            <Text style={styles.label}>Categoría</Text>
             <View style={styles.pickerWrapper}>
               <Picker
                 selectedValue={category}
                 onValueChange={setCategory}
-                style={styles.pickerModal}
+                style={styles.picker}
               >
                 {CATEGORIES.map(cat => (
                   <Picker.Item key={cat} label={cat} value={cat} />
                 ))}
               </Picker>
             </View>
-
-            {/* Prioridad */}
-            <Text style={styles.modalLabel}>Prioridad</Text>
+            <Text style={styles.label}>Prioridad</Text>
             <View style={styles.pickerWrapper}>
               <Picker
                 selectedValue={priority}
                 onValueChange={setPriority}
-                style={styles.pickerModal}
+                style={styles.picker}
               >
-                {PRIORITIES.map(p => (
+                {Object.keys(PRIORITY_COLORS).map(p => (
                   <Picker.Item
-                    key={p.value}
-                    label={p.label}
-                    value={p.value}
-                    color={p.color}
+                    key={p}
+                    label={p.charAt(0).toUpperCase() + p.slice(1)}
+                    value={p}
                   />
                 ))}
               </Picker>
             </View>
-
+            <Text style={styles.label}>Budget</Text>
+            <TextInput
+              style={styles.input}
+              value={budget}
+              onChangeText={setBudget}
+              placeholder="Ej. 1000.10"
+              keyboardType="numeric"
+            />
             <TouchableOpacity
               style={styles.saveButton}
               onPress={handleSave}
-              disabled={!title.trim()}
+              disabled={!checklistName || !title}
             >
               <Text style={styles.saveText}>Guardar tarea</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
       </Modal>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen:       { flex: 1, backgroundColor: '#F9FAFB' },
-  container:    { padding: 16, paddingBottom: 32 },
-  subtitle:     { fontSize: 22, fontWeight: '600', marginBottom: 12, color: '#A96489' },
-  progressBar:  { flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden', marginBottom: 8 },
-  progressFill: { backgroundColor: '#E674BF' },
-  progressEmpty:{ backgroundColor: '#FFE6F4' },
-  rowCenter:    { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  percent:      { fontSize: 32, fontWeight: '700', color: '#111827', marginRight: 8 },
-  count:        { fontSize: 19, color: '#A96489' },
-  taskRow:      { flexDirection: 'row', alignItems: 'center', marginVertical: 6 },
-  taskIcon:     { marginHorizontal: 8, color: 'gray' },
-  taskLabel:    { fontSize: 14, color: '#111827' },
-  taskDone:     { textDecorationLine: 'line-through', color: '#6B7280' },
-  addButton:    {
+  screen: { flex: 1, backgroundColor: '#F9FAFB' },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F6D0E4',
-    padding: 15,
-    borderRadius: 28,
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  title: { fontSize: 20, fontWeight: '600', color: '#254236' },
+  container: { padding: 16 },
+  taskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  taskLabel: { marginLeft: 12, fontSize: 16 },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
     marginTop: 24,
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    elevation: 1,
   },
-  addText:      { color: '#5A3A56', marginLeft: 8, fontWeight: '600', fontSize: 18 },
-
-  /* Modal */
-  modalScreen:   { flex: 1, backgroundColor: '#F9FAFB' },
-  modalContainer:{ padding: 16, paddingBottom: 32 },
-
-  modalLabel:    { marginTop: 16, fontSize: 14, fontWeight: '600', color: '#4B5563' },
-  optional:      { fontWeight: '400', fontSize: 12, color: '#9CA3AF' },
-  modalInput:    {
-    marginTop: 8, backgroundColor: '#FFF',
-    borderRadius: 8, padding: 10, minHeight: 44,
+  addText: { marginLeft: 8, fontSize: 16, color: '#254236' },
+  modalScreen: { flex: 1, backgroundColor: '#F9FAFB' },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#FFF',
   },
-  modalText:     { color: '#111827' },
-  modalPlaceholder:{ color: '#9CA3AF' },
-
-  pickerWrapper: { marginTop: 8, backgroundColor: '#FFF', borderRadius: 8 },
-  pickerModal:   { width: '100%' },
-
-  saveButton:    {
-    marginTop: 24, backgroundColor: '#DF65AD',
-    paddingVertical: 14, borderRadius: 28, alignItems: 'center',
+  modalTitle: { fontSize: 18, fontWeight: '600' },
+  modalContainer: { padding: 16 },
+  label: { fontSize: 14, fontWeight: '600', marginTop: 16 },
+  input: {
+    marginTop: 8,
+    backgroundColor: '#FFF',
+    borderRadius: 6,
+    padding: 10,
   },
-  saveText:      { color: '#FFF', fontWeight: '600', fontSize: 19 },
+  pickerWrapper: {
+    marginTop: 8,
+    backgroundColor: '#FFF',
+    borderRadius: 6,
+  },
+  picker: { width: '100%' },
+  saveButton: {
+    marginTop: 24,
+    backgroundColor: '#254236',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
 });
-

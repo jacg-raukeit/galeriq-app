@@ -11,7 +11,7 @@ export function EventsProvider({ children }) {
   // 1) Cuando cambie user, carga sus eventos desde la API
   useEffect(() => {
     if (!user) return;
-    fetch(`http://192.168.1.106:8000/events/${user.id}`, {
+   fetch('http://192.168.1.106:8000/events/get-events', {
       headers: { Authorization: `Bearer ${user.token}` }
     })
       .then(res => res.json())
@@ -47,8 +47,13 @@ export function EventsProvider({ children }) {
       headers: { Authorization: `Bearer ${user.token}` },
       body: form
     });
-    const nuevo = await res.json();
-    setEvents(prev => [nuevo, ...prev]);
+   if (!res.ok) {
+  const errorText = await res.text();
+  throw new Error(`Error al crear evento: ${errorText}`);
+}
+
+const nuevo = await res.json();
+setEvents(prev => [nuevo, ...prev]);
   };
 
   // 3) Función para actualizar estado (por ejemplo archivar)
