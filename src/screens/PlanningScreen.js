@@ -1,3 +1,5 @@
+// src/screens/PlanningScreen.js
+
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
@@ -20,15 +22,17 @@ const PRIORITY_COLORS = {
   baja: '#16A34A',
 };
 
-const CATEGORIES = [
-  'Ceremonia', 'Salón', 'Música', 'Banquete',
-  'Fotografía', 'Decoración', 'Proveedores',
-  'Vestimenta', 'Invitaciones'
-];
+
+const CATEGORIES = ['Proveedores', 'Banquete', 'Decoración'];
+
+// Normaliza: quita tildes y pasa a minúsculas
+const normalizeCategory = cat =>
+  cat.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 export default function PlanningScreen({ navigation, route }) {
   const { eventId, category: initialCategory } = route.params;
   const { user } = useContext(AuthContext);
+
   const [tasks, setTasks] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [checklistName, setChecklistName] = useState('');
@@ -42,37 +46,41 @@ export default function PlanningScreen({ navigation, route }) {
 
   useEffect(() => {
     if (!eventId || !category || !user) return;
-    fetch(`http://192.168.1.106:8000/checklists/event/${eventId}`, {
+    fetch(`http://192.168.1.71:8000/checklists/event/${eventId}`, {
       headers: { Authorization: `Bearer ${user.token}` },
     })
       .then(res => (res.ok ? res.json() : Promise.reject(res.status)))
       .then(data => {
+        const catNorm = normalizeCategory(category);
         const filtered = data.filter(
-          task => task.category.toLowerCase() === category.toLowerCase()
+          
+          t => normalizeCategory(t.category) === catNorm
         );
         setTasks(filtered);
       })
       .catch(err => console.error('Error al cargar tareas:', err));
   }, [eventId, category, user]);
 
-  const toggleDone = id => {
+  const toggleDone = id =>
     setTasks(prev =>
-      prev.map(t => (t.id === id ? { ...t, is_completed: !t.is_completed } : t))
+      prev.map(t =>
+        t.id === id ? { ...t, is_completed: !t.is_completed } : t
+      )
     );
-  };
 
   const handleSave = () => {
     const payload = {
       event_id: eventId,
       checklist_name: checklistName,
-      title: title,
-      description: description,
+      title,
+      description,
       due_date: dueDate ? dueDate.toISOString() : null,
-      category: category.toLowerCase(),
-      priority: priority,
+      category: normalizeCategory(category),
+      priority,
       budget: budget ? parseFloat(budget) : undefined,
     };
-    fetch('http://192.168.1.106:8000/checklists/', {
+
+    fetch('http://192.168.1.71:8000/checklists/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,7 +95,7 @@ export default function PlanningScreen({ navigation, route }) {
       .then(newTask => {
         setTasks(prev => [newTask, ...prev]);
         setShowAdd(false);
-        
+        // reset
         setChecklistName('');
         setTitle('');
         setDescription('');
@@ -108,6 +116,7 @@ export default function PlanningScreen({ navigation, route }) {
         <Text style={styles.title}>{category}</Text>
         <View style={{ width: 24 }} />
       </View>
+
       <ScrollView contentContainerStyle={styles.container}>
         {tasks.map(task => (
           <TouchableOpacity
@@ -124,7 +133,7 @@ export default function PlanningScreen({ navigation, route }) {
               style={[
                 styles.taskLabel,
                 {
-                  color: PRIORITY_COLORS[task.priority] || '#111',
+                  color: PRIORITY_COLORS[task.priority],
                   textDecorationLine: task.is_completed
                     ? 'line-through'
                     : 'none',
@@ -135,7 +144,7 @@ export default function PlanningScreen({ navigation, route }) {
             </Text>
           </TouchableOpacity>
         ))}
-        {/* Botón Agregar tarea */}
+
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowAdd(true)}
@@ -145,7 +154,6 @@ export default function PlanningScreen({ navigation, route }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Modal Agregar Tarea */}
       <Modal visible={showAdd} animationType="slide">
         <View style={styles.modalScreen}>
           <View style={styles.modalHeader}>
@@ -163,6 +171,7 @@ export default function PlanningScreen({ navigation, route }) {
               onChangeText={setChecklistName}
               placeholder="Ej. Montaje"
             />
+
             <Text style={styles.label}>Título</Text>
             <TextInput
               style={styles.input}
@@ -170,6 +179,7 @@ export default function PlanningScreen({ navigation, route }) {
               onChangeText={setTitle}
               placeholder="Nombre de la tarea"
             />
+
             <Text style={styles.label}>Descripción</Text>
             <TextInput
               style={styles.input}
@@ -177,6 +187,7 @@ export default function PlanningScreen({ navigation, route }) {
               onChangeText={setDescription}
               placeholder="Detalles..."
             />
+
             <Text style={styles.label}>Fecha límite</Text>
             <TouchableOpacity
               style={styles.input}
@@ -204,6 +215,7 @@ export default function PlanningScreen({ navigation, route }) {
                 }}
               />
             )}
+
             <Text style={styles.label}>Categoría</Text>
             <View style={styles.pickerWrapper}>
               <Picker
@@ -216,6 +228,7 @@ export default function PlanningScreen({ navigation, route }) {
                 ))}
               </Picker>
             </View>
+
             <Text style={styles.label}>Prioridad</Text>
             <View style={styles.pickerWrapper}>
               <Picker
@@ -232,6 +245,7 @@ export default function PlanningScreen({ navigation, route }) {
                 ))}
               </Picker>
             </View>
+
             <Text style={styles.label}>Budget</Text>
             <TextInput
               style={styles.input}
@@ -240,6 +254,7 @@ export default function PlanningScreen({ navigation, route }) {
               placeholder="Ej. 1000.10"
               keyboardType="numeric"
             />
+
             <TouchableOpacity
               style={styles.saveButton}
               onPress={handleSave}
@@ -276,7 +291,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
     padding: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF',
     borderRadius: 8,
     elevation: 1,
   },
