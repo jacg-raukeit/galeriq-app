@@ -159,8 +159,9 @@ export default function CreateEventScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
+      <Text style={styles.title}>Galeriq</Text>
       <Header title="Crear un nuevo evento" onBack={confirmCancel} />
-
+      
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.label}>Nombre del evento</Text>
         <TextInput
@@ -271,4 +272,11 @@ const styles = StyleSheet.create({
   previewImage:  { marginTop: 8, width: '100%', height: 140, borderRadius: 8 },
   submitButton:  { marginTop: 24, backgroundColor: '#6B21A8', paddingVertical: 14, borderRadius: 8, alignItems: 'center',marginBottom: 19 },
   submitText:    { color: '#FFF', fontWeight: '600' },
+  title: {
+    fontFamily: 'Montserrat-Regular', // Asegúrate que este sea el nombre correcto de la fuente
+    fontSize: 24,
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
 });

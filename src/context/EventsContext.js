@@ -11,7 +11,7 @@ export function EventsProvider({ children }) {
   // 1) Cuando cambie user, carga sus eventos desde la API
   useEffect(() => {
     if (!user) return;
-   fetch('http://192.168.1.71:8000/events/get-events', {
+   fetch('http://192.168.1.106:8000/events/get-events', {
       headers: { Authorization: `Bearer ${user.token}` }
     })
       .then(res => res.json())

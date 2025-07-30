@@ -1,3 +1,5 @@
+// src/screens/PlanningHomeScreen.js
+
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
@@ -9,7 +11,6 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AuthContext } from '../context/AuthContext';
-
 
 const CATEGORIES = ['Proveedores', 'Banquete', 'Decoración'];
 
@@ -27,18 +28,26 @@ export default function PlanningHomeScreen({ navigation, route }) {
 
   useEffect(() => {
     if (!eventId || !user) return;
-    fetch(`http://192.168.1.71:8000/checklists/event/${eventId}`, {
+    fetch(`http://192.168.1.106:8000/checklists/event/${eventId}`, {
       headers: { Authorization: `Bearer ${user.token}` },
     })
       .then(res => (res.ok ? res.json() : Promise.reject(res.status)))
       .then(data => {
-        // Filtrar solo tareas cuya categoría sea una de las tres
-        const validCats = CATEGORIES.map(normalize);
-        const filtered = data.filter(t => validCats.includes(t.category));
-        setTasks(filtered);
-      })
+  // Filtrar solo tareas cuya categoría sea una de las tres
+  const validCats = CATEGORIES.map(normalize);
+  // 👇 normalize() también el valor que viene del backend
+  const filtered = data.filter(t =>
+    validCats.includes(normalize(t.category))
+  );
+  setTasks(filtered);
+})
       .catch(err => console.error('Error al cargar checklist:', err));
   }, [eventId, user]);
+
+  // compute progress
+  const total = tasks.length;
+  const doneCount = tasks.filter(t => t.is_completed).length;
+  const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   const iconMap = {
     Proveedores: 'people-outline',
@@ -58,6 +67,14 @@ export default function PlanningHomeScreen({ navigation, route }) {
           <View style={{ width: 24 }} />
         </View>
 
+        {/* Progress Bar */}
+        <View style={styles.progressBarBackground}>
+          <View
+            style={[styles.progressBarFill, { width: `${percent}%` }]}
+          />
+        </View>
+        <Text style={styles.percentText}>{percent}%</Text>
+
         {/* Botones de las 3 categorías */}
         {CATEGORIES.map(cat => (
           <TouchableOpacity
@@ -70,21 +87,17 @@ export default function PlanningHomeScreen({ navigation, route }) {
               })
             }
           >
-            <Ionicons
-              name={iconMap[cat]}
-              size={20}
-              color="#254236"
-            />
+            <Ionicons name={iconMap[cat]} size={20} color="#254236" />
             <Text style={styles.itemText}>{cat}</Text>
             <Ionicons name="chevron-forward" size={20} color="#254236" />
           </TouchableOpacity>
         ))}
 
-        {/* Añadir categoría (solo UI, no persistente) */}
+        {/* Añadir categoría (solo UI) */}
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => {
-            // Podrías implementar un modal para sugerir nuevas categorías aquí…
+            /* Aquí podrías abrir un modal para sugerir nuevas categorías */
           }}
         >
           <Ionicons name="add-circle-outline" size={20} color="#254236" />
@@ -96,7 +109,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F2F0E7' },
+  screen: { flex: 1, backgroundColor: '#F2F0E7', marginTop: 15 },
   container: { padding: 16 },
   header: {
     flexDirection: 'row',
@@ -105,6 +118,26 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: { fontSize: 28, fontWeight: '500', color: '#254236' },
+
+  
+  progressBarBackground: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E5E5E5',
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#254236',
+  },
+  percentText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#254236',
+    marginBottom: 24,
+  },
+
   itemButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -114,6 +147,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
     elevation: 1,
+    borderColor: '#EAEBDB',
+    borderWidth: 1,
+    height: 60,
   },
   itemText: {
     flex: 1,
@@ -135,6 +171,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontSize: 16,
-    color: '#254236',
+    color: '#1A2E2A',
+    fontWeight: '500',
   },
 });

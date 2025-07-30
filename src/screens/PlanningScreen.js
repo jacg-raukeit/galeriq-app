@@ -46,7 +46,7 @@ export default function PlanningScreen({ navigation, route }) {
 
   useEffect(() => {
     if (!eventId || !category || !user) return;
-    fetch(`http://192.168.1.71:8000/checklists/event/${eventId}`, {
+    fetch(`http://192.168.1.106:8000/checklists/event/${eventId}`, {
       headers: { Authorization: `Bearer ${user.token}` },
     })
       .then(res => (res.ok ? res.json() : Promise.reject(res.status)))
@@ -80,7 +80,7 @@ export default function PlanningScreen({ navigation, route }) {
       budget: budget ? parseFloat(budget) : undefined,
     };
 
-    fetch('http://192.168.1.71:8000/checklists/', {
+    fetch('http://192.168.1.106:8000/checklists/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,9 +113,15 @@ export default function PlanningScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#254236" />
         </TouchableOpacity>
+        
         <Text style={styles.title}>{category}</Text>
         <View style={{ width: 24 }} />
       </View>
+      <View style={styles.descriptionContainer}>
+      <Text style={styles.description}>
+        No olvides agregar pendientes propios. ❤️
+      </Text>
+    </View>
 
       <ScrollView contentContainerStyle={styles.container}>
         {tasks.map(task => (
@@ -126,8 +132,8 @@ export default function PlanningScreen({ navigation, route }) {
           >
             <Ionicons
               name={task.is_completed ? 'checkmark-circle' : 'ellipse-outline'}
-              size={24}
-              color={task.is_completed ? '#999' : '#CCC'}
+              size={34}
+              color={task.is_completed ? '#AF64BC' : '#CCC'}
             />
             <Text
               style={[
@@ -154,17 +160,22 @@ export default function PlanningScreen({ navigation, route }) {
         </TouchableOpacity>
       </ScrollView>
 
-      <Modal visible={showAdd} animationType="slide">
+      <Modal visible={showAdd} animationType="fade" transparent={false}>
         <View style={styles.modalScreen}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowAdd(false)}>
-              <Ionicons name="close" size={24} color="#254236" />
+              <Ionicons name="close" size={24} color="#A861B7" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Nueva tarea</Text>
+            <Text style={styles.modalTitle}>Crear tarea</Text>
             <View style={{ width: 24 }} />
           </View>
           <ScrollView contentContainerStyle={styles.modalContainer}>
-            <Text style={styles.label}>Checklist Name</Text>
+
+            <View style={styles.labelWithIcon}>
+            <Ionicons name="list-outline" size={20} color="#A861B7" style={styles.icon} />
+            <Text style={styles.labelText}>Checklist Name</Text>
+            </View>
+
             <TextInput
               style={styles.input}
               value={checklistName}
@@ -172,7 +183,11 @@ export default function PlanningScreen({ navigation, route }) {
               placeholder="Ej. Montaje"
             />
 
-            <Text style={styles.label}>Título</Text>
+
+            <View style={styles.labelWithIcon}>
+              <Ionicons name="pencil-outline" size={20} color="#A861B7" style={styles.icon} />
+              <Text style={styles.labelText}>Título</Text>
+            </View>
             <TextInput
               style={styles.input}
               value={title}
@@ -180,7 +195,10 @@ export default function PlanningScreen({ navigation, route }) {
               placeholder="Nombre de la tarea"
             />
 
-            <Text style={styles.label}>Descripción</Text>
+            <View style={styles.labelWithIcon}>
+              <Ionicons name="document-text-outline" size={20} color="#A861B7" style={styles.icon} />
+              <Text style={styles.labelText}>Descripción</Text>
+            </View>
             <TextInput
               style={styles.input}
               value={description}
@@ -188,7 +206,10 @@ export default function PlanningScreen({ navigation, route }) {
               placeholder="Detalles..."
             />
 
-            <Text style={styles.label}>Fecha límite</Text>
+            <View style={styles.labelWithIcon}>
+              <Ionicons name="calendar-outline" size={20} color="#A861B7" style={styles.icon} />
+              <Text style={styles.labelText}>Fecha límite</Text>
+            </View>
             <TouchableOpacity
               style={styles.input}
               onPress={() => setShowDatePicker(true)}
@@ -216,7 +237,11 @@ export default function PlanningScreen({ navigation, route }) {
               />
             )}
 
-            <Text style={styles.label}>Categoría</Text>
+            <View style={styles.labelWithIcon}>
+              <Ionicons name="folder-outline" size={20} color="#A861B7" style={styles.icon} />
+              <Text style={styles.labelText}>Categoría</Text>
+            </View>
+
             <View style={styles.pickerWrapper}>
               <Picker
                 selectedValue={category}
@@ -229,7 +254,10 @@ export default function PlanningScreen({ navigation, route }) {
               </Picker>
             </View>
 
-            <Text style={styles.label}>Prioridad</Text>
+            <View style={styles.labelWithIcon}>
+              <Ionicons name="flag-outline" size={20} color="#A861B7" style={styles.icon} />
+              <Text style={styles.labelText}>Prioridad</Text>
+            </View>
             <View style={styles.pickerWrapper}>
               <Picker
                 selectedValue={priority}
@@ -246,7 +274,10 @@ export default function PlanningScreen({ navigation, route }) {
               </Picker>
             </View>
 
-            <Text style={styles.label}>Budget</Text>
+            <View style={styles.labelWithIcon}>
+              <Ionicons name="cash-outline" size={20} color="#A861B7" style={styles.icon} />
+              <Text style={styles.labelText}>Budget</Text>
+            </View>
             <TextInput
               style={styles.input}
               value={budget}
@@ -284,6 +315,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
   },
+  descriptionContainer: {
+    alignItems: 'center', 
+   paddingHorizontal: 16,
+    paddingVertical: 8, 
+  },
+  description: { 
+    fontSize: 18, 
+    fontWeight: '600', 
+    color: '#815485',
+   
+  },
   taskLabel: { marginLeft: 12, fontSize: 16 },
   addButton: {
     flexDirection: 'row',
@@ -291,11 +333,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
     padding: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: '#E6D0EA',
     borderRadius: 8,
     elevation: 1,
   },
-  addText: { marginLeft: 8, fontSize: 16, color: '#254236' },
+  addText: { marginLeft: 8, fontSize: 16, color: '#254236', fontWeight: '500' },
   modalScreen: { flex: 1, backgroundColor: '#F9FAFB' },
   modalHeader: {
     flexDirection: 'row',
@@ -321,10 +363,22 @@ const styles = StyleSheet.create({
   picker: { width: '100%' },
   saveButton: {
     marginTop: 24,
-    backgroundColor: '#6B21A8',
+    backgroundColor: '#AF64BC',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
   },
   saveText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
+  labelWithIcon: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 16,
+},
+icon: {
+  marginRight: 8,
+},
+labelText: {
+  fontSize: 17,
+  fontWeight: '600',
+},
 });

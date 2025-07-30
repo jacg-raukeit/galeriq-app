@@ -114,7 +114,7 @@ export default function EventDetailScreen() {
       form.append('event_longitude', eventLongitude);
 
       let res = await fetch(
-        `http://192.168.1.71:8000/events/${initialEvent.event_id}`,
+        `http://192.168.1.106:8000/events/${initialEvent.event_id}`,
         {
           method: 'PUT',
           headers: { Authorization: `Bearer ${user.token}` },
@@ -136,7 +136,7 @@ export default function EventDetailScreen() {
         });
 
         let coverRes = await fetch(
-          `http://192.168.1.71:8000/events/${initialEvent.event_id}/cover`,
+          `http://192.168.1.106:8000/events/${initialEvent.event_id}/cover`,
           {
             method: 'POST',
             headers: { Authorization: `Bearer ${user.token}` },
