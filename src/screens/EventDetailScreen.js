@@ -114,7 +114,7 @@ export default function EventDetailScreen() {
       form.append('event_longitude', eventLongitude);
 
       let res = await fetch(
-        `http://192.168.1.106:8000/events/${initialEvent.event_id}`,
+        `http://192.168.1.71:8000/events/${initialEvent.event_id}`,
         {
           method: 'PUT',
           headers: { Authorization: `Bearer ${user.token}` },
@@ -136,7 +136,7 @@ export default function EventDetailScreen() {
         });
 
         let coverRes = await fetch(
-          `http://192.168.1.106:8000/events/${initialEvent.event_id}/cover`,
+          `http://192.168.1.71:8000/events/${initialEvent.event_id}/cover`,
           {
             method: 'POST',
             headers: { Authorization: `Bearer ${user.token}` },
@@ -252,6 +252,24 @@ export default function EventDetailScreen() {
               color="#6B21A8"
             />
             <Text style={styles.planText}>Ir a Planeación</Text>
+          </TouchableOpacity>
+
+          {/* Ir a Agenda */}
+          <TouchableOpacity
+            style={styles.planButton}
+            onPress={() =>
+             navigation.navigate('Agenda', {
+               eventId: eventData.event_id,
+               eventDate: eventData.event_date
+             })
+            }
+          >
+            <Ionicons
+              name="checkmark-done-circle-outline"
+              size={24}
+              color="#6B21A8"
+            />
+            <Text style={styles.planText}>Ir a Agenda</Text>
           </TouchableOpacity>
         </ScrollView>
       ) : (

@@ -75,7 +75,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       // POST /login → token
-      const res = await fetch('http://192.168.1.106:8000/login/', {
+      const res = await fetch('http://192.168.1.71:8000/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ email, password }).toString(),
@@ -90,7 +90,7 @@ export default function LoginScreen() {
       console.log('LOGIN TOKEN ▶', token);
 
       // GET /me 
-      const profileRes = await fetch('http://192.168.1.106:8000/me', {
+      const profileRes = await fetch('http://192.168.1.71:8000/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!profileRes.ok) {
@@ -110,7 +110,7 @@ export default function LoginScreen() {
     }
   };
 
-  const discovery = { authorizationEndpoint: 'http://192.168.1.106:8000/auth/login-google' };
+  const discovery = { authorizationEndpoint: 'http://192.168.1.71:8000/auth/login-google' };
   const [request, response, promptAsync] = AuthSession.useAuthRequest({
     redirectUri: AuthSession.makeRedirectUri({ scheme: 'galeriq', useProxy: true }),
     responseType: AuthSession.ResponseType.Code,
@@ -121,10 +121,10 @@ export default function LoginScreen() {
       setLoading(true);
       (async () => {
         // 1) intercambia código
-        const r = await fetch(`http://192.168.1.106:8000/auth/callback?code=${response.params.code}`);
+        const r = await fetch(`http://192.168.1.71:8000/auth/callback?code=${response.params.code}`);
         const { access_token: token } = await r.json();
         // 2) GET /me
-        const profileRes = await fetch('http://192.168.1.106:8000/me', {
+        const profileRes = await fetch('http://192.168.1.71:8000/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const profile = await profileRes.json();
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   buttonText:     { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '500', color: 'white', marginLeft: 8 },
   buttonTextGoogle: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '500', color: 'black', marginLeft: 8 },
 
-  form:           { width: '100%', alignItems: 'center' },
+  form:           { width: '90%', alignItems: 'center' },
   input:          { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 8, width: '100%', padding: 10, fontSize: 14, color: '#111827', marginBottom: 12 },
 
   footer:         { flexDirection: 'row', marginTop: 24 },

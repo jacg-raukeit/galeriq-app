@@ -29,6 +29,7 @@ export default function EventsScreen() {
     <View style={styles.screen}>
       {/* <Header title="Mis Eventos" /> */}
       <Text style={styles.title}>Galeriq</Text>
+      <Text style={styles.titleSection}>Mis Eventos</Text>
       <View style={styles.actionContainer}>
         <CreateEventButton
           onPress={() => navigation.navigate('CreateEvent')}
@@ -81,5 +82,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 26,
     
+  },
+  titleSection: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 30,
+    marginLeft: 16,
+    fontWeight: '800',
   },
 });

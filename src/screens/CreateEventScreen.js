@@ -159,9 +159,9 @@ export default function CreateEventScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Galeriq</Text>
-      <Header title="Crear un nuevo evento" onBack={confirmCancel} />
       
+      <Header title="Crear un nuevo evento" onBack={confirmCancel} />
+      <Text style={styles.title}>Galeriq</Text>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.label}>Nombre del evento</Text>
         <TextInput

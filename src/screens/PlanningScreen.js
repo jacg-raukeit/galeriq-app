@@ -46,7 +46,7 @@ export default function PlanningScreen({ navigation, route }) {
 
   useEffect(() => {
     if (!eventId || !category || !user) return;
-    fetch(`http://192.168.1.106:8000/checklists/event/${eventId}`, {
+    fetch(`http://192.168.1.71:8000/checklists/event/${eventId}`, {
       headers: { Authorization: `Bearer ${user.token}` },
     })
       .then(res => (res.ok ? res.json() : Promise.reject(res.status)))
@@ -80,7 +80,7 @@ export default function PlanningScreen({ navigation, route }) {
       budget: budget ? parseFloat(budget) : undefined,
     };
 
-    fetch('http://192.168.1.106:8000/checklists/', {
+    fetch('http://192.168.1.71:8000/checklists/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
