@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as AuthSession from 'expo-auth-session';
-
+import { LogBox } from 'react-native';
 import { AuthProvider } from './src/context/AuthContext';
 import { EventsProvider } from './src/context/EventsContext';
 import 'react-native-gesture-handler';
@@ -17,8 +17,15 @@ import EventDetailScreen from './src/screens/EventDetailScreen';
 import PlanningScreen from './src/screens/PlanningScreen';
 import PlanningHomeScreen from './src/screens/PlanningHomeScreen';
 import AgendaScreen from './src/screens/AgendaScreen';
+import GuestScreen from './src/screens/GuestScreen';
+import ExpensesScreen    from './src/screens/ExpensesScreen';
+import CategoryDetailScreen from './src/screens/CategoryDetailScreen';
+import AddExpenseScreen     from './src/screens/AddExpenseScreen';
+
 
 const Stack = createStackNavigator();
+// Ignora cualquier warning que mencione useInsertionEffect
+LogBox.ignoreLogs(['useInsertionEffect']);
 
 export default function App() {
   useEffect(() => {
@@ -42,6 +49,10 @@ export default function App() {
             <Stack.Screen name="PlanningHome" component={PlanningHomeScreen} />
             <Stack.Screen name="Planning" component={PlanningScreen} />
             <Stack.Screen name="Agenda" component={AgendaScreen} />
+            <Stack.Screen name="GuestList" component={GuestScreen} />
+            <Stack.Screen name="Expenses" component={ExpensesScreen} />
+            <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
+            <Stack.Screen name="AddExpense" component={AddExpenseScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </EventsProvider>

@@ -75,7 +75,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       // POST /login → token
-      const res = await fetch('http://192.168.1.71:8000/login/', {
+      const res = await fetch('http://192.168.1.106:8000/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ email, password }).toString(),
@@ -90,7 +90,7 @@ export default function LoginScreen() {
       console.log('LOGIN TOKEN ▶', token);
 
       // GET /me 
-      const profileRes = await fetch('http://192.168.1.71:8000/me', {
+      const profileRes = await fetch('http://192.168.1.106:8000/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!profileRes.ok) {
@@ -110,7 +110,7 @@ export default function LoginScreen() {
     }
   };
 
-  const discovery = { authorizationEndpoint: 'http://192.168.1.71:8000/auth/login-google' };
+  const discovery = { authorizationEndpoint: 'http://192.168.1.106:8000/auth/login-google' };
   const [request, response, promptAsync] = AuthSession.useAuthRequest({
     redirectUri: AuthSession.makeRedirectUri({ scheme: 'galeriq', useProxy: true }),
     responseType: AuthSession.ResponseType.Code,
@@ -121,10 +121,10 @@ export default function LoginScreen() {
       setLoading(true);
       (async () => {
         // 1) intercambia código
-        const r = await fetch(`http://192.168.1.71:8000/auth/callback?code=${response.params.code}`);
+        const r = await fetch(`http://192.168.1.106:8000/auth/callback?code=${response.params.code}`);
         const { access_token: token } = await r.json();
         // 2) GET /me
-        const profileRes = await fetch('http://192.168.1.71:8000/me', {
+        const profileRes = await fetch('http://192.168.1.106:8000/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const profile = await profileRes.json();
