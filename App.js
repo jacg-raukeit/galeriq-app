@@ -21,10 +21,11 @@ import GuestScreen from './src/screens/GuestScreen';
 import ExpensesScreen    from './src/screens/ExpensesScreen';
 import CategoryDetailScreen from './src/screens/CategoryDetailScreen';
 import AddExpenseScreen     from './src/screens/AddExpenseScreen';
-
+import AddGuestManualScreen from './src/screens/AddGuestManualScreen';
+import AddGuestFromCSVScreen from './src/screens/AddGuestFromCSVScreen';
 
 const Stack = createStackNavigator();
-// Ignora cualquier warning que mencione useInsertionEffect
+
 LogBox.ignoreLogs(['useInsertionEffect']);
 
 export default function App() {
@@ -50,6 +51,8 @@ export default function App() {
             <Stack.Screen name="Planning" component={PlanningScreen} />
             <Stack.Screen name="Agenda" component={AgendaScreen} />
             <Stack.Screen name="GuestList" component={GuestScreen} />
+            <Stack.Screen name="AddGuestManual" component={AddGuestManualScreen} />
+            <Stack.Screen name="AddGuestFromCSV" component={AddGuestFromCSVScreen} />
             <Stack.Screen name="Expenses" component={ExpensesScreen} />
             <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
             <Stack.Screen name="AddExpense" component={AddExpenseScreen} />

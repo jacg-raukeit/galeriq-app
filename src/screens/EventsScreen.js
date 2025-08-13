@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   title: {
-    fontFamily: 'Montserrat-Regular', // Asegúrate que este sea el nombre correcto de la fuente
+    fontFamily: 'Montserrat-Regular',
     fontSize: 24,
     textAlign: 'center',
     marginTop: 26,

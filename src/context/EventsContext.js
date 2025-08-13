@@ -8,10 +8,10 @@ export function EventsProvider({ children }) {
   const { user } = useContext(AuthContext);
   const [events, setEvents] = useState([]);
 
-  // 1) Cuando cambie user, carga sus eventos desde la API
+  //  Cuando cambie user, carga sus eventos desde la API
   useEffect(() => {
     if (!user) return;
-   fetch('http://192.168.1.106:8000/events/get-events', {
+   fetch('http://192.168.1.71:8000/events/get-events', {
       headers: { Authorization: `Bearer ${user.token}` }
     })
       .then(res => res.json())
@@ -19,7 +19,7 @@ export function EventsProvider({ children }) {
       .catch(err => console.error('Error al cargar eventos:', err));
   }, [user]);
 
-  // 2) Función para crear un evento en el backend y actualizar el contexto
+  //  Función para crear un evento en el backend y actualizar el contexto
   const addEvent = async ({ 
     event_name, event_date, event_address, event_type,
     event_coverUri, event_status, event_description,
@@ -42,7 +42,7 @@ export function EventsProvider({ children }) {
       form.append('event_cover', { uri: event_coverUri, name: filename, type });
     }
 
-    const res = await fetch('http://192.168.1.106:8000/events/', {
+    const res = await fetch('http://192.168.1.71:8000/events/', {
       method: 'POST',
       headers: { Authorization: `Bearer ${user.token}` },
       body: form
@@ -56,7 +56,7 @@ const nuevo = await res.json();
 setEvents(prev => [nuevo, ...prev]);
   };
 
-  // 3) Función para actualizar estado (por ejemplo archivar)
+  
   const toggleArchive = (eventId) => {
     setEvents(prev =>
       prev.map(evt =>

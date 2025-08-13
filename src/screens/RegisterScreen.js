@@ -17,11 +17,9 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
-// import * as Google from 'expo-auth-session/providers/google';
-// import * as WebBrowser from 'expo-web-browser';
 
 const { width, height } = Dimensions.get('window');
-// WebBrowser.maybeCompleteAuthSession();
+
 
 export default function RegisterScreen() {
   const navigation = useNavigation();
@@ -36,10 +34,7 @@ export default function RegisterScreen() {
   const [profileImageUri, setProfileImageUri] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // === Google OAuth DISABLED ===
-  // const [request, response, promptAsync] = Google.useAuthRequest({ ... });
-  // useEffect(() => { ... }, [response]);
-  // const handleGoogleCallback = async token => { ... };
+  
 
   const pickProfileImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -73,7 +68,7 @@ export default function RegisterScreen() {
         plan_id: 1,
         role_id: 2,
       };
-      const regRes = await fetch('http://192.168.1.106:8000/register/', {
+      const regRes = await fetch('http://192.168.1.71:8000/register/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -89,7 +84,7 @@ export default function RegisterScreen() {
         throw new Error(detail);
       }
 
-      const loginRes = await fetch('http://192.168.1.106:8000/login/', {
+      const loginRes = await fetch('http://192.168.1.71:8000/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ email, password }).toString(),
@@ -97,7 +92,7 @@ export default function RegisterScreen() {
       if (!loginRes.ok) throw new Error('Login tras registro falló');
       const { access_token: token } = await loginRes.json();
 
-      let profileRes = await fetch('http://192.168.1.106:8000/me', {
+      let profileRes = await fetch('http://192.168.1.71:8000/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!profileRes.ok) throw new Error('No se pudo cargar perfil');
@@ -114,14 +109,14 @@ export default function RegisterScreen() {
           type,
         });
         await fetch(
-          `http://192.168.1.106:8000/users/${profile.user_id}/profile-pic`,
+          `http://192.168.1.71:8000/users/${profile.user_id}/profile-pic`,
           {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
             body: formData,
           }
         );
-        profileRes = await fetch('http://192.168.1.106:8000/me', {
+        profileRes = await fetch('http://192.168.1.71:8000/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
         profile = await profileRes.json();

@@ -27,7 +27,7 @@ export default function AgendaScreen({ navigation, route }) {
   const [stages, setStages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Modals & form state
+  
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -40,23 +40,23 @@ export default function AgendaScreen({ navigation, route }) {
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
 
-  // Picker visibility
+  
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
-  // Colors for cards
+  
   const colors = ["#FFECDC", "#EDDCF4", "#BA8FD8", "#FAB08C"];
 
-  // Helper to format time HH:MM
+  
   const formatTime = (t) => (t ? t.slice(0, 5) : "");
 
-  // 1️⃣ Obtener stages del backend
+  
   const fetchStages = async () => {
     try {
       setLoading(true);
       const res = await fetch(
-        `http://192.168.1.106:8000/stages/event/${eventId}`,
+        `http://192.168.1.71:8000/stages/event/${eventId}`,
         { headers: { Authorization: `Bearer ${user.token}` } }
       );
       if (!res.ok) throw new Error();
@@ -66,7 +66,7 @@ export default function AgendaScreen({ navigation, route }) {
         const timeB = new Date(`1970-01-01T${b.start_time}`);
         return timeA - timeB;
       });
-      // 🔥 Asignar color fijo a cada stage
+    
 const stagesWithColor = data.map(stage => ({
   ...stage,
   color: colors[Math.floor(Math.random() * colors.length)]
@@ -85,7 +85,7 @@ setStages(stagesWithColor);
     fetchStages();
   }, []);
 
-  // 2️⃣ Crear o actualizar una stage
+  
   const handleSubmit = async () => {
     if (!title || !date || !startTime || !endTime) {
       return Alert.alert("Error", "Completa los campos obligatorios.");
@@ -100,8 +100,8 @@ setStages(stagesWithColor);
         location,
       };
       const url = isEditing
-        ? `http://192.168.1.106:8000/stages/${selectedStage.id}`
-        : `http://192.168.1.106:8000/stages/${eventId}`;
+        ? `http://192.168.1.71:8000/stages/${selectedStage.id}`
+        : `http://192.168.1.71:8000/stages/${eventId}`;
       const method = isEditing ? "PUT" : "POST";
       const res = await fetch(url, {
         method,
@@ -133,11 +133,11 @@ setStages(stagesWithColor);
     }
   };
 
-  // 3️⃣ Eliminar una stage
+  
   const handleDelete = async () => {
     try {
       const res = await fetch(
-        `http://192.168.1.106:8000/stages/${selectedStage.id}`,
+        `http://192.168.1.71:8000/stages/${selectedStage.id}`,
         { method: "DELETE", headers: { Authorization: `Bearer ${user.token}` } }
       );
       if (!res.ok) throw new Error();
@@ -148,13 +148,13 @@ setStages(stagesWithColor);
     }
   };
 
-  // Abrir modal detalle
+  
   const openDetail = (stage) => {
     setSelectedStage(stage);
     setDetailModalVisible(true);
   };
 
-  // Preparar edición
+  
   const startEditing = () => {
     setIsEditing(true);
     setModalVisible(true);
@@ -168,7 +168,7 @@ setStages(stagesWithColor);
     setLocation(s.location || "");
   };
 
-  // Formatear fecha de pantalla principal
+  
   const formattedDate = new Date(eventDate).toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "long",

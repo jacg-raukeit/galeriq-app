@@ -1,177 +1,425 @@
-import React, { useState, useEffect, useContext } from 'react';
+// src/screens/PlanningHomeScreen.js
+import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
   SafeAreaView,
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AuthContext } from '../context/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 
-// Mapa de iconos por categoría normalizada
+const API_URL = 'http://192.168.1.71:8000';
+
 const ICON_MAP = {
   proveedores: 'people-outline',
   banquete: 'restaurant-outline',
   decoracion: 'color-palette-outline',
 };
 
-// Normaliza: quita tildes y pasa a minúsculas
-const normalize = str =>
-  str
+const normalize = (str) =>
+  (str || '')
+    .toString()
+    .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
+
+function normalizeGroupedPayload(grouped) {
+  const toArray = (g) => {
+    if (Array.isArray(g)) return g;
+    if (g && typeof g === 'object') {
+      return Object.entries(g).map(([key, value], idx) => ({
+        id: idx,
+        category_id: null,
+        name: key,
+        tasks: Array.isArray(value) ? value : [],
+      }));
+    }
+    return [];
+  };
+
+  const arr = toArray(grouped);
+
+  return arr.map((g, idx) => {
+    const rawName =
+      g.name ??
+      g.category_name ??
+      (typeof g.category === 'string' ? g.category : null);
+
+    const rawId =
+      g.category_id ??
+      g.id ??
+      (typeof g.category === 'number' ? g.category : null);
+
+    const tasks = g.tasks ?? g.items ?? g.checklists ?? g.value ?? [];
+
+    return {
+      id: rawId ?? idx,
+      category_id: rawId ?? null,
+      name: rawName ?? null,
+      tasks: Array.isArray(tasks) ? tasks : [],
+    };
+  });
+}
+
+const isChecked = (v) => {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'number') return v === 1;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 't' || s === 'yes' || s === 'y';
+  }
+  return false;
+};
+
+
+const isExpense = (v) => {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'number') return v === 1;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 't' || s === 'yes' || s === 'y';
+  }
+  return false;
+};
+
+function iconForCategory(cat) {
+  const key = normalize(cat?.name);
+  return ICON_MAP[key] || 'folder-outline';
+}
 
 export default function PlanningHomeScreen({ navigation, route }) {
   const { eventId } = route.params || {};
   const { user } = useContext(AuthContext);
 
-  // [{ id: number, name: string, tasks: ChecklistOut[] }]
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  
+  const [activeTab, setActiveTab] = useState('checklist');
+
+  
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryBudget, setNewCategoryBudget] = useState('');
 
-  // 🚨 CAMBIO AQUÍ: Función para cargar las categorías Y sus tareas
-  const loadCategories = () => {
-    if (!eventId || !user) return;
-    
-    // Primero, obtener la lista de categorías
-    fetch(`http://192.168.1.106:8000/category-checklists/event/${eventId}`, {
-      headers: { Authorization: `Bearer ${user.token}` },
-    })
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(async (catsData) => {
-        // Para cada categoría, hacer una llamada separada para obtener sus tareas
-        const categoriesWithTasks = await Promise.all(
-          catsData.map(async (cat) => {
-            const encodedCategoryName = encodeURIComponent(cat.name);
-            const tasksRes = await fetch(
-              `http://192.168.1.106:8000/checklists/event/${eventId}/category-name/${encodedCategoryName}`,
-              { headers: { Authorization: `Bearer ${user.token}` } }
-            );
-            if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
-            const tasksData = await tasksRes.json();
-            return { ...cat, tasks: tasksData };
-          })
-        );
-        setCategories(categoriesWithTasks);
-      })
-      .catch(err => console.error('Error al cargar categorías y tareas:', err));
-  };
+  const loadCategories = useCallback(async () => {
+    if (!eventId || !(user?.token || user?.accessToken)) return;
+    setLoading(true);
+    const token = user.token || user.accessToken;
+
+    try {
+     
+      const catsRes = await fetch(`${API_URL}/category-checklists/event/${eventId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!catsRes.ok) throw new Error(`HTTP ${catsRes.status} categorías`);
+      const rawCats = await catsRes.json();
+
+      const idToNameNorm = new Map(
+        (Array.isArray(rawCats) ? rawCats : []).map((c) => [c.id, normalize(c.name)])
+      );
+
+      
+      const grpRes = await fetch(`${API_URL}/checklists/by-category/${eventId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!grpRes.ok) throw new Error(`HTTP ${grpRes.status} agrupado`);
+      const rawGrouped = await grpRes.json();
+
+      const grouped = normalizeGroupedPayload(rawGrouped);
+
+      
+      const tasksByName = new Map();
+      grouped.forEach((g) => {
+        const nameRaw =
+          g.name ??
+          g.category_name ??
+          (typeof g.category === 'string' ? g.category : null);
+
+        const idRaw =
+          g.category_id ??
+          (typeof g.category === 'number' ? g.category : null);
+
+        const nameNorm =
+          nameRaw != null ? normalize(nameRaw) : (idRaw != null ? idToNameNorm.get(idRaw) : null);
+
+        if (!nameNorm) return;
+        tasksByName.set(nameNorm, Array.isArray(g.tasks) ? g.tasks : []);
+      });
+
+      const merged = (Array.isArray(rawCats) ? rawCats : []).map((c, idx) => {
+        const cname = (c.name || '').trim();
+        const nameKey = normalize(cname);
+        return {
+          id: c.id ?? idx,
+          category_id: c.id ?? null,
+          name: cname,
+          tasks: tasksByName.get(nameKey) ?? [],
+        };
+      });
+
+      setCategories(merged);
+    } catch (err) {
+      console.error('Error al fusionar categorías:', err);
+      Alert.alert('Error', 'No se pudieron cargar las categorías.');
+      setCategories([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [eventId, user?.token, user?.accessToken]);
 
   useEffect(() => {
     loadCategories();
-  }, [eventId, user]);
+  }, [loadCategories]);
 
-  // Función para manejar la creación de la nueva categoría
-  const handleCreateCategory = () => {
-    if (!newCategoryName) {
+  useFocusEffect(
+    useCallback(() => {
+      loadCategories();
+    }, [loadCategories])
+  );
+
+  const handleCreateCategory = useCallback(async () => {
+    const token = user?.token || user?.accessToken;
+    if (!newCategoryName?.trim()) {
       Alert.alert('Error', 'El nombre de la categoría no puede estar vacío.');
+      return;
+    }
+    if (newCategoryBudget && isNaN(parseFloat(newCategoryBudget))) {
+      Alert.alert('Error', 'El presupuesto debe ser un número válido.');
       return;
     }
 
     const payload = {
-      name: newCategoryName,
+      name: newCategoryName.trim(),
       event_id: eventId,
+      budget_category: newCategoryBudget ? parseFloat(newCategoryBudget) : null,
     };
 
-    fetch('http://192.168.1.106:8000/category-checklists/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${user.token}`,
-      },
-      body: JSON.stringify(payload),
-    })
-      .then(res => {
-        if (!res.ok) return res.text().then(text => Promise.reject(text));
-        return res.json();
-      })
-      .then(() => {
-        setShowAddCategoryModal(false);
-        setNewCategoryName('');
-        loadCategories(); // Vuelve a cargar las categorías para incluir la nueva
-      })
-      .catch(err => {
-        console.error('Error al crear la categoría:', err);
-        Alert.alert('Error', 'No se pudo crear la categoría.');
+    try {
+      const res = await fetch(`${API_URL}/category-checklists/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
       });
-  };
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || `HTTP ${res.status}`);
+      }
+      setShowAddCategoryModal(false);
+      setNewCategoryName('');
+      setNewCategoryBudget('');
+      await loadCategories();
+    } catch (err) {
+      console.error('Error al crear la categoría:', err);
+      Alert.alert('Error', 'No se pudo crear la categoría.');
+    }
+  }, [eventId, newCategoryName, newCategoryBudget, user?.token, user?.accessToken, loadCategories]);
 
-  // 🚨 CAMBIO AQUÍ: Ahora el cálculo del progreso global es correcto
-  const total = categories.reduce((sum, cat) => sum + cat.tasks.length, 0);
-  const doneCount = categories.reduce(
-    (sum, cat) => sum + cat.tasks.filter(t => t.is_completed).length,
-    0
+  // Progreso global (todas las tareas)
+  const { total, doneCount, percent } = useMemo(() => {
+    const t = categories.reduce((sum, cat) => sum + (cat.tasks?.length || 0), 0);
+    const d = categories.reduce(
+      (sum, cat) =>
+        sum + (cat.tasks?.filter((task) => isChecked(task.is_completed))?.length || 0),
+      0
+    );
+    return {
+      total: t,
+      doneCount: d,
+      percent: t > 0 ? Math.round((d / t) * 100) : 0,
+    };
+  }, [categories]);
+
+  
+  const expenseTasks = useMemo(() => {
+    const all = categories.flatMap((c) => c.tasks || []);
+    return all.filter((t) => isExpense(t.is_expense ?? t.is_expensive));
+  }, [categories]);
+
+  
+  const toggleExpenseCompleted = useCallback(
+    async (task) => {
+      const token = user?.token || user?.accessToken;
+      const newVal = !isChecked(task.is_completed);
+
+     
+      setCategories((prev) =>
+        prev.map((cat) => ({
+          ...cat,
+          tasks: (cat.tasks || []).map((t) =>
+            t.id === task.id ? { ...t, is_completed: newVal } : t
+          ),
+        }))
+      );
+
+      try {
+        const res = await fetch(`${API_URL}/checklists/${task.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ is_completed: newVal }),
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || `HTTP ${res.status}`);
+        }
+      } catch (err) {
+        // Rollback si falla
+        console.error('Error al actualizar gasto:', err);
+        setCategories((prev) =>
+          prev.map((cat) => ({
+            ...cat,
+            tasks: (cat.tasks || []).map((t) =>
+              t.id === task.id ? { ...t, is_completed: !newVal } : t
+            ),
+          }))
+        );
+        Alert.alert('Error', 'No se pudo actualizar el gasto.');
+      }
+    },
+    [user?.token, user?.accessToken]
   );
-  const percent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+  const displayName = (cat) =>
+    cat?.name
+      ? `${cat.name.charAt(0).toUpperCase()}${cat.name.slice(1)}`
+      : cat?.category_id != null
+      ? `Categoría ${cat.category_id}`
+      : 'Categoría';
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#254236" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Checklist</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        {/* Progress Bar */}
-        <View style={styles.progressBarBackground}>
-          <View
-            style={[styles.progressBarFill, { width: `${percent}%` }]}
-          />
-        </View>
-        <Text style={styles.percentText}>{percent}% completado</Text>
-
-        {/* Listado de categorías dinámico */}
-        {categories.map(cat => {
-          const norm = normalize(cat.name);
-          const icon = ICON_MAP[norm] || 'folder-outline';
-          const display = cat.name.charAt(0).toUpperCase() + cat.name.slice(1);
-          return (
-            <TouchableOpacity
-              key={cat.id}
-              style={styles.itemButton}
-              onPress={() =>
-                navigation.navigate('Planning', {
-                  eventId,
-                  category: cat,
-                })
-              }
-            >
-              <Ionicons
-                name={icon}
-                size={20}
-                color="#254236"
-              />
-              <Text style={styles.itemText}>{display}</Text>
-              <Ionicons name="chevron-forward" size={20} color="#254236" />
-            </TouchableOpacity>
-          );
-        })}
-
-        {/* Botón Añadir categoría */}
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowAddCategoryModal(true)}
-        >
-          <Ionicons name="add-circle-outline" size={20} color="#254236" />
-          <Text style={styles.addText}>Añadir categoría</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color="#254236" />
         </TouchableOpacity>
+        <Text style={styles.title}>Checklist</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      {/* Barra de progreso (global) */}
+      <View style={styles.progressBarBackground}>
+        <View style={[styles.progressBarFill, { width: `${percent}%` }]} />
+      </View>
+      <Text style={styles.percentText}>{percent}% completado</Text>
+
+      {/* Contenido según pestaña */}
+      <ScrollView contentContainerStyle={styles.container}>
+        {loading ? (
+          <View style={{ paddingVertical: 24 }}>
+            <ActivityIndicator size="small" />
+          </View>
+        ) : activeTab === 'checklist' ? (
+          <>
+            {/* Lista de Categorías */}
+            {categories.map((cat) => {
+              const icon = iconForCategory(cat);
+              const completed = cat.tasks?.filter((t) => isChecked(t.is_completed))?.length || 0;
+              const count = cat.tasks?.length || 0;
+
+              return (
+                <TouchableOpacity
+                  key={cat.id ?? `${cat.name ?? ''}-${cat.category_id ?? ''}`}
+                  style={styles.itemButton}
+                  onPress={() =>
+                    navigation.navigate('Planning', {
+                      eventId,
+                      category: cat,
+                    })
+                  }
+                >
+                  <Ionicons name={icon} size={20} color="#254236" />
+                  <Text style={styles.itemText}>{displayName(cat)}</Text>
+                  <Text style={{ color: '#254236', marginRight: 8 }}>
+                    {completed}/{count}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={20} color="#254236" />
+                </TouchableOpacity>
+              );
+            })}
+
+            {/* Botón Añadir categoría */}
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setShowAddCategoryModal(true)}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#254236" />
+              <Text style={styles.addText}>Añadir categoría</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {/* Lista de Gastos (solo is_expense) */}
+            {expenseTasks.length === 0 ? (
+              <Text style={{ color: '#254236', opacity: 0.8 }}>No hay gastos aún.</Text>
+            ) : (
+              expenseTasks.map((task) => {
+                const checked = isChecked(task.is_completed);
+                return (
+                  <View key={task.id} style={styles.expenseRow}>
+                    <TouchableOpacity onPress={() => toggleExpenseCompleted(task)}>
+                      <Ionicons
+                        name={checked ? 'checkbox-outline' : 'square-outline'}
+                        size={24}
+                        color={checked ? '#254236' : '#999'}
+                      />
+                    </TouchableOpacity>
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text style={styles.expenseTitle}>
+                        {task.title || task.checklist_name || 'Gasto'}
+                      </Text>
+                      <Text style={styles.expenseMeta}>
+                        {task.category || task.category_name || 'Sin categoría'}
+                        {typeof task.budget === 'number' ? ` · $${task.budget}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </>
+        )}
       </ScrollView>
 
-      {/* Modal para añadir categoría */}
+      {/* Tab bar inferior */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'checklist' && styles.tabActive]}
+          onPress={() => setActiveTab('checklist')}
+        >
+          <Ionicons name="list-outline" size={20} color={activeTab === 'checklist' ? '#FFF' : '#254236'} />
+          <Text style={[styles.tabText, activeTab === 'checklist' && styles.tabTextActive]}>
+            Checklist
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'gastos' && styles.tabActive]}
+          onPress={() => setActiveTab('gastos')}
+        >
+          <Ionicons name="cash-outline" size={20} color={activeTab === 'gastos' ? '#FFF' : '#254236'} />
+          <Text style={[styles.tabText, activeTab === 'gastos' && styles.tabTextActive]}>
+            Gastos
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Modal crear categoría */}
       <Modal visible={showAddCategoryModal} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -182,17 +430,28 @@ export default function PlanningHomeScreen({ navigation, route }) {
               value={newCategoryName}
               onChangeText={setNewCategoryName}
             />
+            <TextInput
+              style={styles.input}
+              placeholder="Presupuesto de la categoría (opcional)"
+              value={newCategoryBudget}
+              onChangeText={setNewCategoryBudget}
+              keyboardType="numeric"
+            />
             <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => {
-                setShowAddCategoryModal(false);
-                setNewCategoryName('');
-              }}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setShowAddCategoryModal(false);
+                  setNewCategoryName('');
+                  setNewCategoryBudget('');
+                }}
+              >
                 <Text style={styles.buttonText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.createButton}
                 onPress={handleCreateCategory}
-                disabled={!newCategoryName}
+                disabled={!newCategoryName?.trim()}
               >
                 <Text style={styles.buttonText}>Crear</Text>
               </TouchableOpacity>
@@ -205,13 +464,14 @@ export default function PlanningHomeScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F2F0E7', marginTop: 15 },
-  container: { padding: 16 },
+  screen: { flex: 1, backgroundColor: '#F2F0E7', paddingBottom: 64, marginTop: 15 },
+  container: { padding: 16, paddingBottom: 80 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 24,
+    paddingHorizontal: 16,
   },
   title: { fontSize: 28, fontWeight: '500', color: '#254236' },
   progressBarBackground: {
@@ -220,17 +480,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E5E5',
     overflow: 'hidden',
     marginBottom: 8,
+    marginHorizontal: 16,
   },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#254236',
-  },
+  progressBarFill: { height: '100%', backgroundColor: '#254236' },
   percentText: {
     fontSize: 16,
     fontWeight: '500',
     color: '#254236',
-    marginBottom: 24,
+    marginBottom: 8,
+    marginHorizontal: 16,
   },
+
   itemButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -244,12 +504,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 60,
   },
-  itemText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#254236',
-  },
+  itemText: { flex: 1, marginLeft: 12, fontSize: 16, color: '#254236' },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -260,62 +515,62 @@ const styles = StyleSheet.create({
     marginTop: 8,
     elevation: 1,
   },
-  addText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#1A2E2A',
-    fontWeight: '500',
-  },
-  // Estilos para el modal
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
+  addText: { flex: 1, marginLeft: 12, fontSize: 16, color: '#1A2E2A', fontWeight: '500' },
+
+  // Fila de gasto
+  expenseRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#EAEBDB',
+  },
+  expenseTitle: { fontSize: 16, color: '#254236', fontWeight: '600' },
+  expenseMeta: { fontSize: 13, color: '#254236', opacity: 0.8, marginTop: 2 },
+
+  // Tab bar inferior
+  tabBar: {
+    position: 'absolute',
+    bottom: 12,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 8,
+    borderColor: '#EAEBDB',
+    borderWidth: 1,
+    elevation: 2,
+  },
+  tabButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tabActive: { backgroundColor: '#254236' },
+  tabText: { marginLeft: 6, color: '#254236', fontWeight: '600' },
+  tabTextActive: { color: '#FFF' },
+
+  // Modal
+  modalOverlay: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    width: '80%',
-    backgroundColor: '#FFF',
-    borderRadius: 10,
-    padding: 20,
-    elevation: 5,
+    width: '85%', backgroundColor: '#FFF', borderRadius: 10, padding: 20, elevation: 5,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#CCC',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 10,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 15,
-  },
-  createButton: {
-    backgroundColor: '#254236',
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    marginLeft: 10,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#A861B7',
-    padding: 10,
-    borderRadius: 5,
-    flex: 1,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-  },
+  modalTitle: { fontSize: 18, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
+  input: { borderWidth: 1, borderColor: '#CCC', borderRadius: 6, padding: 10, marginBottom: 10, backgroundColor: '#FFF' },
+  buttonContainer: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 15, gap: 10 },
+  createButton: { backgroundColor: '#254236', padding: 10, borderRadius: 6, flex: 1, alignItems: 'center' },
+  cancelButton: { backgroundColor: '#A861B7', padding: 10, borderRadius: 6, flex: 1, alignItems: 'center' },
+  buttonText: { color: '#FFF', fontWeight: 'bold' },
 });

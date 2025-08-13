@@ -1,6 +1,5 @@
-
-import React, { useEffect, useState, useContext } from 'react';
-import { useNavigation } from '@react-navigation/native';
+// src/screens/CategoryDetailScreen.js
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,52 +9,31 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { AuthContext } from '../context/AuthContext';
 
-export default function CategoryDetailScreen({ route }) {
-  const navigation = useNavigation();
-  const { user } = useContext(AuthContext);
+export default function CategoryDetailScreen({ route, navigation }) {
   const { category, eventId } = route.params;
   const [items, setItems] = useState([]);
 
-  // Cargar gastos del evento y filtrar por categoría
+  
   useEffect(() => {
-    fetch(`http://192.168.1.106:8000/expenses/event/${eventId}`, {
-      headers: { Authorization: `Bearer ${user.token}` }
-    })
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(all => {
-        setItems(all.filter(e => e.category_id === category.id));
-      })
-      .catch(console.error);
-  }, [eventId, category.id, user.token]);
+   
+    setItems([
+      { id: 'a1', name: 'Arreglo de flores', budget: 1200, spent: 1000 },
+      { id: 'a2', name: 'Iluminación',        budget: 600,  spent: 800 },
+      { id: 'a3', name: 'Centros de mesa',     budget: 800,  spent: 600 },
+      { id: 'a4', name: 'Telas',               budget: 400,  spent:   0 },
+    ]);
+  }, []);
 
-  // Eliminar un gasto
-  const handleDelete = expenseId => {
-    fetch(`http://192.168.1.106:8000/expenses/${expenseId}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${user.token}` }
-    })
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        setItems(prev => prev.filter(i => i.id !== expenseId));
-      })
-      .catch(console.error);
-  };
-
-  // Cálculo de totales
-  const totalBudget = items.reduce((sum, i) => sum + i.budget, 0);
-  const totalSpent  = items.reduce((sum, i) => sum + i.spent,  0);
+  const totalBudget = items.reduce((s, i) => s + i.budget, 0);
+  const totalSpent  = items.reduce((s, i) => s + i.spent,  0);
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* Header */}
+      {/* Header con back */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color="#111" />
         </TouchableOpacity>
         <Text style={styles.title}>{category.name}</Text>
       </View>
@@ -64,20 +42,13 @@ export default function CategoryDetailScreen({ route }) {
       <View style={styles.totals}>
         <View style={styles.totalCol}>
           <Text style={styles.totalLabel}>Presupuesto</Text>
-          <Text style={styles.totalValue}>
-            ${totalBudget.toLocaleString()}
-          </Text>
+          <Text style={styles.totalValue}>${totalBudget.toLocaleString()}</Text>
         </View>
         <View style={styles.totalCol}>
           <Text style={[styles.totalLabel, { textAlign: 'right' }]}>
             Gasto real
           </Text>
-          <Text
-            style={[
-              styles.totalValue,
-              { color: '#6B21A8', textAlign: 'right' },
-            ]}
-          >
+          <Text style={[styles.totalValue, { color: '#6B21A8', textAlign: 'right' }]}>
             ${totalSpent.toLocaleString()}
           </Text>
         </View>
@@ -86,49 +57,28 @@ export default function CategoryDetailScreen({ route }) {
       {/* Lista de ítems */}
       <FlatList
         data={items}
-        keyExtractor={i => i.id.toString()}
+        keyExtractor={i => i.id}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() =>
-              navigation.navigate('EditExpense', { eventId, category, item })
-            }
-          >
+          <View style={styles.itemRow}>
             <View style={styles.itemInfo}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemBudget}>
-                ${item.budget.toLocaleString()}
-              </Text>
+              <Text style={styles.itemBudget}>${item.budget.toLocaleString()}</Text>
             </View>
             <Text style={[styles.itemSpent, { color: '#6B21A8' }]}>
               ${item.spent.toLocaleString()}
             </Text>
-            <TouchableOpacity
-              style={styles.iconBtn}
-              onPress={() =>
-                navigation.navigate('EditExpense', { eventId, category, item })
-              }
-            >
+            <TouchableOpacity style={styles.iconBtn}>
               <Ionicons name="pencil-outline" size={20} color="#6B21A8" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconBtn}
-              onPress={() => handleDelete(item.id)}
-            >
-              <Ionicons name="trash-outline" size={20} color="crimson" />
+            <TouchableOpacity style={styles.iconBtn}>
+              <Ionicons name="list-outline" size={20} color="#6B21A8" />
             </TouchableOpacity>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color="#6B21A8"
-              style={styles.chevron}
-            />
-          </TouchableOpacity>
+          </View>
         )}
       />
 
-      {/* Botón Agregar gasto */}
+     {/* Botón Agregar gasto */}
       <TouchableOpacity
         style={styles.addButton}
         onPress={() =>
@@ -142,23 +92,13 @@ export default function CategoryDetailScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    paddingBottom: 25,
-    marginTop: 15,
-  },
+  screen: { flex: 1, backgroundColor: '#FFF' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginLeft: 12,
-    color: '#111827',
-  },
+  title: { fontSize: 24, fontWeight: '600', marginLeft: 12 },
   totals: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -175,24 +115,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderColor: '#EEE',
-    position: 'relative',
   },
   itemInfo: { flex: 1 },
   itemName: { fontSize: 16, fontWeight: '500' },
   itemBudget: { fontSize: 14, color: '#6B7280', marginTop: 2 },
-  itemSpent: {
-    width: 60,
-    textAlign: 'right',
-    fontSize: 14,
-    fontWeight: '500',
-  },
+  itemSpent: { width: 60, textAlign: 'right', fontSize: 14, fontWeight: '500' },
   iconBtn: { padding: 8, marginLeft: 8 },
-  chevron: {
-    position: 'absolute',
-    right: 16,
-    top: '50%',
-    marginTop: -10,
-  },
   addButton: {
     margin: 16,
     backgroundColor: '#6B21A8',
@@ -200,9 +128,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
   },
-  addText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  addText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
 });

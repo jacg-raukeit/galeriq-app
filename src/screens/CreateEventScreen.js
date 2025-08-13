@@ -69,7 +69,7 @@ export default function CreateEventScreen({ navigation }) {
     );
   };
 
-  // Open camera
+  
   const pickFromCamera = async () => {
     const { status: camPerm } = await ImagePicker.requestCameraPermissionsAsync();
     if (camPerm !== 'granted') {
@@ -85,7 +85,7 @@ export default function CreateEventScreen({ navigation }) {
     }
   };
 
-  // Open gallery
+  
   const pickFromGallery = async () => {
     if (Platform.OS !== 'web') {
       const { status: libPerm } = await ImagePicker.requestMediaLibraryPermissionsAsync();
