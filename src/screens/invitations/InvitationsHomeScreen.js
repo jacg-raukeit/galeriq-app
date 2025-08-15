@@ -10,7 +10,7 @@ export default function InvitationsHomeScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#F6F2FA' }} contentContainerStyle={{ paddingBottom: 32 }}>
-      {/* Header simple */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color="#111827" />
@@ -38,7 +38,7 @@ export default function InvitationsHomeScreen() {
         </ImageBackground>
       </View>
 
-      {/* Acciones rápidas (grid) */}
+      {/* Acciones rápidas */}
       <View style={styles.grid}>
         <GridBtn
           icon="grid-outline"
@@ -70,7 +70,7 @@ function GridBtn({ icon, label, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  header: { height: 52, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { height: 52, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 22 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   brand: { fontSize: 20, fontWeight: '800', color: '#111827' },
   title: { fontSize: 28, fontWeight: '800', color: '#111827', marginTop: 6, marginLeft: 16 },
