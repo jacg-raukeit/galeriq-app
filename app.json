@@ -31,7 +31,8 @@
     "plugins": [
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-font"
     ],
     "extra": {
       "eas": {

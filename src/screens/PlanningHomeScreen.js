@@ -16,7 +16,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AuthContext } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 
-const API_URL = 'http://192.168.1.71:8000';
+const API_URL = 'http://192.168.1.106:8000';
 
 const ICON_MAP = {
   proveedores: 'people-outline',

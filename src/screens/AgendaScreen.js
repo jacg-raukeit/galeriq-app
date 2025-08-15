@@ -56,7 +56,7 @@ export default function AgendaScreen({ navigation, route }) {
     try {
       setLoading(true);
       const res = await fetch(
-        `http://192.168.1.71:8000/stages/event/${eventId}`,
+        `http://192.168.1.106:8000/stages/event/${eventId}`,
         { headers: { Authorization: `Bearer ${user.token}` } }
       );
       if (!res.ok) throw new Error();
@@ -100,8 +100,8 @@ setStages(stagesWithColor);
         location,
       };
       const url = isEditing
-        ? `http://192.168.1.71:8000/stages/${selectedStage.id}`
-        : `http://192.168.1.71:8000/stages/${eventId}`;
+        ? `http://192.168.1.106:8000/stages/${selectedStage.id}`
+        : `http://192.168.1.106:8000/stages/${eventId}`;
       const method = isEditing ? "PUT" : "POST";
       const res = await fetch(url, {
         method,
@@ -137,7 +137,7 @@ setStages(stagesWithColor);
   const handleDelete = async () => {
     try {
       const res = await fetch(
-        `http://192.168.1.71:8000/stages/${selectedStage.id}`,
+        `http://192.168.1.106:8000/stages/${selectedStage.id}`,
         { method: "DELETE", headers: { Authorization: `Bearer ${user.token}` } }
       );
       if (!res.ok) throw new Error();
