@@ -36,7 +36,7 @@ export default function ExploreDesignsScreen() {
       </View>
 
       {/* Tabs */}
-      <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }} showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }} showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
         {CATS.map(cat => (
           <TouchableOpacity key={cat} onPress={() => setActive(cat)} style={[styles.chip, active === cat && styles.chipActive]}>
             <Text style={[styles.chipText, active === cat && styles.chipTextActive]}>{cat}</Text>
@@ -66,7 +66,7 @@ export default function ExploreDesignsScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { height: 52, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { height: 52, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 22 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   brand: { fontSize: 20, fontWeight: '800', color: '#111827' },
 

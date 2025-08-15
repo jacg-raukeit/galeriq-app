@@ -469,7 +469,7 @@ function EditableText({ value, onChange }) {
 }
 
 const styles = StyleSheet.create({
-  header: { height: 52, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { height: 52, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 22 },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   brand: { fontSize: 20, fontWeight: '800', color: '#111827' },
 
