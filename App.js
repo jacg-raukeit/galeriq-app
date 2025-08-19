@@ -6,10 +6,22 @@ import { createStackNavigator } from '@react-navigation/stack';
 import * as AuthSession from 'expo-auth-session';
 import { LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
-
 import 'react-native-reanimated';
-import 'react-native-gesture-handler';
+
+
+import { useFonts } from 'expo-font';
+import { 
+  Montserrat_700Bold 
+} from '@expo-google-fonts/montserrat';
+import { Lato_700Bold } from '@expo-google-fonts/lato';
+import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
+import { Lobster_400Regular } from '@expo-google-fonts/lobster';
+import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
+import { DancingScript_700Bold } from '@expo-google-fonts/dancing-script';
+
+
+
+
 
 import { AuthProvider } from './src/context/AuthContext';
 import { EventsProvider } from './src/context/EventsContext';
@@ -33,6 +45,7 @@ import AlbumsScreen from './src/screens/AlbumsScreen';
 import InvitationsHomeScreen from './src/screens/invitations/InvitationsHomeScreen';
 import ExploreDesignsScreen from './src/screens/invitations/ExploreDesignsScreen';
 import InviteEditorScreen from './src/screens/invitations/InviteEditorScreen';
+import PortadaAlbumsScreens from './src/screens/PortadaAlbumsScreens';
 
 const Stack = createStackNavigator();
 
@@ -43,6 +56,20 @@ export default function App() {
     const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
     console.log('URI de redirección OAuth:', redirectUri);
   }, []);
+
+
+  const [fontsLoaded] = useFonts({
+    Montserrat_700Bold,
+    Lato_700Bold,
+    PlayfairDisplay_700Bold,
+    Lobster_400Regular,
+    Pacifico_400Regular,
+    DancingScript_700Bold,
+  });
+  
+  if (!fontsLoaded) {
+    return null; // O un componente de carga
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -69,6 +96,7 @@ export default function App() {
               <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen} />
               <Stack.Screen name="AddExpense" component={AddExpenseScreen} />
               <Stack.Screen name="Albums" component={AlbumsScreen} />
+              <Stack.Screen name="PortadaAlbums" component={PortadaAlbumsScreens} />
               <Stack.Screen name="InvitationsHome" component={InvitationsHomeScreen} />
               <Stack.Screen name="ExploreDesigns" component={ExploreDesignsScreen} />
               <Stack.Screen name="InviteEditor" component={InviteEditorScreen} />

@@ -12,14 +12,14 @@ export default function SplashScreen() {
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
-    // Reproduce animación, y al terminar (o tras timeout) redirige
+   
     let timeout = setTimeout(() => {
       if (user?.token) {
         navigation.replace('Events');
       } else {
         navigation.replace('Login');
       }
-    }, 3200); // ~2.2s (ajusta según tu animación)
+    }, 3200); 
 
     return () => clearTimeout(timeout);
   }, [user, navigation]);
@@ -46,12 +46,12 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    // Ocupa ~la mitad de la altura visual total
+   
     height: height * 0.5,
   },
   lottie: {
-    width: width * 0.6,          // ancho amigable
-    height: height * 0.3,        // altura ~ 30% de la pantalla
+    width: width * 0.6,          
+    height: height * 0.3,        
   },
   brand: {
     marginTop: 12,

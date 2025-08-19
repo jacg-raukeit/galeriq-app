@@ -21,7 +21,7 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
 
-const API_URL = 'http://192.168.1.106:8000'; 
+const API_URL = 'http://192.168.1.106:8000';
 
 export default function EventDetailScreen() {
   const navigation = useNavigation();
@@ -251,15 +251,15 @@ export default function EventDetailScreen() {
             <View style={styles.heroContent}>
               <View style={styles.heroChips}>
                 {!!eventData.event_type && (
-                  <View style={[styles.chip, { backgroundColor: 'rgba(111,76,140,0.15)' }]}>
-                    <Ionicons name="pricetag-outline" size={14} color="#6F4C8C" />
-                    <Text style={[styles.chipText, { color: '#6F4C8C' }]}>{eventData.event_type}</Text>
+                  <View style={[styles.chip, { backgroundColor: '#6F4C8C' }]}>
+                    <Ionicons name="pricetag-outline" size={14} color="white" />
+                    <Text style={[styles.chipText, { color: 'white' }]}>{eventData.event_type}</Text>
                   </View>
                 )}
                 {!!eventData.event_status && (
-                  <View style={[styles.chip, { backgroundColor: 'rgba(37,66,54,0.15)' }]}>
-                    <Ionicons name="ellipse-outline" size={12} color="#254236" />
-                    <Text style={[styles.chipText, { color: '#254236' }]}>{eventData.event_status}</Text>
+                  <View style={[styles.chip, { backgroundColor: '#254236' }]}>
+                    <Ionicons name="ellipse-outline" size={12} color="white" />
+                    <Text style={[styles.chipText, { color: 'white' }]}>{eventData.event_status}</Text>
                   </View>
                 )}
               </View>
@@ -349,14 +349,14 @@ export default function EventDetailScreen() {
               navigation.navigate('Agenda', { eventId: eventData.event_id, eventDate: eventData.event_date });
             }}
           />
-          <ActionItem
+          {/* <ActionItem
             icon="cash-outline"
             label="Ir a Gastos"
             onPress={() => {
               setActionsVisible(false);
               navigation.navigate('Expenses', { eventId: eventData.event_id });
             }}
-          />
+          /> */}
           <ActionItem
             icon="people-outline"
             label="Ir a Invitados"
@@ -370,17 +370,10 @@ export default function EventDetailScreen() {
             label="Ir a Álbumes"
             onPress={() => {
               setActionsVisible(false);
-              navigation.navigate('Albums', { eventId: eventData.event_id });
+              navigation.navigate('PortadaAlbums', { eventId: eventData.event_id });
             }}
           />
-          <ActionItem
-            icon="person-add-outline"
-            label="Agregar owner"
-            onPress={() => {
-              setActionsVisible(false);
-              setOwnerVisible(true);
-            }}
-          />
+          
 
            <ActionItem
             icon="images-outline"
@@ -390,7 +383,14 @@ export default function EventDetailScreen() {
               navigation.navigate('InvitationsHome', { eventId: eventData.event_id });
             }}
           />
-
+<ActionItem
+            icon="person-add-outline"
+            label="Agregar owner"
+            onPress={() => {
+              setActionsVisible(false);
+              setOwnerVisible(true);
+            }}
+          />
           <View style={{ height: 12 }} />
         </View>
       </Modal>

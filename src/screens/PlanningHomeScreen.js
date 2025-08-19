@@ -80,7 +80,6 @@ const isChecked = (v) => {
   return false;
 };
 
-
 const isExpense = (v) => {
   if (typeof v === 'boolean') return v;
   if (typeof v === 'number') return v === 1;
@@ -103,13 +102,13 @@ export default function PlanningHomeScreen({ navigation, route }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  
   const [activeTab, setActiveTab] = useState('checklist');
 
-  
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryBudget, setNewCategoryBudget] = useState('');
+
+  const [catIdToName, setCatIdToName] = useState({});
 
   const loadCategories = useCallback(async () => {
     if (!eventId || !(user?.token || user?.accessToken)) return;
@@ -117,18 +116,21 @@ export default function PlanningHomeScreen({ navigation, route }) {
     const token = user.token || user.accessToken;
 
     try {
-     
       const catsRes = await fetch(`${API_URL}/category-checklists/event/${eventId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!catsRes.ok) throw new Error(`HTTP ${catsRes.status} categorías`);
       const rawCats = await catsRes.json();
 
+      const idToName = {};
+      (Array.isArray(rawCats) ? rawCats : []).forEach((c) => {
+        idToName[c.id] = c.name;
+      });
       const idToNameNorm = new Map(
         (Array.isArray(rawCats) ? rawCats : []).map((c) => [c.id, normalize(c.name)])
       );
+      setCatIdToName(idToName);
 
-      
       const grpRes = await fetch(`${API_URL}/checklists/by-category/${eventId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -137,7 +139,6 @@ export default function PlanningHomeScreen({ navigation, route }) {
 
       const grouped = normalizeGroupedPayload(rawGrouped);
 
-      
       const tasksByName = new Map();
       grouped.forEach((g) => {
         const nameRaw =
@@ -159,11 +160,32 @@ export default function PlanningHomeScreen({ navigation, route }) {
       const merged = (Array.isArray(rawCats) ? rawCats : []).map((c, idx) => {
         const cname = (c.name || '').trim();
         const nameKey = normalize(cname);
+        const catTasksRaw = tasksByName.get(nameKey) ?? [];
+
+        const catTasks = catTasksRaw.map((t) => {
+          const catIdFromTask =
+            typeof t.category === 'number'
+              ? t.category
+              : typeof t.category_id === 'number'
+              ? t.category_id
+              : null;
+
+          const resolvedName =
+            typeof t.category === 'string'
+              ? t.category
+              : (catIdFromTask != null ? idToName[catIdFromTask] : (t.category_name || null));
+
+          return {
+            ...t,
+            category_name: resolvedName || cname || 'Sin categoría',
+          };
+        });
+
         return {
           id: c.id ?? idx,
           category_id: c.id ?? null,
           name: cname,
-          tasks: tasksByName.get(nameKey) ?? [],
+          tasks: catTasks,
         };
       });
 
@@ -227,7 +249,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
     }
   }, [eventId, newCategoryName, newCategoryBudget, user?.token, user?.accessToken, loadCategories]);
 
-  // Progreso global (todas las tareas)
+  
   const { total, doneCount, percent } = useMemo(() => {
     const t = categories.reduce((sum, cat) => sum + (cat.tasks?.length || 0), 0);
     const d = categories.reduce(
@@ -249,12 +271,36 @@ export default function PlanningHomeScreen({ navigation, route }) {
   }, [categories]);
 
   
+  const getCategoryDisplay = useCallback(
+    (task) => {
+      
+      if (task?.category_name && typeof task.category_name === 'string') {
+        return task.category_name;
+      }
+      
+      const numIdFromTask =
+        typeof task?.category === 'number'
+          ? task.category
+          : typeof task?.category_id === 'number'
+          ? task.category_id
+          : null;
+
+      if (numIdFromTask != null) {
+        return catIdToName[numIdFromTask] || `Categoría ${numIdFromTask}`;
+      }
+
+      // Fallbacks
+      if (typeof task?.category === 'string') return task.category;
+      return 'Sin categoría';
+    },
+    [catIdToName]
+  );
+
   const toggleExpenseCompleted = useCallback(
     async (task) => {
       const token = user?.token || user?.accessToken;
       const newVal = !isChecked(task.is_completed);
 
-     
       setCategories((prev) =>
         prev.map((cat) => ({
           ...cat,
@@ -384,7 +430,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
                         {task.title || task.checklist_name || 'Gasto'}
                       </Text>
                       <Text style={styles.expenseMeta}>
-                        {task.category || task.category_name || 'Sin categoría'}
+                        {getCategoryDisplay(task)}
                         {typeof task.budget === 'number' ? ` · $${task.budget}` : ''}
                       </Text>
                     </View>
@@ -464,7 +510,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F2F0E7', paddingBottom: 64, marginTop: 15 },
+  screen: { flex: 1, backgroundColor: '#F2F0E7', paddingBottom: 64, marginTop: 28 },
   container: { padding: 16, paddingBottom: 80 },
   header: {
     flexDirection: 'row',
@@ -545,6 +591,7 @@ const styles = StyleSheet.create({
     borderColor: '#EAEBDB',
     borderWidth: 1,
     elevation: 2,
+    marginBottom: 24, // Espacio para el botón flotante
   },
   tabButton: {
     flex: 1,

@@ -20,6 +20,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Header from '../components/Header';
 import { AuthContext } from '../context/AuthContext';
 import { EventsContext } from '../context/EventsContext';
+import { Dropdown } from 'react-native-element-dropdown';
 
 const EVENT_TYPES = [
   'Boda',
@@ -182,16 +183,22 @@ export default function CreateEventScreen({ navigation }) {
         />
         <Text style={styles.counter}>{description.length} / 200 caracteres</Text>
 
-        <Text style={styles.label}>Tipo de evento</Text>
-        <Picker
-          selectedValue={type}
-          onValueChange={setType}
-          style={styles.picker}
-        >
-          {EVENT_TYPES.map(t => (
-            <Picker.Item key={t} label={t} value={t} />
-          ))}
-        </Picker>
+       <Text style={styles.label}>Tipo de evento</Text>
+<Dropdown
+  data={EVENT_TYPES.map(t => ({ label: t, value: t }))}
+  labelField="label"
+  valueField="value"
+  placeholder="Selecciona un tipo"
+  value={type}
+  onChange={item => setType(item.value)}
+  style={[styles.dropdown, type && styles.dropdownFilled]}
+  placeholderStyle={styles.placeholder}
+  selectedTextStyle={styles.selectedText}
+  iconStyle={styles.icon}
+  containerStyle={styles.containerStyle}
+  itemContainerStyle={styles.itemContainer}
+  activeColor="#EDE9FE"
+/>
 
         <Text style={styles.label}>Fecha y hora del evento</Text>
         <TouchableOpacity
@@ -273,10 +280,43 @@ const styles = StyleSheet.create({
   submitButton:  { marginTop: 24, backgroundColor: '#6B21A8', paddingVertical: 14, borderRadius: 8, alignItems: 'center',marginBottom: 19 },
   submitText:    { color: '#FFF', fontWeight: '600' },
   title: {
-    fontFamily: 'Montserrat-Regular', // Asegúrate que este sea el nombre correcto de la fuente
+    fontFamily: 'Montserrat-Regular',
     fontSize: 24,
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 8,
   },
+  dropdown: {
+  marginTop: 8,
+  backgroundColor: '#fff',
+  borderRadius: 8,
+  paddingHorizontal: 12,
+  paddingVertical: 10,
+  borderWidth: 1,
+  borderColor: '#E5E7EB',
+},
+dropdownFilled: {
+  borderColor: '#6B21A8',
+},
+placeholder: {
+  fontSize: 14,
+  color: '#9CA3AF',
+},
+selectedText: {
+  fontSize: 14,
+  color: '#1F2937',
+},
+icon: {
+  tintColor: '#6B21A8',
+},
+containerStyle: {
+  marginTop: 4,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: '#E5E7EB',
+  overflow: 'hidden',
+},
+itemContainer: {
+  paddingVertical: 8,
+},
 });

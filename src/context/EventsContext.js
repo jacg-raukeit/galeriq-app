@@ -8,7 +8,7 @@ export function EventsProvider({ children }) {
   const { user } = useContext(AuthContext);
   const [events, setEvents] = useState([]);
 
-  //  Cuando cambie user, carga sus eventos desde la API
+  
   useEffect(() => {
     if (!user) return;
    fetch('http://192.168.1.106:8000/events/get-events', {
@@ -19,7 +19,7 @@ export function EventsProvider({ children }) {
       .catch(err => console.error('Error al cargar eventos:', err));
   }, [user]);
 
-  //  Función para crear un evento en el backend y actualizar el contexto
+  
   const addEvent = async ({ 
     event_name, event_date, event_address, event_type,
     event_coverUri, event_status, event_description,

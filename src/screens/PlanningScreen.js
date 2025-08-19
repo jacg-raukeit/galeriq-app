@@ -37,30 +37,37 @@ export default function PlanningScreen({ navigation, route }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [priority, setPriority] = useState('baja');
   const [budget, setBudget] = useState('');
-  const [isExpense, setIsExpense] = useState(false); 
+  const [isExpense, setIsExpense] = useState(false);
 
-  useEffect(() => {
+  
+  const loadTasks = async () => {
     if (!eventId || !categoryParam?.name || !user?.token) return;
     const categoryNameEscaped = encodeURIComponent(categoryParam.name);
-    fetch(
-      `${API_URL}/checklists/event/${eventId}/category-name/${categoryNameEscaped}`,
-      { headers: { Authorization: `Bearer ${user.token}` } }
-    )
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        setTasks(Array.isArray(data) ? data : []);
-      })
-      .catch(err => console.error('Error al cargar tareas:', err));
+    try {
+      const res = await fetch(
+        `${API_URL}/checklists/event/${eventId}/category-name/${categoryNameEscaped}`,
+        { headers: { Authorization: `Bearer ${user.token}` } }
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setTasks(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error al cargar tareas:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadTasks();
+    
   }, [eventId, categoryParam?.name, user?.token]);
 
   const toggleDone = async (task) => {
-    const optimistic = tasks.map(t =>
-      t.id === task.id ? { ...t, is_completed: !t.is_completed } : t
+    
+    setTasks(prev =>
+      prev.map(t =>
+        t.id === task.id ? { ...t, is_completed: !t.is_completed } : t
+      )
     );
-    setTasks(optimistic);
 
     try {
       const res = await fetch(`${API_URL}/checklists/${task.id}`, {
@@ -75,69 +82,72 @@ export default function PlanningScreen({ navigation, route }) {
         const txt = await res.text();
         throw new Error(txt || `HTTP ${res.status}`);
       }
-      
     } catch (err) {
       console.error('Error al actualizar tarea:', err);
-      setTasks(tasks); 
+     
+      setTasks(prev =>
+        prev.map(t =>
+          t.id === task.id ? { ...t, is_completed: task.is_completed } : t
+        )
+      );
       Alert.alert('Error', 'No se pudo actualizar la tarea.');
     }
   };
 
-  
-const handleSave = async () => {
-  if (!checklistName || !title || !description || !dueDate) {
-    Alert.alert(
-      'Error',
-      'Por favor, completa los campos: Checklist, Título, Descripción y Fecha límite.'
-    );
-    return;
-  }
-  if (isExpense && !budget) {
-    Alert.alert('Falta presupuesto', 'Indica el budget estimado para el gasto.');
-    return;
-  }
-
-  const payload = {
-    event_id: eventId,
-    checklist_name: checklistName,
-    title,
-    description,
-    due_date: dueDate ? dueDate.toISOString().slice(0, 16) : null, 
-    category: categoryParam.name,
-    priority,
-    is_expense: isExpense ? true : false, 
-    ...(isExpense && budget ? { budget: parseFloat(budget) } : {}),
-  };
-
-  try {
-    const res = await fetch(`${API_URL}/checklists/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${user.token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(t || `HTTP ${res.status}`);
+  const handleSave = async () => {
+    if (!checklistName || !title || !description || !dueDate) {
+      Alert.alert(
+        'Error',
+        'Por favor, completa los campos: Checklist, Título, Descripción y Fecha límite.'
+      );
+      return;
     }
-    const newTask = await res.json();
-    setTasks(prev => [newTask, ...prev]);
+    if (isExpense && !budget) {
+      Alert.alert('Falta presupuesto', 'Indica el budget estimado para el gasto.');
+      return;
+    }
 
-    setShowAdd(false);
-    setChecklistName('');
-    setTitle('');
-    setDescription('');
-    setDueDate(null);
-    setPriority('baja');
-    setBudget('');
-    setIsExpense(false);
-  } catch (err) {
-    console.error('Error al crear tarea:', err);
-    Alert.alert('Error', 'No se pudo crear la tarea. Verifica los datos.');
-  }
-};
+    const payload = {
+      event_id: eventId,
+      checklist_name: checklistName,
+      title,
+      description,
+      due_date: dueDate ? dueDate.toISOString().slice(0, 16) : null, 
+      category: categoryParam.name,
+      priority,
+      is_expense: isExpense ? true : false,
+      ...(isExpense && budget ? { budget: parseFloat(budget) } : {}),
+    };
+
+    try {
+      const res = await fetch(`${API_URL}/checklists/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user.token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || `HTTP ${res.status}`);
+      }
+      const newTask = await res.json();
+      setTasks(prev => [newTask, ...prev]);
+
+      setShowAdd(false);
+      setChecklistName('');
+      setTitle('');
+      setDescription('');
+      setDueDate(null);
+      setPriority('baja');
+      setBudget('');
+      setIsExpense(false);
+    } catch (err) {
+      console.error('Error al crear tarea:', err);
+      Alert.alert('Error', 'No se pudo crear la tarea. Verifica los datos.');
+    }
+  };
 
   const handleDelete = async (taskId) => {
     try {
@@ -145,6 +155,20 @@ const handleSave = async () => {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${user.token}` },
       });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `HTTP ${res.status}`);
+      }
+
+      
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+
+      
+      Alert.alert('Éxito', 'Tarea eliminada correctamente');
+
+      
+      await loadTasks();
     } catch (err) {
       console.error('Error al eliminar tarea:', err);
       Alert.alert('Error', 'No se pudo eliminar la tarea.');
@@ -207,9 +231,9 @@ const handleSave = async () => {
             </TouchableOpacity>
 
             {/* Botón Eliminar */}
-             <TouchableOpacity onPress={() => handleDelete(task.id)}>
+            <TouchableOpacity onPress={() => handleDelete(task.id)}>
               <Ionicons name="trash-outline" size={22} color="#DC2626" />
-            </TouchableOpacity> 
+            </TouchableOpacity>
           </View>
         ))}
 
@@ -292,20 +316,22 @@ const handleSave = async () => {
               />
             )}
 
-            <View style={styles.labelWithIcon}>
-              <Ionicons name="flag-outline" size={20} color="#A861B7" style={styles.icon} />
-              <Text style={styles.labelText}>Prioridad</Text>
-            </View>
-            <View style={styles.pickerWrapper}>
-              <Picker selectedValue={priority} onValueChange={setPriority} style={styles.picker}>
-                {Object.entries(PRIORITY_COLORS).map(([p]) => (
-                  <Picker.Item
-                    key={p}
-                    label={p.charAt(0).toUpperCase() + p.slice(1)}
-                    value={p}
-                  />
-                ))}
-              </Picker>
+            <View className="priority">
+              <View style={styles.labelWithIcon}>
+                <Ionicons name="flag-outline" size={20} color="#A861B7" style={styles.icon} />
+                <Text style={styles.labelText}>Prioridad</Text>
+              </View>
+              <View style={styles.pickerWrapper}>
+                <Picker selectedValue={priority} onValueChange={setPriority} style={styles.picker}>
+                  {Object.entries(PRIORITY_COLORS).map(([p]) => (
+                    <Picker.Item
+                      key={p}
+                      label={p.charAt(0).toUpperCase() + p.slice(1)}
+                      value={p}
+                    />
+                  ))}
+                </Picker>
+              </View>
             </View>
 
             {/* Checkbox de gasto */}

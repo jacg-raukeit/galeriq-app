@@ -1,5 +1,5 @@
 // src/screens/AlbumsScreen.js
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -20,59 +20,150 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { AuthContext } from '../context/AuthContext';
+
+const API_URL = 'http://192.168.1.106:8000'; // <-- tu base
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const GUTTER = 12; // separación entre tarjetas
+const GUTTER = 12;
 const COLS = 2;
 const COL_W = (SCREEN_W - (GUTTER * (COLS + 1))) / COLS;
 
-// --- Datos de ejemplo (sin backend) ---
-const seed = {
-  Preparativos: [
-    { id: 'p1', uri: 'https://picsum.photos/id/1/200/300', w: 800, h: 1000, title: 'Ramo', fav: false },
-    { id: 'p2', uri: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9', w: 800, h: 1200, title: 'Makeup', fav: true },
-  ],
-  Ceremonia: [
-    { id: 'c1', uri: 'https://images.unsplash.com/photo-1519741497674-611481863552', w: 1000, h: 700, title: 'Votos', fav: false },
-    { id: 'c2', uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d', w: 700, h: 1000, title: 'Anillos', fav: false },
-  ],
-  Fiesta: [
-    { id: 'f1', uri: 'https://picsum.photos/id/3/200/300', w: 1000, h: 1200, title: 'Brindis', fav: false },
-    { id: 'f2', uri: 'https://images.unsplash.com/photo-1519741497674-611481863552', w: 900, h: 1200, title: 'Baile', fav: true },
-  ],
+// ---- Upload endpoint real del backend ----
+const UPLOAD_URL = (albumId) => `${API_URL}/albums/${albumId}/photos`;
+
+// ---- Mappers auxiliares ----
+const mapAlbumFromApi = (a) => ({
+  id: String(a.album_id ?? a.id ?? a.albumId),
+  name: a.name,
+  photos: [], // se llenan por álbum
+});
+
+const mapPhotoFromApi = (p) => {
+  const uri =
+    p.path || // <--- tu modelo Photo guarda la URL en "path"
+    p.url ||
+    p.photo_url ||
+    p.image_url ||
+    p.s3_url ||
+    p.file_url ||
+    p.secure_url ||
+    p.uri;
+
+  const w = p.w || p.width || 800;
+  const h = p.h || p.height || 1200;
+
+  return {
+    id: String(p.photo_id ?? p.id ?? `${Date.now()}_${Math.random()}`),
+    uri,
+    w,
+    h,
+    title: p.title || p.name || 'Foto',
+    fav: false,
+  };
 };
 
-const toAlbumsArray = (obj) =>
-  Object.entries(obj).map(([name, photos], idx) => ({
-    id: String(idx + 1),
-    name,
-    photos,
-  }));
+export default function AlbumsScreen({ navigation, route }) {
+  const { eventId, albumId: initialAlbumId } = route?.params || {};
+  const { user } = useContext(AuthContext);
+  const token = user?.token || user?.accessToken || '';
 
-export default function AlbumsScreen({ navigation }) {
-  const [albums, setAlbums] = useState(() => toAlbumsArray(seed));
-  const [activeAlbumId, setActiveAlbumId] = useState(albums[0]?.id);
+  const [albums, setAlbums] = useState([]); // [{id, name, photos:[]}]
+  const [activeAlbumId, setActiveAlbumId] = useState(null);
+
   const [pickerBusy, setPickerBusy] = useState(false);
-
-  // crear álbum personalizado
   const [showCreate, setShowCreate] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState('');
-
-  // visor de foto
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerPhoto, setViewerPhoto] = useState(null);
 
+  const [loadingAlbums, setLoadingAlbums] = useState(true);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+
+  const authHeaders = { Authorization: `Bearer ${token}` };
+
+  // ---------- API: cargar tabs (álbumes) ----------
+  const fetchAlbums = useCallback(async () => {
+    if (!eventId || !token) return;
+    setLoadingAlbums(true);
+    try {
+      const r = await fetch(`${API_URL}/albums/${eventId}`, { headers: authHeaders });
+      if (!r.ok) throw new Error('No se pudieron cargar los álbumes.');
+      const data = await r.json();
+      const tabs = (data || []).map(mapAlbumFromApi);
+      setAlbums(tabs);
+      const toSelect = initialAlbumId ? String(initialAlbumId) : tabs[0]?.id;
+      setActiveAlbumId(toSelect || null);
+      if (toSelect) {
+        await fetchPhotos(toSelect, tabs);
+      }
+    } catch (e) {
+      Alert.alert('Error', e?.message || 'No se pudieron cargar los álbumes.');
+    } finally {
+      setLoadingAlbums(false);
+    }
+  }, [eventId, token, initialAlbumId]);
+
+  // ---------- API: cargar fotos por álbum ----------
+  const fetchPhotos = useCallback(
+    async (albumId, currentAlbums = albums) => {
+      if (!albumId || !token) return;
+      setLoadingPhotos(true);
+
+      // prioriza GET del mismo recurso si existe en tu backend
+      const paths = [
+        `${API_URL}/albums/${albumId}/photos`,     // <-- más probable que exista
+        `${API_URL}/photos/album/${albumId}`,
+        `${API_URL}/photos?album_id=${albumId}`,
+      ];
+
+      let list = [];
+      for (const url of paths) {
+        try {
+          const r = await fetch(url, { headers: authHeaders });
+          if (!r.ok) continue;
+          const ct = r.headers.get('content-type') || '';
+          if (ct.includes('application/json')) {
+            const data = await r.json();
+            if (Array.isArray(data)) { list = data; break; }
+            if (Array.isArray(data?.items)) { list = data.items; break; }
+            if (Array.isArray(data?.photos)) { list = data.photos; break; }
+            if (Array.isArray(data?.data)) { list = data.data; break; }
+          }
+        } catch {
+          // intenta el siguiente path
+        }
+      }
+
+      const mapped = (list || [])
+        .map(mapPhotoFromApi)
+        .filter(p => !!p.uri);
+
+      setAlbums(prev => {
+        const base = currentAlbums?.length ? currentAlbums : prev;
+        return base.map(a => (a.id === String(albumId) ? { ...a, photos: mapped } : a));
+      });
+
+      setLoadingPhotos(false);
+    },
+    [albums, token]
+  );
+
+  // Carga inicial
+  useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
+
+  // Álbum activo (para UI)
   const activeAlbum = useMemo(
     () => albums.find(a => a.id === activeAlbumId),
     [albums, activeAlbumId]
   );
 
-  // Grid tipo Pinterest (balancea por altura)
+  // Recalcula columnas del masonry con fotos del álbum activo
   const columns = useMemo(() => {
     const heights = Array(COLS).fill(0);
     const cols = Array(COLS).fill(0).map(() => []);
     (activeAlbum?.photos ?? []).forEach(p => {
-      const ratio = p.h && p.w ? p.h / p.w : 1.4; // fallback si no hay dimensiones
+      const ratio = p.h && p.w ? p.h / p.w : 1.4;
       const calcH = COL_W * ratio;
       const target = heights.indexOf(Math.min(...heights));
       cols[target].push({ ...p, _h: calcH });
@@ -81,7 +172,59 @@ export default function AlbumsScreen({ navigation }) {
     return cols;
   }, [activeAlbum]);
 
+  // ================== SUBIR FOTOS (usa endpoint real) ==================
+  const uploadOnePhoto = useCallback(
+    async (asset, albumId) => {
+      try {
+        const name = asset.fileName || asset.uri?.split('/').pop() || `photo_${Date.now()}.jpg`;
+        const type = asset.mimeType || 'image/jpeg';
+
+        const form = new FormData();
+        form.append('file', { uri: asset.uri, name, type }); // <-- NOMBRE DE CAMPO EXACTO
+
+        const res = await fetch(UPLOAD_URL(albumId), {
+          method: 'POST',
+          headers: { ...authHeaders }, // NO poner Content-Type manualmente
+          body: form,
+        });
+
+        if (!res.ok) {
+          // lee texto por si el backend envía error detallado
+          const txt = await res.text();
+          throw new Error(txt || 'Fallo al subir la foto');
+        }
+
+        // la API devuelve { url: "<s3_url>" } (aunque response_model=PhotoOut)
+        let json = {};
+        try { json = await res.json(); } catch {}
+        const uploadedUrl = json?.url;
+
+        // Optimistic update: agrega la foto de inmediato si hay URL
+        if (uploadedUrl) {
+          setAlbums(prev =>
+            prev.map(a => {
+              if (a.id !== String(albumId)) return a;
+              const optimisticPhoto = mapPhotoFromApi({ path: uploadedUrl, width: 800, height: 1200 });
+              return { ...a, photos: [optimisticPhoto, ...(a.photos || [])] };
+            })
+          );
+        }
+
+        return true;
+      } catch (e) {
+        console.log('upload error:', e?.message);
+        return false;
+      }
+    },
+    [authHeaders]
+  );
+
+  // Abre galería, sube todas y refresca el álbum
   const pickImages = useCallback(async () => {
+    if (!activeAlbumId) {
+      Alert.alert('Selecciona un álbum', 'Antes elige una pestaña/álbum para subir fotos.');
+      return;
+    }
     try {
       setPickerBusy(true);
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -90,7 +233,6 @@ export default function AlbumsScreen({ navigation }) {
         return;
       }
 
-      // Nota: en algunos entornos allowsMultipleSelection no está disponible.
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsMultipleSelection: true,
         quality: 0.9,
@@ -101,33 +243,32 @@ export default function AlbumsScreen({ navigation }) {
       const assets = result.assets || [];
       if (!assets.length) return;
 
-      setAlbums(prev =>
-        prev.map(a => {
-          if (a.id !== activeAlbumId) return a;
-          const newPhotos = assets.map((as, i) => ({
-            id: `${Date.now()}_${i}`,
-            uri: as.uri,
-            w: as.width || 800,
-            h: as.height || 1200,
-            title: 'Foto',
-            fav: false,
-          }));
-          return { ...a, photos: [...newPhotos, ...(a.photos || [])] };
-        })
-      );
+      let okCount = 0;
+      for (const asset of assets) {
+        const ok = await uploadOnePhoto(asset, activeAlbumId);
+        if (ok) okCount += 1;
+      }
+
+      if (okCount > 0) {
+        await fetchPhotos(activeAlbumId); // refresca desde backend (por si agrega metadatos/ids)
+        Alert.alert('Listo', `Se subieron ${okCount} foto(s).`);
+      } else {
+        Alert.alert('Error', 'No se pudo subir ninguna foto. Revisa el token/endpoint.');
+      }
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'No se pudieron cargar las fotos.');
+      Alert.alert('Error', 'No se pudieron subir las fotos.');
     } finally {
       setPickerBusy(false);
     }
-  }, [activeAlbumId]);
+  }, [activeAlbumId, uploadOnePhoto, fetchPhotos]);
 
+  // ------------------- (lo demás queda igual) -------------------
   const createAlbum = useCallback(() => {
     const name = (newAlbumName || '').trim();
     if (!name) return;
     setAlbums(prev => [{ id: `${Date.now()}`, name, photos: [] }, ...prev]);
-    setActiveAlbumId(`${Date.now()}`); // opcional: auto-seleccionar
+    setActiveAlbumId(`${Date.now()}`);
     setNewAlbumName('');
     setShowCreate(false);
   }, [newAlbumName]);
@@ -191,31 +332,42 @@ export default function AlbumsScreen({ navigation }) {
         <TouchableOpacity onPress={shareAlbum}>
           <Ionicons name="share-outline" size={22} color="#6F4C8C" />
         </TouchableOpacity>
-        
       </View>
-    <Text style={styles.titleSection}>Fotos</Text>
-      {/* Chips de categorías + crear álbum */}
+
+      <Text style={styles.titleSection}>Fotos</Text>
+
+      {/* Tabs de álbumes */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.tabs}
-        contentInsetAdjustmentBehavior="never"   // ← evita insets automáticos
-  style={{ flexGrow: 0 }}
+        contentInsetAdjustmentBehavior="never"
+        style={{ flexGrow: 0 }}
       >
-        {albums.map((a) => {
-          const active = a.id === activeAlbumId;
-          return (
-            <TouchableOpacity
-              key={a.id}
-              onPress={() => setActiveAlbumId(a.id)}
-              style={[styles.chip, active && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {a.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {loadingAlbums ? (
+          <View style={{ justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 }}>
+            <ActivityIndicator />
+          </View>
+        ) : (
+          albums.map((a) => {
+            const active = a.id === activeAlbumId;
+            return (
+              <TouchableOpacity
+                key={a.id}
+                onPress={async () => {
+                  setActiveAlbumId(a.id);
+                  await fetchPhotos(a.id);
+                }}
+                style={[styles.chip, active && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  {a.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })
+        )}
+
         <TouchableOpacity style={styles.chipOutline} onPress={() => setShowCreate(true)}>
           <Ionicons name="add" size={18} color="#6F4C8C" />
           <Text style={styles.chipOutlineText}>Nuevo álbum</Text>
@@ -224,6 +376,11 @@ export default function AlbumsScreen({ navigation }) {
 
       {/* Grid tipo Pinterest */}
       <ScrollView contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 0 }}>
+        {loadingPhotos && (
+          <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+            <ActivityIndicator />
+          </View>
+        )}
         <View style={styles.masonryRow}>
           {columns.map((col, i) => (
             <View key={`col-${i}`} style={{ width: COL_W }}>
@@ -259,7 +416,7 @@ export default function AlbumsScreen({ navigation }) {
           ))}
         </View>
 
-        {/* Botón Agregar fotos */}
+        {/* Botón Agregar fotos (sube al backend) */}
         <TouchableOpacity style={styles.addButton} onPress={pickImages} disabled={pickerBusy}>
           {pickerBusy ? (
             <ActivityIndicator />
@@ -306,7 +463,7 @@ export default function AlbumsScreen({ navigation }) {
             <Ionicons name="close" size={26} color="#fff" />
           </TouchableOpacity>
 
-          {viewerPhoto && (
+        {viewerPhoto && (
             <>
               <Image source={{ uri: viewerPhoto.uri }} style={styles.viewerImage} resizeMode="contain" />
               <View style={styles.viewerActions}>
@@ -331,6 +488,7 @@ export default function AlbumsScreen({ navigation }) {
   );
 }
 
+/* ===== Estilos (SIN CAMBIOS) ===== */
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F5EEF7', marginTop: 20 },
   header: {
@@ -390,7 +548,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#3E2757' },
   input: { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
 
-  viewerBg: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+  viewerBg: { flex: 1, backgroundColor: 'black', justifyContent: 'center', alignItems: 'center' },
   viewerClose: { position: 'absolute', top: 40, right: 20, padding: 8 },
   viewerImage: { width: SCREEN_W, height: '70%' },
   viewerActions: { position: 'absolute', bottom: 40, flexDirection: 'row', gap: 24 },
