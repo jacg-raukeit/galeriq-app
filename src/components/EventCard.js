@@ -7,6 +7,8 @@ import {
   TouchableOpacity
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+// Si usas Expo:
+// import Ionicons from '@expo/vector-icons/Ionicons';
 
 const STATUS_STYLES = {
   Activo:   { backgroundColor: '#D1FAE5', textColor: '#059669' },
@@ -22,16 +24,21 @@ export default function EventCard({
   archived = false,
   onToggleArchive,
 }) {
-  const { backgroundColor, textColor } = STATUS_STYLES[status] || STATUS_STYLES.Activo;
+  const { backgroundColor, textColor } =
+    STATUS_STYLES[status] || STATUS_STYLES.Activo;
+
   const source = typeof imageUri === 'string' ? { uri: imageUri } : imageUri;
 
   return (
     <View style={styles.card}>
       <Image source={source} style={styles.image} />
+
       <View style={styles.info}>
         <Text style={styles.title}>{title}</Text>
+
         <View style={styles.footer}>
           <Text style={styles.date}>{date}</Text>
+
           <View style={[styles.badge, { backgroundColor }]}>
             <Text style={[styles.badgeText, { color: textColor }]}>
               {status}
@@ -42,10 +49,13 @@ export default function EventCard({
 
       <TouchableOpacity
         style={styles.archiveButton}
-        onPress={onToggleArchive}
+        onPress={() => onToggleArchive?.()}
+        hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+        accessibilityRole="button"
+        accessibilityLabel={archived ? "Desarchivar evento" : "Archivar evento"}
       >
         <Ionicons
-          name={archived ? 'archive-outline' : 'archive-sharp'}
+          name={archived ? 'archive' : 'archive-outline'}
           size={24}
           color="#6B21A8"
         />
@@ -102,6 +112,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    padding: 4,
+    padding: 6,
+    zIndex: 10,    // asegura que quede por encima de la imagen
+    elevation: 4,  // Android
   },
 });

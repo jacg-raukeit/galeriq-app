@@ -11,15 +11,13 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  SafeAreaView,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 const { width, height } = Dimensions.get('window');
 
@@ -53,7 +51,7 @@ export default function RegisterScreen() {
     fullName.trim().length > 2 &&
     emailValid &&
     phoneValid &&
-    passScore >= 3 && 
+    passScore >= 3 &&
     termsAccepted &&
     !loading;
 
@@ -87,7 +85,7 @@ export default function RegisterScreen() {
         plan_id: 1,
         role_id: 2,
       };
-      const regRes = await fetch('http://192.168.1.106:8000/register/', {
+      const regRes = await fetch('http://143.198.138.35:8000/register/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -103,7 +101,7 @@ export default function RegisterScreen() {
         throw new Error(detail);
       }
 
-      const loginRes = await fetch('http://192.168.1.106:8000/login/', {
+      const loginRes = await fetch('http://143.198.138.35:8000/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ email, password }).toString(),
@@ -111,7 +109,7 @@ export default function RegisterScreen() {
       if (!loginRes.ok) throw new Error('Login tras registro falló');
       const { access_token: token } = await loginRes.json();
 
-      let profileRes = await fetch('http://192.168.1.106:8000/me', {
+      let profileRes = await fetch('http://143.198.138.35:8000/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!profileRes.ok) throw new Error('No se pudo cargar perfil');
@@ -124,13 +122,13 @@ export default function RegisterScreen() {
         const type = match ? `image/${match[1]}` : 'image/jpeg';
         formData.append('profile_image', { uri: profileImageUri, name: filename, type });
 
-        await fetch(`http://192.168.1.106:8000/users/${profile.user_id}/profile-pic`, {
+        await fetch(`http://143.198.138.35:8000/users/${profile.user_id}/profile-pic`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
 
-        profileRes = await fetch('http://192.168.1.106:8000/me', {
+        profileRes = await fetch('http://143.198.138.35:8000/me', {
           headers: { Authorization: `Bearer ${token}` },
         });
         profile = await profileRes.json();
@@ -158,144 +156,157 @@ export default function RegisterScreen() {
     >
       <View style={styles.overlay} />
 
-      <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            keyboardShouldPersistTaps="handled"
+      {/* KeyboardAwareScrollView para evitar que el teclado tape inputs */}
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scroll}
+        enableOnAndroid
+        extraScrollHeight={Platform.OS === 'android' ? 90 : 50}
+        keyboardOpeningTime={0}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Card */}
+        <View style={styles.card}>
+          <Text style={styles.title}>Crea tu cuenta</Text>
+          <Text style={styles.subtitle}>Regístrate para empezar tu viaje con nosotros</Text>
+          <Text style={styles.requiredLegend}>* Todos los campos son obligatorios</Text>
+
+          {/* Avatar */}
+          <View style={styles.avatarRow}>
+            <Image
+              source={profileImageUri ? { uri: profileImageUri } : require('../assets/images/avatar-placeholder.png')}
+              style={styles.avatar}
+            />
+            <TouchableOpacity style={styles.avatarBtn} onPress={pickProfileImage} activeOpacity={0.9}>
+              <Ionicons name="image-outline" size={16} color="#6B21A8" />
+              <Text style={styles.avatarBtnText}>{profileImageUri ? 'Cambiar' : 'Seleccionar'} imagen</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Full name */}
+          <View style={styles.inputWrap}>
+            <Ionicons name="person-outline" size={18} color="#6B7280" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre completo"
+              placeholderTextColor="#6B7280"
+              value={fullName}
+              onChangeText={setFullName}
+              returnKeyType="next"
+            />
+          </View>
+
+          {/* Email */}
+          <View style={[styles.inputWrap, !emailValid && email.length > 0 ? styles.inputError : null]}>
+            <Ionicons name="mail-outline" size={18} color="#6B7280" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Correo electrónico"
+              placeholderTextColor="#6B7280"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+              returnKeyType="next"
+            />
+          </View>
+          {!emailValid && email.length > 0 && (
+            <Text style={styles.errorText}>Ingresa un correo válido.</Text>
+          )}
+
+          {/* Phone */}
+          <View style={[styles.inputWrap, !phoneValid && phone.length > 0 ? styles.inputError : null]}>
+            <Ionicons name="call-outline" size={18} color="#6B7280" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Teléfono"
+              placeholderTextColor="#6B7280"
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
+              returnKeyType="next"
+            />
+          </View>
+          {!phoneValid && phone.length > 0 && (
+            <Text style={styles.errorText}>El teléfono debe tener al menos 10 dígitos.</Text>
+          )}
+
+          {/* Password with eye */}
+          <View style={[styles.inputWrap, passScore <= 1 && password.length > 0 ? styles.inputError : null]}>
+            <Ionicons name="lock-closed-outline" size={18} color="#6B7280" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Contraseña"
+              placeholderTextColor="#6B7280"
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+              returnKeyType="done"
+            />
+            <TouchableOpacity onPress={() => setShowPassword(p => !p)} style={styles.eyeBtn} hitSlop={{top:8,bottom:8,left:8,right:8}}>
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={showPassword ? '#6B21A8' : '#6B7280'} 
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Strength meter */}
+          {password.length > 0 && (
+            <View style={styles.strengthBox}>
+              <View style={styles.strengthBarBg}>
+                <View style={[styles.strengthBarFill, { width: barWidth, backgroundColor: strengthColor }]} />
+              </View>
+              <Text style={[styles.strengthLabel, { color: strengthColor }]}>{strengthLabel}</Text>
+            </View>
+          )}
+
+          {/* Requisitos */}
+          <View style={styles.requirements}>
+            <Req ok={password.length >= 8} text="Mínimo 8 caracteres" />
+            <Req ok={/[A-Z]/.test(password)} text="Una mayúscula" />
+            <Req ok={/[a-z]/.test(password)} text="Una minúscula" />
+            <Req ok={/\d/.test(password) || /[^A-Za-z0-9]/.test(password)} text="Número o símbolo" />
+          </View>
+
+          {/* Términos */}
+          <TouchableOpacity style={styles.termsRow} onPress={() => setTermsAccepted(!termsAccepted)}>
+            <Ionicons name={termsAccepted ? 'checkbox' : 'square-outline'} size={20} color="#6B21A8" />
+            <Text style={styles.termsText}>
+              Acepto los <Text style={styles.link}>términos</Text> y la <Text style={styles.link}>política de privacidad</Text>
+            </Text>
+          </TouchableOpacity>
+
+          {/* Submit */}
+          <TouchableOpacity
+            style={[styles.submitBtn, !canSubmit && styles.submitDisabled]}
+            onPress={handleEmailRegister}
+            disabled={!canSubmit}
+            activeOpacity={0.9}
           >
-            {/* Card */}
-            <View style={styles.card}>
-              <Text style={styles.title}>Crea tu cuenta</Text>
-              <Text style={styles.subtitle}>Regístrate para empezar tu viaje con nosotros</Text>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Crear cuenta</Text>}
+          </TouchableOpacity>
 
-              {/* Avatar */}
-              <View style={styles.avatarRow}>
-                <Image
-                  source={profileImageUri ? { uri: profileImageUri } : require('../assets/images/avatar-placeholder.png')}
-                  style={styles.avatar}
-                />
-                <TouchableOpacity style={styles.avatarBtn} onPress={pickProfileImage} activeOpacity={0.9}>
-                  <Ionicons name="image-outline" size={16} color="#6B21A8" />
-                  <Text style={styles.avatarBtnText}>{profileImageUri ? 'Cambiar' : 'Seleccionar'} imagen</Text>
-                </TouchableOpacity>
-              </View>
+          {/* Link a login */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
+            <TouchableOpacity onPress={() => navigation.replace('Login')}>
+              <Text style={styles.footerLink}>Inicia sesión</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-              {/* Full name */}
-              <View style={styles.inputWrap}>
-                <Ionicons name="person-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Nombre completo"
-                  placeholderTextColor="#6B7280"
-                  value={fullName}
-                  onChangeText={setFullName}
-                />
-              </View>
-
-              {/* Email */}
-              <View style={[styles.inputWrap, !emailValid && email.length > 0 ? styles.inputError : null]}>
-                <Ionicons name="mail-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Correo electrónico"
-                  placeholderTextColor="#6B7280"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </View>
-              {!emailValid && email.length > 0 && (
-                <Text style={styles.errorText}>Ingresa un correo válido.</Text>
-              )}
-
-              {/* Phone */}
-              <View style={[styles.inputWrap, !phoneValid && phone.length > 0 ? styles.inputError : null]}>
-                <Ionicons name="call-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Teléfono"
-                  placeholderTextColor="#6B7280"
-                  keyboardType="phone-pad"
-                  value={phone}
-                  onChangeText={setPhone}
-                />
-              </View>
-              {!phoneValid && phone.length > 0 && (
-                <Text style={styles.errorText}>El teléfono debe tener al menos 10 dígitos.</Text>
-              )}
-
-              {/* Password with eye */}
-              <View style={[styles.inputWrap, passScore <= 1 && password.length > 0 ? styles.inputError : null]}>
-                <Ionicons name="lock-closed-outline" size={18} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Contraseña"
-                  placeholderTextColor="#6B7280"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity onPress={() => setShowPassword(p => !p)} style={styles.eyeBtn}>
-                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#6B7280" />
-                </TouchableOpacity>
-              </View>
-
-              {/* Strength meter */}
-              {password.length > 0 && (
-                <View style={styles.strengthBox}>
-                  <View style={styles.strengthBarBg}>
-                    <View style={[styles.strengthBarFill, { width: barWidth, backgroundColor: strengthColor }]} />
-                  </View>
-                  <Text style={[styles.strengthLabel, { color: strengthColor }]}>{strengthLabel}</Text>
-                </View>
-              )}
-
-              {/* Requisitos */}
-              <View style={styles.requirements}>
-                <Req ok={password.length >= 8} text="Mínimo 8 caracteres" />
-                <Req ok={/[A-Z]/.test(password)} text="Una mayúscula" />
-                <Req ok={/[a-z]/.test(password)} text="Una minúscula" />
-                <Req ok={/\d/.test(password) || /[^A-Za-z0-9]/.test(password)} text="Número o símbolo" />
-              </View>
-
-              {/* Términos */}
-              <TouchableOpacity style={styles.termsRow} onPress={() => setTermsAccepted(!termsAccepted)}>
-                <Ionicons name={termsAccepted ? 'checkbox' : 'square-outline'} size={20} color="#6B21A8" />
-                <Text style={styles.termsText}>Acepto los <Text style={styles.link}>términos</Text> y la <Text style={styles.link}>política de privacidad</Text></Text>
-              </TouchableOpacity>
-
-              {/* Submit */}
-              <TouchableOpacity
-                style={[styles.submitBtn, !canSubmit && styles.submitDisabled]}
-                onPress={handleEmailRegister}
-                disabled={!canSubmit}
-                activeOpacity={0.9}
-              >
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Crear cuenta</Text>}
-              </TouchableOpacity>
-
-              {/* Link a login */}
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
-                <TouchableOpacity onPress={() => navigation.replace('Login')}>
-                  <Text style={styles.footerLink}>Inicia sesión</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Links inferiores */}
-            <View style={styles.bottomLinks}>
-              <TouchableOpacity><Text style={styles.bottomLink}>Soporte</Text></TouchableOpacity>
-              <Text style={styles.dot}>·</Text>
-              <TouchableOpacity><Text style={styles.bottomLink}>Términos</Text></TouchableOpacity>
-              <Text style={styles.dot}>·</Text>
-              <TouchableOpacity><Text style={styles.bottomLink}>Privacidad</Text></TouchableOpacity>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+        {/* Links inferiores */}
+        <View style={styles.bottomLinks}>
+          <TouchableOpacity><Text style={styles.bottomLink}>Soporte</Text></TouchableOpacity>
+          <Text style={styles.dot}>·</Text>
+          <TouchableOpacity><Text style={styles.bottomLink}>Términos</Text></TouchableOpacity>
+          <Text style={styles.dot}>·</Text>
+          <TouchableOpacity><Text style={styles.bottomLink}>Privacidad</Text></TouchableOpacity>
+        </View>
+      </KeyboardAwareScrollView>
 
       {/* Loading overlay */}
       {loading && (
@@ -320,7 +331,7 @@ const styles = StyleSheet.create({
   bg: { flex: 1, width, height, justifyContent: 'center', alignItems: 'center' },
   overlay:{ position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.35)' },
 
-  scroll: { alignItems: 'center', padding: 16, paddingBottom: 28 },
+  scroll: { alignItems: 'center', padding: 16, paddingBottom: 28, minHeight: height * 1.05 },
 
   card: {
     width: '92%',
@@ -335,7 +346,8 @@ const styles = StyleSheet.create({
   },
 
   title: { fontSize: 28, fontWeight: '800', color: '#111827', textAlign: 'center' },
-  subtitle: { fontSize: 14.5, color: '#374151', textAlign: 'center', marginTop: 6, marginBottom: 14 },
+  subtitle: { fontSize: 14.5, color: '#374151', textAlign: 'center', marginTop: 6, marginBottom: 6 },
+  requiredLegend: { textAlign: 'center', color: '#6B7280', fontSize: 12.5, marginBottom: 10, fontStyle: 'italic' },
 
   avatarRow: { alignItems: 'center', marginBottom: 12 },
   avatar: { width: 86, height: 86, borderRadius: 43, backgroundColor: '#F3F4F6' },
@@ -357,6 +369,8 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 6 },
   input: { flex: 1, paddingVertical: 12, color: '#111827', fontSize: 15 },
   eyeBtn: { padding: 6, marginLeft: 4 },
+
+  errorText: { color: '#DC2626', fontSize: 12.5, marginTop: 4 },
 
   inputError: { borderColor: '#F59E0B' },
 

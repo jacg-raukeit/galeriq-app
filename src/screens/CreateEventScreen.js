@@ -45,9 +45,12 @@ export default function CreateEventScreen({ navigation }) {
   const [name, setName]               = useState('');
   const [description, setDescription] = useState('');
   const [type, setType]               = useState(EVENT_TYPES[0]);
+  const [otherType, setOtherType]     = useState(''); 
+
   const [date, setDate]               = useState(new Date());
   const [showDatePicker, setShowDatePicker]   = useState(false);
   const [showTimePicker, setShowTimePicker]   = useState(false);
+
   const [location, setLocation]               = useState('');
   const [tempImageUri, setTempImageUri]       = useState(null);
   const [status, setStatus]                   = useState(STATUS_OPTIONS[0].value);
@@ -57,7 +60,6 @@ export default function CreateEventScreen({ navigation }) {
     `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
     `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
-  
   const pickImage = () => {
     Alert.alert(
       'Seleccionar portada',
@@ -70,7 +72,6 @@ export default function CreateEventScreen({ navigation }) {
     );
   };
 
-  
   const pickFromCamera = async () => {
     const { status: camPerm } = await ImagePicker.requestCameraPermissionsAsync();
     if (camPerm !== 'granted') {
@@ -86,7 +87,6 @@ export default function CreateEventScreen({ navigation }) {
     }
   };
 
-  
   const pickFromGallery = async () => {
     if (Platform.OS !== 'web') {
       const { status: libPerm } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -128,13 +128,18 @@ export default function CreateEventScreen({ navigation }) {
     if (!name.trim()) {
       return Alert.alert('Error', 'El nombre del evento es obligatorio');
     }
+    const finalType = type === 'Otro' ? otherType.trim() : type;
+    if (type === 'Otro' && !finalType) {
+      return Alert.alert('Tipo de evento', 'Por favor, escribe el tipo de evento.');
+    }
+
     try {
       await addEvent({
         event_name:        name,
         event_description: description,
         event_date:        `${formattedDate}:00`,
         event_address:     location,
-        event_type:        type,
+        event_type:        finalType,
         event_coverUri:    tempImageUri,
         event_status:      status,
         event_latitude:    '',
@@ -160,9 +165,9 @@ export default function CreateEventScreen({ navigation }) {
 
   return (
     <View style={styles.screen}>
-      
       <Header title="Crear un nuevo evento" onBack={confirmCancel} />
       <Text style={styles.title}>Galeriq</Text>
+
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.label}>Nombre del evento</Text>
         <TextInput
@@ -183,22 +188,41 @@ export default function CreateEventScreen({ navigation }) {
         />
         <Text style={styles.counter}>{description.length} / 200 caracteres</Text>
 
-       <Text style={styles.label}>Tipo de evento</Text>
-<Dropdown
-  data={EVENT_TYPES.map(t => ({ label: t, value: t }))}
-  labelField="label"
-  valueField="value"
-  placeholder="Selecciona un tipo"
-  value={type}
-  onChange={item => setType(item.value)}
-  style={[styles.dropdown, type && styles.dropdownFilled]}
-  placeholderStyle={styles.placeholder}
-  selectedTextStyle={styles.selectedText}
-  iconStyle={styles.icon}
-  containerStyle={styles.containerStyle}
-  itemContainerStyle={styles.itemContainer}
-  activeColor="#EDE9FE"
-/>
+        <Text style={styles.label}>Tipo de evento</Text>
+        <Dropdown
+          data={EVENT_TYPES.map(t => ({ label: t, value: t }))}
+          labelField="label"
+          valueField="value"
+          placeholder="Selecciona un tipo"
+          value={type}
+          onChange={item => {
+            setType(item.value);
+            if (item.value !== 'Otro') setOtherType('');
+          }}
+          style={[styles.dropdown, type && styles.dropdownFilled]}
+          placeholderStyle={styles.placeholder}
+          selectedTextStyle={styles.selectedText}
+          iconStyle={styles.icon}
+          containerStyle={styles.containerStyle}
+          itemContainerStyle={styles.itemContainer}
+          activeColor="#EDE9FE"
+        />
+
+        {/* Si eligen "Otro", input adicional para escribir el tipo */}
+        {type === 'Otro' && (
+          <>
+            <Text style={[styles.label, { marginTop: 12 }]}>Especifica el tipo</Text>
+            <TextInput
+              style={[styles.input, !otherType.trim() && styles.inputWarning]}
+              placeholder="Escribe el tipo de evento"
+              value={otherType}
+              onChangeText={setOtherType}
+            />
+            {!otherType.trim() && (
+              <Text style={styles.helperText}>Este campo es obligatorio al elegir “Otro”.</Text>
+            )}
+          </>
+        )}
 
         <Text style={styles.label}>Fecha y hora del evento</Text>
         <TouchableOpacity
@@ -268,17 +292,42 @@ const styles = StyleSheet.create({
   screen:        { flex: 1, backgroundColor: '#F9FAFB', marginTop: 10 },
   container:     { padding: 16, paddingBottom: 32 },
   label:         { marginTop: 16, fontSize: 14, fontWeight: '600', color: '#1F2937' },
-  input:         { marginTop: 8, backgroundColor: '#FFF', borderRadius: 8, padding: 10 },
+  input: {
+    marginTop: 8,
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    color: '#1F2937',          
+    placeholderTextColor: '#6B7280',
+  },
+  inputWarning: { borderColor: '#F59E0B' },
+  helperText: { marginTop: 6, color: '#9CA3AF', fontSize: 12 },
   textArea:      { height: 100, textAlignVertical: 'top' },
   counter:       { alignSelf: 'flex-end', marginTop: 4, color: '#6B7280', fontSize: 12 },
   picker:        { marginTop: 8, backgroundColor: '#FFF', borderRadius: 8 },
-  dateButton:    { marginTop: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 8, padding: 10 },
+
+  dateButton:    {
+    marginTop: 8, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFF', borderRadius: 8, padding: 10,
+    borderWidth: 1, borderColor: '#E5E7EB',
+  },
   dateText:      { marginLeft: 8, color: '#1F2937' },
-  imagePicker:   { marginTop: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: '#EDE9FE', borderRadius: 8, padding: 12 },
+
+  imagePicker:   {
+    marginTop: 8, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#EDE9FE', borderRadius: 8, padding: 12,
+  },
   imagePickerText:{ marginLeft: 8, color: '#6B21A8' },
   previewImage:  { marginTop: 8, width: '100%', height: 140, borderRadius: 8 },
-  submitButton:  { marginTop: 24, backgroundColor: '#6B21A8', paddingVertical: 14, borderRadius: 8, alignItems: 'center',marginBottom: 19 },
+
+  submitButton:  {
+    marginTop: 24, backgroundColor: '#6B21A8', paddingVertical: 14,
+    borderRadius: 8, alignItems: 'center', marginBottom: 19,
+  },
   submitText:    { color: '#FFF', fontWeight: '600' },
+
   title: {
     fontFamily: 'Montserrat-Regular',
     fontSize: 24,
@@ -286,37 +335,38 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
+
   dropdown: {
-  marginTop: 8,
-  backgroundColor: '#fff',
-  borderRadius: 8,
-  paddingHorizontal: 12,
-  paddingVertical: 10,
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
-},
-dropdownFilled: {
-  borderColor: '#6B21A8',
-},
-placeholder: {
-  fontSize: 14,
-  color: '#9CA3AF',
-},
-selectedText: {
-  fontSize: 14,
-  color: '#1F2937',
-},
-icon: {
-  tintColor: '#6B21A8',
-},
-containerStyle: {
-  marginTop: 4,
-  borderRadius: 8,
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
-  overflow: 'hidden',
-},
-itemContainer: {
-  paddingVertical: 8,
-},
+    marginTop: 8,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  dropdownFilled: {
+    borderColor: '#6B21A8',
+  },
+  placeholder: {
+    fontSize: 14,
+    color: '#9CA3AF',
+  },
+  selectedText: {
+    fontSize: 14,
+    color: '#1F2937',
+  },
+  icon: {
+    tintColor: '#6B21A8',
+  },
+  containerStyle: {
+    marginTop: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  itemContainer: {
+    paddingVertical: 8,
+  },
 });

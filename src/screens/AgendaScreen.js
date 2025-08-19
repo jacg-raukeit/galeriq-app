@@ -1,6 +1,5 @@
 // src/screens/AgendaScreen.js
-
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import {
   SafeAreaView,
   View,
@@ -12,7 +11,6 @@ import {
   Alert,
   Modal,
   TextInput,
-  Button,
   Platform,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -27,7 +25,6 @@ export default function AgendaScreen({ navigation, route }) {
   const [stages, setStages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -40,40 +37,74 @@ export default function AgendaScreen({ navigation, route }) {
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
 
-  
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
-  
   const colors = ["#FFECDC", "#EDDCF4", "#BA8FD8", "#FAB08C"];
 
-  
   const formatTime = (t) => (t ? t.slice(0, 5) : "");
 
-  
+  const toLocalYMD = (input) => {
+    const d =
+      typeof input === "string"
+        ? new Date(input.length <= 10 ? `${input}T00:00:00` : input)
+        : new Date(input);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const todayYMD = toLocalYMD(new Date());
+
+  const getCurrentWeekBounds = () => {
+    const now = new Date();
+    const day = now.getDay();
+    const diffToMonday = (day + 6) % 7;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    return { monday, sunday };
+  };
+
+  const isInCurrentWeek = (dateStr) => {
+    try {
+      const { monday, sunday } = getCurrentWeekBounds();
+      const d = new Date(dateStr.length <= 10 ? `${dateStr}T00:00:00` : dateStr);
+      return d >= monday && d <= sunday;
+    } catch {
+      return false;
+    }
+  };
+
   const fetchStages = async () => {
     try {
       setLoading(true);
       const res = await fetch(
-        `http://192.168.1.106:8000/stages/event/${eventId}`,
+        `http://143.198.138.35:8000/stages/event/${eventId}`,
         { headers: { Authorization: `Bearer ${user.token}` } }
       );
       if (!res.ok) throw new Error();
       const data = await res.json();
+
       data.sort((a, b) => {
         const timeA = new Date(`1970-01-01T${a.start_time}`);
         const timeB = new Date(`1970-01-01T${b.start_time}`);
         return timeA - timeB;
       });
-    
-const stagesWithColor = data.map(stage => ({
-  ...stage,
-  color: colors[Math.floor(Math.random() * colors.length)]
-}));
 
-setStages(stagesWithColor);
-     
+      const stagesWithColor = data.map((stage) => ({
+        ...stage,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      }));
+
+      setStages(stagesWithColor);
     } catch {
       Alert.alert("Error", "No se pudieron cargar las actividades.");
     } finally {
@@ -85,7 +116,42 @@ setStages(stagesWithColor);
     fetchStages();
   }, []);
 
-  
+  const filteredStages = useMemo(() => {
+    if (!stages?.length) return [];
+    if (viewMode === "Lista") return stages;
+    if (viewMode === "Día") {
+      return stages.filter((s) => {
+        const ymd = s?.date ? toLocalYMD(s.date) : null;
+        return ymd === todayYMD;
+      });
+    }
+    if (viewMode === "Semana") {
+      return stages.filter((s) => {
+        const ymd = s?.date ? s.date.split("T")[0] : null;
+        return ymd ? isInCurrentWeek(ymd) : false;
+      });
+    }
+    return stages;
+  }, [stages, viewMode]);
+
+  const openDetail = (stage) => {
+    setSelectedStage(stage);
+    setDetailModalVisible(true);
+  };
+
+  const startEditing = () => {
+    setIsEditing(true);
+    setModalVisible(true);
+    setDetailModalVisible(false);
+    const s = selectedStage;
+    setTitle(s.title);
+    setDate(s.date.split("T")[0]);
+    setStartTime(s.start_time);
+    setEndTime(s.end_time);
+    setDescription(s.description || "");
+    setLocation(s.location || "");
+  };
+
   const handleSubmit = async () => {
     if (!title || !date || !startTime || !endTime) {
       return Alert.alert("Error", "Completa los campos obligatorios.");
@@ -100,8 +166,8 @@ setStages(stagesWithColor);
         location,
       };
       const url = isEditing
-        ? `http://192.168.1.106:8000/stages/${selectedStage.id}`
-        : `http://192.168.1.106:8000/stages/${eventId}`;
+        ? `http://143.198.138.35:8000/stages/${selectedStage.id}`
+        : `http://143.198.138.35:8000/stages/${eventId}`;
       const method = isEditing ? "PUT" : "POST";
       const res = await fetch(url, {
         method,
@@ -133,11 +199,10 @@ setStages(stagesWithColor);
     }
   };
 
-  
   const handleDelete = async () => {
     try {
       const res = await fetch(
-        `http://192.168.1.106:8000/stages/${selectedStage.id}`,
+        `http://143.198.138.35:8000/stages/${selectedStage.id}`,
         { method: "DELETE", headers: { Authorization: `Bearer ${user.token}` } }
       );
       if (!res.ok) throw new Error();
@@ -148,32 +213,21 @@ setStages(stagesWithColor);
     }
   };
 
-  
-  const openDetail = (stage) => {
-    setSelectedStage(stage);
-    setDetailModalVisible(true);
-  };
-
-  
-  const startEditing = () => {
-    setIsEditing(true);
-    setModalVisible(true);
-    setDetailModalVisible(false);
-    const s = selectedStage;
-    setTitle(s.title);
-    setDate(s.date.split("T")[0]);
-    setStartTime(s.start_time);
-    setEndTime(s.end_time);
-    setDescription(s.description || "");
-    setLocation(s.location || "");
-  };
-
-  
   const formattedDate = new Date(eventDate).toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "long",
     year: "numeric",
   });
+
+  const emptyMsg =
+    viewMode === "Día"
+      ? "No hay actividades para hoy."
+      : viewMode === "Semana"
+      ? "No hay actividades para esta semana."
+      : "No hay actividades para mostrar.";
+
+const isFormValid = title && date && startTime && endTime;
+
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -214,20 +268,17 @@ setStages(stagesWithColor);
             color="#6F4C8C"
             style={{ marginTop: 20 }}
           />
+        ) : filteredStages.length === 0 ? (
+          <Text style={styles.emptyText}>{emptyMsg}</Text>
         ) : (
-          stages.map((stage, i) => (
+          filteredStages.map((stage, i) => (
             <TouchableOpacity
               key={stage.id || i}
               style={styles.row}
               onPress={() => openDetail(stage)}
             >
               <Text style={styles.time}>{formatTime(stage.start_time)}</Text>
-              <View
-  style={[
-    styles.card,
-    { backgroundColor: stage.color }
-  ]}
->
+              <View style={[styles.card, { backgroundColor: stage.color }]}>
                 <Ionicons name="calendar-outline" size={25} color="#254236" />
                 <View style={styles.cardText}>
                   <Text style={styles.cardTitle}>{stage.title}</Text>
@@ -239,6 +290,7 @@ setStages(stagesWithColor);
             </TouchableOpacity>
           ))
         )}
+
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => {
@@ -258,178 +310,197 @@ setStages(stagesWithColor);
         transparent={false}
         onRequestClose={() => setDetailModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Detalles de Actividad</Text>
-            {selectedStage && (
-              <>
-                <Text style={styles.detailText}>
-                  <Text style={{ fontWeight: "700" }}>Título:</Text>{" "}
-                  {selectedStage.title}
-                </Text>
-                <Text style={styles.detailText}>
-                  <Text style={{ fontWeight: "700" }}>Fecha:</Text>{" "}
-                  {selectedStage.date.split("T")[0]}
-                </Text>
-                <Text style={styles.detailText}>
-                  <Text style={{ fontWeight: "700" }}>Hora:</Text>{" "}
-                  {formatTime(selectedStage.start_time)} -{" "}
-                  {formatTime(selectedStage.end_time)}
-                </Text>
-                {selectedStage.description && (
-                  <Text style={styles.detailText}>
-                    <Text style={{ fontWeight: "700" }}>Descripción:</Text>{" "}
-                    {selectedStage.description}
-                  </Text>
-                )}
-                {selectedStage.location && (
-                  <Text style={styles.detailText}>
-                    <Text style={{ fontWeight: "700" }}>Ubicación:</Text>{" "}
-                    {selectedStage.location}
-                  </Text>
-                )}
-              </>
-            )}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.customButton}
-                onPress={startEditing}
-              >
-                <Text style={styles.buttonText}>Actualizar tarea</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.customButton, styles.deleteButton]}
-                onPress={handleDelete}
-              >
-                <Text style={styles.buttonText}>Eliminar tarea</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Crear/Editar Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setModalVisible(false)}
-      >
         <SafeAreaView style={{ flex: 1, backgroundColor: "#FDF6F7" }}>
-          <ScrollView contentContainerStyle={{ padding: 16 }}>
-            <Text style={styles.modalTitle}>
-              {isEditing ? "Editar Actividad" : "Crear etapa"}
-            </Text>
-
-            <Text style={styles.modalOptions}>Título de la etapa</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Título"
-              value={title}
-              onChangeText={setTitle}
-            />
-
-            <Text style={styles.modalOptions}>Fecha</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text>{date || "Selecciona fecha"}</Text>
+          {/* Header con flecha y TÍTULO CENTRADO */}
+          <View style={styles.detailHeader}>
+            <TouchableOpacity onPress={() => setDetailModalVisible(false)}>
+              <Ionicons name="arrow-back" size={24} color="#254236" />
             </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={date ? new Date(date) : new Date()}
-                mode="date"
-                display="default"
-                onChange={(e, selected) => {
-                  setShowDatePicker(false);
-                  if (selected) setDate(selected.toISOString().split("T")[0]);
-                }}
-              />
-            )}
+            <Text style={styles.detailHeaderTitle}>Detalles de Actividad</Text>
+            <View style={{ width: 24 }} />
+          </View>
 
-            <Text style={styles.modalOptions}>Hora inicio</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowStartPicker(true)}
-            >
-              <Text>{startTime ? formatTime(startTime) : "Hora inicio"}</Text>
-            </TouchableOpacity>
-            {showStartPicker && (
-              <DateTimePicker
-                value={
-                  startTime ? new Date(`1970-01-01T${startTime}`) : new Date()
-                }
-                mode="time"
-                display="default"
-                onChange={(e, selected) => {
-                  setShowStartPicker(false);
-                  if (selected)
-                    setStartTime(selected.toTimeString().split(" ")[0]);
-                }}
-              />
-            )}
+          {/* Contenido centrado en tarjeta */}
+          <ScrollView contentContainerStyle={styles.detailScroll}>
+            <View style={styles.detailCard}>
+              {selectedStage && (
+                <>
+                  <Text style={styles.detailText}>
+                    <Text style={{ fontWeight: "700" }}>Título:</Text> {selectedStage.title}
+                  </Text>
+                  <Text style={styles.detailText}>
+                    <Text style={{ fontWeight: "700" }}>Fecha:</Text> {selectedStage.date.split("T")[0]}
+                  </Text>
+                  <Text style={styles.detailText}>
+                    <Text style={{ fontWeight: "700" }}>Hora:</Text> {formatTime(selectedStage.start_time)} - {formatTime(selectedStage.end_time)}
+                  </Text>
+                  {selectedStage.description ? (
+                    <Text style={styles.detailText}>
+                      <Text style={{ fontWeight: "700" }}>Descripción:</Text> {selectedStage.description}
+                    </Text>
+                  ) : null}
+                  {selectedStage.location ? (
+                    <Text style={styles.detailText}>
+                      <Text style={{ fontWeight: "700" }}>Ubicación:</Text> {selectedStage.location}
+                    </Text>
+                  ) : null}
+                </>
+              )}
 
-            <Text style={styles.modalOptions}>Hora fin</Text>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowEndPicker(true)}
-            >
-              <Text>{endTime ? formatTime(endTime) : "Hora fin"}</Text>
-            </TouchableOpacity>
-            {showEndPicker && (
-              <DateTimePicker
-                value={endTime ? new Date(`1970-01-01T${endTime}`) : new Date()}
-                mode="time"
-                display="default"
-                onChange={(e, selected) => {
-                  setShowEndPicker(false);
-                  if (selected)
-                    setEndTime(selected.toTimeString().split(" ")[0]);
-                }}
-              />
-            )}
-
-            <Text style={styles.modalOptions}>Descripción</Text>
-            <TextInput
-              style={[styles.input, { height: 80 }]}
-              placeholder="Descripción de la actividad"
-              value={description}
-              onChangeText={setDescription}
-              multiline
-            />
-
-            <Text style={styles.modalOptions}>Ubicación</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ubicación de la actividad"
-              value={location}
-              onChangeText={setLocation}
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.customButton2, styles.cancelButton]}
-                onPress={() => {
-                  setModalVisible(false);
-                  setIsEditing(false);
-                }}
-              >
-                <Text style={styles.buttonText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.customButton2, styles.saveButton]}
-                onPress={handleSubmit}
-              >
-                <Text style={styles.buttonText}>
-                  {isEditing ? "Guardar cambios" : "Crear etapa"}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.customButton} onPress={startEditing}>
+                  <Text style={styles.buttonText}>Actualizar tarea</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.customButton, styles.deleteButton]}
+                  onPress={handleDelete}
+                >
+                  <Text style={styles.buttonText}>Eliminar tarea</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* Crear/Editar Modal */}
+      <Modal
+  visible={modalVisible}
+  animationType="slide"
+  transparent={false}
+  onRequestClose={() => setModalVisible(false)}
+>
+  <SafeAreaView style={{ flex: 1, backgroundColor: "#FDF6F7" }}>
+    <ScrollView contentContainerStyle={{ padding: 16 }}>
+      <Text style={styles.modalTitle}>
+        {isEditing ? "Editar Actividad" : "Crear etapa"}
+      </Text>
+
+      {/* Título (obligatorio) */}
+      <Text style={styles.modalOptions}>
+        Título de la etapa <Text style={styles.requiredText}>(Obligatorio)</Text>
+      </Text>
+      <TextInput
+        style={[styles.input, !title && styles.inputError]}
+        placeholder="Título"
+        value={title}
+        onChangeText={setTitle}
+      />
+
+      {/* Fecha (obligatorio) */}
+      <Text style={styles.modalOptions}>
+        Fecha <Text style={styles.requiredText}>(Obligatorio)</Text>
+      </Text>
+      <TouchableOpacity
+        style={[styles.input, !date && styles.inputError]}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Text>{date || "Selecciona fecha"}</Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={date ? new Date(date) : new Date()}
+          mode="date"
+          display="default"
+          onChange={(e, selected) => {
+            setShowDatePicker(false);
+            if (selected) setDate(selected.toISOString().split("T")[0]);
+          }}
+        />
+      )}
+
+      {/* Hora inicio (obligatorio) */}
+      <Text style={styles.modalOptions}>
+        Hora inicio <Text style={styles.requiredText}>(Obligatorio)</Text>
+      </Text>
+      <TouchableOpacity
+        style={[styles.input, !startTime && styles.inputError]}
+        onPress={() => setShowStartPicker(true)}
+      >
+        <Text>{startTime ? formatTime(startTime) : "Hora inicio"}</Text>
+      </TouchableOpacity>
+      {showStartPicker && (
+        <DateTimePicker
+          value={startTime ? new Date(`1970-01-01T${startTime}`) : new Date()}
+          mode="time"
+          display="default"
+          onChange={(e, selected) => {
+            setShowStartPicker(false);
+            if (selected) setStartTime(selected.toTimeString().split(" ")[0]);
+          }}
+        />
+      )}
+
+      {/* Hora fin (obligatorio) */}
+      <Text style={styles.modalOptions}>
+        Hora fin <Text style={styles.requiredText}>(Obligatorio)</Text>
+      </Text>
+      <TouchableOpacity
+        style={[styles.input, !endTime && styles.inputError]}
+        onPress={() => setShowEndPicker(true)}
+      >
+        <Text>{endTime ? formatTime(endTime) : "Hora fin"}</Text>
+      </TouchableOpacity>
+      {showEndPicker && (
+        <DateTimePicker
+          value={endTime ? new Date(`1970-01-01T${endTime}`) : new Date()}
+          mode="time"
+          display="default"
+          onChange={(e, selected) => {
+            setShowEndPicker(false);
+            if (selected) setEndTime(selected.toTimeString().split(" ")[0]);
+          }}
+        />
+      )}
+
+      {/* Descripción (opcional) */}
+      <Text style={styles.modalOptions}>Descripción</Text>
+      <TextInput
+        style={[styles.input, { height: 80 }]}
+        placeholder="Descripción de la actividad"
+        value={description}
+        onChangeText={setDescription}
+        multiline
+      />
+
+      {/* Ubicación (opcional) */}
+      <Text style={styles.modalOptions}>Ubicación</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Ubicación de la actividad"
+        value={location}
+        onChangeText={setLocation}
+      />
+
+      {/* Botones */}
+      <View style={styles.modalButtons}>
+        <TouchableOpacity
+          style={[styles.customButton2, styles.cancelButton]}
+          onPress={() => {
+            setModalVisible(false);
+            setIsEditing(false);
+          }}
+        >
+          <Text style={styles.buttonText}>Cancelar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.customButton2,
+            styles.saveButton,
+            !isFormValid && styles.disabledButton
+          ]}
+          onPress={handleSubmit}
+          disabled={!isFormValid}
+        >
+          <Text style={styles.buttonText}>
+            {isEditing ? "Guardar cambios" : "Crear etapa"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  </SafeAreaView>
+</Modal>
     </SafeAreaView>
   );
 }
@@ -487,6 +558,13 @@ const styles = StyleSheet.create({
   cardText: { marginLeft: 12 },
   cardTitle: { fontSize: 16, fontWeight: "600", color: "#254236" },
   cardSubtitle: { fontSize: 14, color: "#4B5563", marginTop: 4 },
+  emptyText: {
+    textAlign: "center",
+    color: "#6B7280",
+    marginTop: 24,
+    fontSize: 15,
+    fontStyle: "italic",
+  },
   addButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -500,12 +578,44 @@ const styles = StyleSheet.create({
     height: 59,
   },
   addText: { marginLeft: 8, fontSize: 16, color: "#254236", fontWeight: "500" },
+
+  
+  detailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 10,
+  },
+  detailHeaderTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#AF8EC1",
+  },
+  detailScroll: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  detailCard: {
+    width: "92%",
+    alignSelf: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+
+  
   modalOverlay: {
-    position: "absolute", // Clave para iOS/Android
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
@@ -522,7 +632,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 12,
     color: "#AF8EC1",
-    textAlign: "start",
+  },
+  modalOptions: {
+    marginTop: 6,
+    marginBottom: 4,
+    color: "#6B5E70",
+    fontWeight: "700",
   },
   input: {
     borderWidth: 1,
@@ -530,6 +645,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 8,
     marginBottom: 12,
+    backgroundColor: "#FFF",
   },
   modalButtons: {
     flexDirection: "column",
@@ -540,19 +656,11 @@ const styles = StyleSheet.create({
   customButton: {
     backgroundColor: "#007AFF",
     padding: 10,
-    borderRadius: 5,
+    borderRadius: 8,
   },
   deleteButton: {
     backgroundColor: "#D9534F",
   },
-  buttonText: {
-    color: "white",
-    textAlign: "center",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  detailText: { fontSize: 14, marginBottom: 8 },
-
   customButton2: {
     flex: 1,
     marginHorizontal: 8,
@@ -572,5 +680,19 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+    textAlign: "center",
   },
+  detailText: { fontSize: 14, marginBottom: 8, color: "#111827" },
+  requiredText: {
+  color: "red",
+  fontSize: 12,
+  fontWeight: "400",
+},
+inputError: {
+  borderColor: "red",
+},
+
+disabledButton: {
+  backgroundColor: "#CCC",
+},
 });

@@ -21,7 +21,17 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
 
-const API_URL = 'http://192.168.1.106:8000';
+const API_URL = 'http://143.198.138.35:8000';
+
+const EVENT_TYPES = [
+  'Boda',
+  'Cumpleaños',
+  'XV Anos',
+  'Graduacion',
+  'Bautizo',
+  'Evento Corporativo',
+  'Otro',
+];
 
 export default function EventDetailScreen() {
   const navigation = useNavigation();
@@ -42,6 +52,9 @@ export default function EventDetailScreen() {
   const [eventDescription, setEventDescription] = useState('');
   const [coverUri, setCoverUri] = useState(null);
 
+  const [typePickerVisible, setTypePickerVisible] = useState(false);
+  const [isOtherType, setIsOtherType] = useState(false);
+
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [userSearch, setUserSearch] = useState('');
@@ -56,8 +69,18 @@ export default function EventDetailScreen() {
       setEventType(initialEvent.event_type);
       setEventDescription(initialEvent.event_description || '');
       setCoverUri(initialEvent.event_cover);
+
+      const inList = EVENT_TYPES.includes(initialEvent.event_type);
+      setIsOtherType(!inList || initialEvent.event_type === 'Otro');
     }
   }, [initialEvent]);
+
+  useEffect(() => {
+    if (editVisible) {
+      const inList = EVENT_TYPES.includes(eventType);
+      setIsOtherType(!inList || eventType === 'Otro');
+    }
+  }, [editVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -107,6 +130,12 @@ export default function EventDetailScreen() {
   };
 
   const handleUpdate = async () => {
+    // Validación opcional: si elige "Otro" exige que escriba algo
+    if (isOtherType && !eventType.trim()) {
+      Alert.alert('Tipo de evento', 'Escribe el tipo de evento cuando selecciones "Otro".');
+      return;
+    }
+
     try {
       const form = new FormData();
       form.append('event_name', eventName);
@@ -349,14 +378,6 @@ export default function EventDetailScreen() {
               navigation.navigate('Agenda', { eventId: eventData.event_id, eventDate: eventData.event_date });
             }}
           />
-          {/* <ActionItem
-            icon="cash-outline"
-            label="Ir a Gastos"
-            onPress={() => {
-              setActionsVisible(false);
-              navigation.navigate('Expenses', { eventId: eventData.event_id });
-            }}
-          /> */}
           <ActionItem
             icon="people-outline"
             label="Ir a Invitados"
@@ -373,9 +394,7 @@ export default function EventDetailScreen() {
               navigation.navigate('PortadaAlbums', { eventId: eventData.event_id });
             }}
           />
-          
-
-           <ActionItem
+          <ActionItem
             icon="images-outline"
             label="Ir a invitaciones"
             onPress={() => {
@@ -383,7 +402,7 @@ export default function EventDetailScreen() {
               navigation.navigate('InvitationsHome', { eventId: eventData.event_id });
             }}
           />
-<ActionItem
+          <ActionItem
             icon="person-add-outline"
             label="Agregar owner"
             onPress={() => {
@@ -429,7 +448,12 @@ export default function EventDetailScreen() {
           </View>
 
           <Field label="Nombre">
-            <TextInput style={styles.input} value={eventName} onChangeText={setEventName} placeholder="Ej. Boda de Ana y Luis" />
+            <TextInput
+              style={styles.input}
+              value={eventName}
+              onChangeText={setEventName}
+              placeholder="Ej. Boda de Ana y Luis"
+            />
           </Field>
 
           <Field label="Fecha y hora">
@@ -445,16 +469,52 @@ export default function EventDetailScreen() {
               </Text>
             </TouchableOpacity>
             {Platform.OS === 'ios' && showDatePicker && (
-              <DateTimePicker value={eventDate} mode="datetime" display="spinner" onChange={onChangeDate} minimumDate={new Date()} />
+              <DateTimePicker
+                value={eventDate}
+                mode="datetime"
+                display="spinner"
+                onChange={onChangeDate}
+                minimumDate={new Date()}
+              />
             )}
           </Field>
 
           <Field label="Dirección">
-            <TextInput style={styles.input} value={eventAddress} onChangeText={setEventAddress} placeholder="Ej. Jardín El Roble, Cuernavaca" />
+            <TextInput
+              style={styles.input}
+              value={eventAddress}
+              onChangeText={setEventAddress}
+              placeholder="Ej. Jardín El Roble, Cuernavaca"
+            />
           </Field>
 
-          <Field label="Tipo">
-            <TextInput style={styles.input} value={eventType} onChangeText={setEventType} placeholder="Boda, XV Años, etc." />
+          {/* Tipo con selector y “Otro” */}
+          <Field label="Tipo de evento">
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setTypePickerVisible(true)}
+              activeOpacity={0.9}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: eventType ? '#111827' : '#9CA3AF' }}>
+                  {eventType || 'Selecciona tipo'}
+                </Text>
+                <Ionicons name="chevron-down-outline" size={18} color="#6B7280" />
+              </View>
+            </TouchableOpacity>
+
+            {isOtherType && (
+              <>
+                <Text style={styles.helperText}>Especifica el tipo de evento</Text>
+                <TextInput
+                  style={styles.input}
+                  value={EVENT_TYPES.includes(eventType) ? '' : eventType}
+                  onChangeText={setEventType}
+                  placeholder="Escribe el tipo de evento"
+                  autoCapitalize="sentences"
+                />
+              </>
+            )}
           </Field>
 
           <Field label="Descripción">
@@ -471,6 +531,57 @@ export default function EventDetailScreen() {
             <Text style={styles.saveText}>Actualizar Evento</Text>
           </TouchableOpacity>
         </ScrollView>
+      </Modal>
+
+      {/* TYPE PICKER */}
+      <Modal
+        visible={typePickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTypePickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.pickerBackdrop}
+          activeOpacity={1}
+          onPress={() => setTypePickerVisible(false)}
+        />
+        <View style={styles.pickerSheet}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>Selecciona el tipo de evento</Text>
+            <TouchableOpacity onPress={() => setTypePickerVisible(false)}>
+              <Ionicons name="close" size={22} color="#111827" />
+            </TouchableOpacity>
+          </View>
+
+          {EVENT_TYPES.map((opt) => {
+            const selected =
+              (!isOtherType && eventType === opt) || (opt === 'Otro' && isOtherType);
+            return (
+              <TouchableOpacity
+                key={opt}
+                style={styles.pickerRow}
+                activeOpacity={0.85}
+                onPress={() => {
+                  if (opt === 'Otro') {
+                    setIsOtherType(true);
+                    if (EVENT_TYPES.includes(eventType)) {
+                      setEventType('');
+                    }
+                  } else {
+                    setIsOtherType(false);
+                    setEventType(opt);
+                  }
+                  setTypePickerVisible(false);
+                }}
+              >
+                <Text style={[styles.pickerText, selected && styles.pickerTextSelected]}>
+                  {opt}
+                </Text>
+                {selected && <Ionicons name="checkmark" size={18} color="#6B21A8" />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </Modal>
 
       {/* MODAL OWNER */}
@@ -717,6 +828,13 @@ const styles = StyleSheet.create({
     fontSize: 15, color: '#111827',
   },
 
+  helperText: {
+    marginTop: 6,
+    marginBottom: 6,
+    color: '#6B7280',
+    fontSize: 12,
+  },
+
   saveButton: {
     marginTop: 18, backgroundColor: '#254236',
     paddingVertical: 14, borderRadius: 12, alignItems: 'center',
@@ -732,4 +850,58 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF', borderRadius: 12, padding: 12, marginTop: 10,
     borderColor: '#E5E7EB', borderWidth: 1,
   },
+
+  
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  pickerSheet: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    marginBottom: 6,
+  },
+  pickerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  pickerText: {
+    fontSize: 15,
+    color: '#111827',
+  },
+  pickerTextSelected: {
+    color: '#6B21A8',
+    fontWeight: '800',
+  },
+  input: {
+    placeholderTextColor: '#6B7280',
+  }
 });

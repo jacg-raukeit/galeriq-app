@@ -22,26 +22,24 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { AuthContext } from '../context/AuthContext';
 
-const API_URL = 'http://192.168.1.106:8000'; // <-- tu base
+const API_URL = 'http://143.198.138.35:8000'; 
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const GUTTER = 12;
 const COLS = 2;
 const COL_W = (SCREEN_W - (GUTTER * (COLS + 1))) / COLS;
 
-// ---- Upload endpoint real del backend ----
 const UPLOAD_URL = (albumId) => `${API_URL}/albums/${albumId}/photos`;
 
-// ---- Mappers auxiliares ----
 const mapAlbumFromApi = (a) => ({
   id: String(a.album_id ?? a.id ?? a.albumId),
   name: a.name,
-  photos: [], // se llenan por álbum
+  photos: [], 
 });
 
 const mapPhotoFromApi = (p) => {
   const uri =
-    p.path || // <--- tu modelo Photo guarda la URL en "path"
+    p.path || 
     p.url ||
     p.photo_url ||
     p.image_url ||
@@ -68,7 +66,7 @@ export default function AlbumsScreen({ navigation, route }) {
   const { user } = useContext(AuthContext);
   const token = user?.token || user?.accessToken || '';
 
-  const [albums, setAlbums] = useState([]); // [{id, name, photos:[]}]
+  const [albums, setAlbums] = useState([]); 
   const [activeAlbumId, setActiveAlbumId] = useState(null);
 
   const [pickerBusy, setPickerBusy] = useState(false);
@@ -82,7 +80,7 @@ export default function AlbumsScreen({ navigation, route }) {
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
-  // ---------- API: cargar tabs (álbumes) ----------
+  
   const fetchAlbums = useCallback(async () => {
     if (!eventId || !token) return;
     setLoadingAlbums(true);
@@ -104,15 +102,15 @@ export default function AlbumsScreen({ navigation, route }) {
     }
   }, [eventId, token, initialAlbumId]);
 
-  // ---------- API: cargar fotos por álbum ----------
+  
   const fetchPhotos = useCallback(
     async (albumId, currentAlbums = albums) => {
       if (!albumId || !token) return;
       setLoadingPhotos(true);
 
-      // prioriza GET del mismo recurso si existe en tu backend
+      
       const paths = [
-        `${API_URL}/albums/${albumId}/photos`,     // <-- más probable que exista
+        `${API_URL}/albums/${albumId}/photos`,     
         `${API_URL}/photos/album/${albumId}`,
         `${API_URL}/photos?album_id=${albumId}`,
       ];
@@ -131,7 +129,7 @@ export default function AlbumsScreen({ navigation, route }) {
             if (Array.isArray(data?.data)) { list = data.data; break; }
           }
         } catch {
-          // intenta el siguiente path
+          
         }
       }
 
@@ -149,16 +147,16 @@ export default function AlbumsScreen({ navigation, route }) {
     [albums, token]
   );
 
-  // Carga inicial
+  
   useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
 
-  // Álbum activo (para UI)
+  
   const activeAlbum = useMemo(
     () => albums.find(a => a.id === activeAlbumId),
     [albums, activeAlbumId]
   );
 
-  // Recalcula columnas del masonry con fotos del álbum activo
+  
   const columns = useMemo(() => {
     const heights = Array(COLS).fill(0);
     const cols = Array(COLS).fill(0).map(() => []);
@@ -172,7 +170,6 @@ export default function AlbumsScreen({ navigation, route }) {
     return cols;
   }, [activeAlbum]);
 
-  // ================== SUBIR FOTOS (usa endpoint real) ==================
   const uploadOnePhoto = useCallback(
     async (asset, albumId) => {
       try {
@@ -180,26 +177,23 @@ export default function AlbumsScreen({ navigation, route }) {
         const type = asset.mimeType || 'image/jpeg';
 
         const form = new FormData();
-        form.append('file', { uri: asset.uri, name, type }); // <-- NOMBRE DE CAMPO EXACTO
+        form.append('file', { uri: asset.uri, name, type }); 
 
         const res = await fetch(UPLOAD_URL(albumId), {
           method: 'POST',
-          headers: { ...authHeaders }, // NO poner Content-Type manualmente
+          headers: { ...authHeaders }, 
           body: form,
         });
 
         if (!res.ok) {
-          // lee texto por si el backend envía error detallado
           const txt = await res.text();
           throw new Error(txt || 'Fallo al subir la foto');
         }
 
-        // la API devuelve { url: "<s3_url>" } (aunque response_model=PhotoOut)
         let json = {};
         try { json = await res.json(); } catch {}
         const uploadedUrl = json?.url;
 
-        // Optimistic update: agrega la foto de inmediato si hay URL
         if (uploadedUrl) {
           setAlbums(prev =>
             prev.map(a => {
@@ -219,7 +213,6 @@ export default function AlbumsScreen({ navigation, route }) {
     [authHeaders]
   );
 
-  // Abre galería, sube todas y refresca el álbum
   const pickImages = useCallback(async () => {
     if (!activeAlbumId) {
       Alert.alert('Selecciona un álbum', 'Antes elige una pestaña/álbum para subir fotos.');
@@ -250,7 +243,7 @@ export default function AlbumsScreen({ navigation, route }) {
       }
 
       if (okCount > 0) {
-        await fetchPhotos(activeAlbumId); // refresca desde backend (por si agrega metadatos/ids)
+        await fetchPhotos(activeAlbumId); 
         Alert.alert('Listo', `Se subieron ${okCount} foto(s).`);
       } else {
         Alert.alert('Error', 'No se pudo subir ninguna foto. Revisa el token/endpoint.');
@@ -263,7 +256,6 @@ export default function AlbumsScreen({ navigation, route }) {
     }
   }, [activeAlbumId, uploadOnePhoto, fetchPhotos]);
 
-  // ------------------- (lo demás queda igual) -------------------
   const createAlbum = useCallback(() => {
     const name = (newAlbumName || '').trim();
     if (!name) return;
@@ -488,7 +480,6 @@ export default function AlbumsScreen({ navigation, route }) {
   );
 }
 
-/* ===== Estilos (SIN CAMBIOS) ===== */
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F5EEF7', marginTop: 20 },
   header: {

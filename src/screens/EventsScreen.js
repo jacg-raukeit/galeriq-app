@@ -1,5 +1,5 @@
 // src/screens/EventsScreen.js
-import React, { useContext, useRef, useState, useEffect } from 'react';
+import React, { useContext, useRef, useState, useEffect, useMemo } from 'react';
 import {
   ScrollView,
   View,
@@ -27,6 +27,35 @@ export default function EventsScreen() {
   const navigation = useNavigation();
   const { user }   = useContext(AuthContext);
   const { events } = useContext(EventsContext);
+
+  const [archivedById, setArchivedById] = useState({});
+
+  useEffect(() => {
+    if (!events || events.length === 0) return;
+    setArchivedById(prev => {
+      const next = { ...prev };
+      for (const e of events) {
+        if (typeof next[e.event_id] === 'undefined') {
+          next[e.event_id] = !!e.archived; 
+        }
+      }
+      return next;
+    });
+  }, [events]);
+
+  const toggleArchive = (id) => {
+    setArchivedById(prev => ({ ...prev, [id]: !(prev[id] ?? false) }));
+  };
+
+  const activeEvents = useMemo(
+    () => (events || []).filter(e => !(archivedById[e.event_id] ?? false)),
+    [events, archivedById]
+  );
+
+  const archivedEvents = useMemo(
+    () => (events || []).filter(e => (archivedById[e.event_id] ?? false)),
+    [events, archivedById]
+  );
 
   const [open, setOpen] = useState(false);
   const x = useRef(new Animated.Value(-DRAWER_W)).current;
@@ -73,32 +102,71 @@ export default function EventsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.listContainer}>
-        {events.length === 0 ? (
+        {/* Activos */}
+        {activeEvents.length === 0 && archivedEvents.length === 0 ? (
           <Text style={styles.emptyText}>No tienes eventos aún.</Text>
         ) : (
-          events.map(evt => (
-            <TouchableOpacity
-              key={evt.event_id}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('EventDetail', { event: evt })}
-            >
-              <EventCard
-                title={evt.event_name}
-                date={new Date(evt.event_date).toLocaleDateString('es-ES', {
-                  day: '2-digit',
-                  month: 'long',
-                  year: 'numeric',
-                })}
-                imageUri={evt.event_cover}
-                status={evt.event_status}
-              />
-            </TouchableOpacity>
-          ))
+          <>
+            {activeEvents.length === 0 ? (
+              <Text style={styles.emptyTextSmall}>No hay eventos activos.</Text>
+            ) : (
+              activeEvents.map(evt => (
+                <TouchableOpacity
+                  key={evt.event_id}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('EventDetail', { event: evt })}
+                >
+                  <EventCard
+                    title={evt.event_name}
+                    date={new Date(evt.event_date).toLocaleDateString('es-ES', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                    imageUri={evt.event_cover}
+                    status={evt.event_status}
+                    archived={false}
+                    onToggleArchive={() => toggleArchive(evt.event_id)}
+                  />
+                </TouchableOpacity>
+              ))
+            )}
+
+            {/* Sección Archivados */}
+            {archivedEvents.length > 0 && (
+              <>
+                <View style={styles.sectionDivider} />
+                <Text style={styles.archivedTitle}>
+                  Archivados ({archivedEvents.length})
+                </Text>
+
+                {archivedEvents.map(evt => (
+                  <TouchableOpacity
+                    key={evt.event_id}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('EventDetail', { event: evt })}
+                  >
+                    <EventCard
+                      title={evt.event_name}
+                      date={new Date(evt.event_date).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                      imageUri={evt.event_cover}
+                      status={evt.event_status}
+                      archived={true}
+                      onToggleArchive={() => toggleArchive(evt.event_id)}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </>
+            )}
+          </>
         )}
       </ScrollView>
 
       {/* OVERLAY */}
-      
       <Pressable
         onPress={closeDrawer}
         style={StyleSheet.absoluteFill}
@@ -174,8 +242,18 @@ const styles = StyleSheet.create({
   actionContainer:  { paddingHorizontal: 16, paddingVertical: 8 },
   listContainer:    { padding: 16, paddingBottom: 32 },
   emptyText:        { textAlign: 'center', marginTop: 32, color: '#6B7280', fontSize: 16 },
+  emptyTextSmall:   { textAlign: 'center', marginTop: 12, color: '#9CA3AF', fontSize: 14 },
 
-  /* Drawer */
+  sectionDivider:   { height: 1, backgroundColor: '#E5E7EB', marginTop: 12, marginBottom: 10 },
+  archivedTitle: {
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+
+ 
   overlay: {
     flex: 1,
     backgroundColor: '#000',

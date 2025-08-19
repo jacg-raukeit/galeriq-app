@@ -10,16 +10,17 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  SafeAreaView,
+  Keyboard,
 } from 'react-native';
+import { BackHandler } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -28,11 +29,22 @@ const { width, height } = Dimensions.get('window');
 export default function LoginScreen() {
   const navigation = useNavigation();
   const { setUser } = useContext(AuthContext);
+  const insets = useSafeAreaInsets();
 
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail]                 = useState('');
   const [password, setPassword]           = useState('');
   const [loading, setLoading]             = useState(false);
+  const [kbOpen, setKbOpen]               = useState(false);
+
+  const emailRef = useRef(null);
+  const passRef  = useRef(null);
+
+  useEffect(() => {
+    const sh = Keyboard.addListener('keyboardDidShow', () => setKbOpen(true));
+    const hd = Keyboard.addListener('keyboardDidHide', () => setKbOpen(false));
+    return () => { sh.remove(); hd.remove(); };
+  }, []);
 
   const slides = [
     {
@@ -53,7 +65,7 @@ export default function LoginScreen() {
   ];
 
   const [current, setCurrent] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(0)).current; 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const animate = () => {
@@ -74,7 +86,7 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      const res = await fetch('http://192.168.1.106:8000/login/', {
+      const res = await fetch('http://143.198.138.35:8000/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ email, password }).toString(),
@@ -86,13 +98,11 @@ export default function LoginScreen() {
         throw new Error(`HTTP ${res.status}`);
       }
       const { access_token: token } = await res.json();
-
-      const profileRes = await fetch('http://192.168.1.106:8000/me', {
+      const profileRes = await fetch('http://143.198.138.35:8000/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!profileRes.ok) throw new Error('No pude cargar perfil de usuario');
       const profile = await profileRes.json();
-
       setUser({ id: profile.user_id, token });
       navigation.replace('Events');
     } catch (e) {
@@ -103,7 +113,7 @@ export default function LoginScreen() {
     }
   };
 
-  const discovery = { authorizationEndpoint: 'http://192.168.1.106:8000/auth/login-google' };
+  const discovery = { authorizationEndpoint: 'http://143.198.138.35:8000/auth/login-google' };
   const [request, response, promptAsync] = AuthSession.useAuthRequest({
     redirectUri: AuthSession.makeRedirectUri({ scheme: 'galeriq', useProxy: true }),
     responseType: AuthSession.ResponseType.Code,
@@ -113,9 +123,9 @@ export default function LoginScreen() {
     if (response?.type === 'success') {
       setLoading(true);
       (async () => {
-        const r = await fetch(`http://192.168.1.106:8000/auth/callback?code=${response.params.code}`);
+        const r = await fetch(`http://143.198.138.35:8000/auth/callback?code=${response.params.code}`);
         const { access_token: token } = await r.json();
-        const profileRes = await fetch('http://192.168.1.106:8000/me', {
+        const profileRes = await fetch('http://143.198.138.35:8000/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const profile = await profileRes.json();
@@ -132,138 +142,199 @@ export default function LoginScreen() {
 
   const slide = slides[current];
 
+  const keyboardVerticalOffset = Math.max(insets.top, 12) + 44; 
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+  const onBackPress = () => {
+    if (kbOpen) {
+      Keyboard.dismiss();
+      return true; 
+    }
+    if (showEmailForm) {
+      setShowEmailForm(false);
+      return true; 
+    }
+    return false;
+  };
+
+  const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+  return () => sub.remove();
+}, [kbOpen, showEmailForm]);
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFE8D6' }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          bounces
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* BRAND */}
-          <Text style={styles.marca}>Galeriq</Text>
+    <View style={{ flex: 1, backgroundColor: '#FFE8D6' }}>
+      {/* KeyboardAwareScrollView se encarga del desplazamiento al foco */}
+      <KeyboardAwareScrollView
+        enableOnAndroid
+        extraScrollHeight={Platform.OS === 'android' ? 80 : 40}
+        keyboardOpeningTime={0}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+        enableAutomaticScroll
+        showsVerticalScrollIndicator={false}
+      >
+        {/* BRAND */}
+        <Text style={styles.marca}>Galeriq</Text>
 
-          {/* HERO / CARRUSEL */}
-          <View style={styles.hero}>
-            <Animated.Image
-              source={slide.img}
-              style={[styles.carouselImage, { opacity: fadeAnim }]}
-              resizeMode="cover"
-            />
-            {/* Overlay copy */}
-            <Animated.View style={[styles.copyOverlay, { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange:[0,1], outputRange:[8,0] }) }] }]}>
-              <Text style={styles.copyTitle}>{slide.title}</Text>
-              <Text style={styles.copySubtitle}>{slide.subtitle}</Text>
-            </Animated.View>
-
-            {/* Dots */}
-            <View style={styles.dots}>
-              {slides.map((_, i) => (
-                <View key={i} style={[styles.dot, i === current && styles.dotActive]} />
-              ))}
-            </View>
+        {/* HERO (colapsa cuando el teclado está abierto) */}
+        <View style={[
+          styles.hero,
+          { height: kbOpen ? Math.min(160, height * 0.20) : height * 0.28 }
+        ]}>
+          <Animated.Image
+            source={slide.img}
+            style={[styles.carouselImage, { opacity: fadeAnim }]}
+            resizeMode="cover"
+          />
+          <Animated.View
+            style={[
+              styles.copyOverlay,
+              { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange:[0,1], outputRange:[8,0] }) }] }
+            ]}
+          >
+            <Text style={styles.copyTitle}>{slide.title}</Text>
+            <Text style={styles.copySubtitle}>{slide.subtitle}</Text>
+          </Animated.View>
+          <View style={styles.dots}>
+            {slides.map((_, i) => (
+              <View key={i} style={[styles.dot, i === current && styles.dotActive]} />
+            ))}
           </View>
+        </View>
 
-          {/* SUBTÍTULO GENERAL */}
+        {/* SUBTÍTULO GENERAL */}
+        {!kbOpen && (
           <Text style={styles.subtitle}>
             Tu espacio para celebrar, recordar y compartir momentos. ✨
           </Text>
+        )}
 
-          {/* BENEFICIOS (ocupa el “hueco” de abajo y da valor) */}
-          {!showEmailForm && (
-            <View style={styles.featuresRow}>
-              <Feature icon="calendar-outline" text="Agenda inteligente" />
-              <Feature icon="pricetags-outline" text="Proveedores confiables" />
-              <Feature icon="images-outline" text="Álbum colaborativo" />
-            </View>
-          )}
-
-          {/* BOTONES / FORM */}
-          {!showEmailForm ? (
-            <>
-              <TouchableOpacity
-                style={[styles.button, (!request || loading) && styles.buttonDisabled]}
-                onPress={() => { setLoading(true); promptAsync({ useProxy: true }); }}
-                disabled={!request || loading}
-                activeOpacity={0.9}
-              >
-                {loading
-                  ? <ActivityIndicator color="#111827" />
-                  : <>
-                      <Ionicons name="logo-google" size={24} color="#DB4437" />
-                      <Text style={styles.buttonTextGoogle}>Continuar con Google</Text>
-                    </>
-                }
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.buttonEmail} onPress={() => setShowEmailForm(true)} activeOpacity={0.9}>
-                <Ionicons name="mail-outline" size={24} color="white" />
-                <Text style={styles.buttonText}>Continuar con correo</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <View style={styles.form}>
-              <TextInput
-                style={styles.input}
-                placeholder="Correo electrónico"
-                placeholderTextColor="#6B7280"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Contraseña"
-                placeholderTextColor="#6B7280"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity
-                style={[styles.button, styles.loginBtn, loading && styles.buttonDisabled]}
-                onPress={handleEmailLogin}
-                disabled={loading}
-                activeOpacity={0.9}
-              >
-                {loading
-                  ? <ActivityIndicator color="#FFF" />
-                  : <Text style={styles.buttonText}>Iniciar sesión</Text>
-                }
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* FOOTER */}
-          <View style={styles.footer}>
-            {!showEmailForm ? (
-              <>
-                <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                  <Text style={styles.footerLink}>Regístrate</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text style={styles.footerText}>¿Olvidaste tu contraseña? </Text>
-                <TouchableOpacity onPress={() => { /* TODO: recovery */ }}>
-                  <Text style={styles.footerLink}>Recuperar</Text>
-                </TouchableOpacity>
-              </>
-            )}
+        {/* BENEFICIOS */}
+        {!showEmailForm && !kbOpen && (
+          <View style={styles.featuresRow}>
+            <Feature icon="calendar-outline" text="Agenda inteligente" />
+            <Feature icon="pricetags-outline" text="Proveedores confiables" />
+            <Feature icon="images-outline" text="Álbum colaborativo" />
           </View>
+        )}
 
-          {/* LEGAL / AYUDA */}
-          <View style={styles.legalRow}>
-            <TouchableOpacity><Text style={styles.legalLink}>Términos</Text></TouchableOpacity>
-            <Text style={styles.dotSep}>·</Text>
-            <TouchableOpacity><Text style={styles.legalLink}>Privacidad</Text></TouchableOpacity>
-            <Text style={styles.dotSep}>·</Text>
-            <TouchableOpacity><Text style={styles.legalLink}>Soporte</Text></TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        {/* BOTONES / FORM */}
+        {!showEmailForm ? (
+          <>
+            <TouchableOpacity
+              style={[styles.button, (!request || loading) && styles.buttonDisabled]}
+              onPress={() => { setLoading(true); promptAsync({ useProxy: true }); }}
+              disabled={!request || loading}
+              activeOpacity={0.9}
+            >
+              {loading
+                ? <ActivityIndicator color="#111827" />
+                : <>
+                    <Ionicons name="logo-google" size={24} color="#DB4437" />
+                    <Text style={styles.buttonTextGoogle}>Continuar con Google</Text>
+                  </>
+              }
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.buttonEmail}
+              onPress={() => setShowEmailForm(true)}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="mail-outline" size={24} color="white" />
+              <Text style={styles.buttonText}>Continuar con correo</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={styles.form}>
+  <TextInput
+    ref={emailRef}
+    style={styles.input}
+    placeholder="Correo electrónico"
+    placeholderTextColor="#6B7280"
+    keyboardType="email-address"
+    autoCapitalize="none"
+    value={email}
+    onChangeText={setEmail}
+    returnKeyType="next"
+    blurOnSubmit={false}
+    onSubmitEditing={() => passRef.current?.focus()}
+  />
+
+  <View style={styles.passwordContainer}>
+  <TextInput
+    ref={passRef}
+    style={[styles.input, { flex: 1, marginBottom: 0, borderWidth: 0 }]}
+    placeholder="Contraseña"
+    placeholderTextColor="#6B7280"
+    secureTextEntry={!showPassword}
+    value={password}
+    onChangeText={setPassword}
+    returnKeyType="done"
+    onSubmitEditing={handleEmailLogin}
+  />
+  <TouchableOpacity
+    onPress={() => setShowPassword(!showPassword)}
+    style={styles.eyeBtn}
+    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+  >
+    <Ionicons
+      name={showPassword ? "eye-off-outline" : "eye-outline"}
+      size={22}
+      color={showPassword ? "#6B21A8" : "#6B7280"} 
+    />
+  </TouchableOpacity>
+</View>
+
+  <TouchableOpacity
+    style={[styles.button, styles.loginBtn, loading && styles.buttonDisabled]}
+    onPress={handleEmailLogin}
+    disabled={loading}
+    activeOpacity={0.9}
+  >
+    {loading
+      ? <ActivityIndicator color="#FFF" />
+      : <Text style={styles.buttonText}>Iniciar sesión</Text>
+    }
+  </TouchableOpacity>
+</View>
+        )}
+
+        {/* FOOTER */}
+        <View style={{ height: kbOpen ? 12 : 0 }} />
+        {!kbOpen && (
+          <>
+            <View style={styles.footer}>
+              {!showEmailForm ? (
+                <>
+                  <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                    <Text style={styles.footerLink}>Regístrate</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.footerText}>¿Olvidaste tu contraseña? </Text>
+                  <TouchableOpacity onPress={() => { /* TODO */ }}>
+                    <Text style={styles.footerLink}>Recuperar</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+
+            {/* LEGAL / AYUDA */}
+            <View style={styles.legalRow}>
+              <TouchableOpacity><Text style={styles.legalLink}>Términos</Text></TouchableOpacity>
+              <Text style={styles.dotSep}>·</Text>
+              <TouchableOpacity><Text style={styles.legalLink}>Privacidad</Text></TouchableOpacity>
+              <Text style={styles.dotSep}>·</Text>
+              <TouchableOpacity><Text style={styles.legalLink}>Soporte</Text></TouchableOpacity>
+            </View>
+          </>
+        )}
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 
@@ -283,6 +354,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 28,
     backgroundColor: '#FFE8D6',
+    minHeight: height * 1.05, 
   },
 
   marca: {
@@ -292,16 +364,13 @@ const styles = StyleSheet.create({
 
   hero: {
     width: width * 0.9,
-    height: height * 0.28,
     borderRadius: 14,
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#E5E7EB',
     marginTop: 6,
   },
-  carouselImage: {
-    width: '100%', height: '100%',
-  },
+  carouselImage: { width: '100%', height: '100%' },
   copyOverlay: {
     position: 'absolute',
     left: 10, right: 10, bottom: 10,
@@ -352,13 +421,13 @@ const styles = StyleSheet.create({
   },
   featureText: { fontSize: 12.5, color: '#4B5563', textAlign: 'center', fontWeight: '700' },
 
-  button:         {
+  button: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.9)',
     padding: 12, borderRadius: 28, width: '85%',
     marginTop: 18, borderColor: '#B380B9', borderWidth: 1,
   },
-  buttonEmail:    {
+  buttonEmail: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#B380B9',
     padding: 12, borderRadius: 28, width: '85%',
@@ -370,7 +439,7 @@ const styles = StyleSheet.create({
   buttonTextGoogle: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '600', color: 'black', marginLeft: 8 },
 
   form:           { width: '88%', alignItems: 'center', marginTop: 10 },
-  input:          {
+  input: {
     backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 10,
     width: '100%', padding: 12, fontSize: 15, color: '#111827',
     marginBottom: 12, borderWidth: 1, borderColor: '#E5E7EB',
@@ -387,4 +456,20 @@ const styles = StyleSheet.create({
   },
   legalLink: { color: '#6B5E70', fontSize: 12.5, textDecorationLine: 'underline' },
   dotSep: { color: '#6B5E70', fontSize: 12.5 },
+  passwordContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: 'rgba(255,255,255,0.95)',
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: '#E5E7EB',
+  width: '100%',
+  paddingRight: 10,
+  marginBottom: 12,
+},
+eyeBtn: {
+  paddingHorizontal: 6,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
 });

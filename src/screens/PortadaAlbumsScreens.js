@@ -8,7 +8,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
 
-const API_URL = 'http://192.168.1.106:8000'; // <- ajusta
+const API_URL = 'http://143.198.138.35:8000'; 
 
 const CARD_RADIUS = 14;
 
@@ -19,22 +19,19 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
 
   const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
-  const [albums, setAlbums] = useState([]); // {id,name,coverUri,photosCount,raw}
+  const [albums, setAlbums] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // search
   const [query, setQuery] = useState('');
 
-  // crear álbum
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newCover, setNewCover] = useState(null);
   const [creating, setCreating] = useState(false);
 
-  // menú contextual
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuAlbum, setMenuAlbum] = useState(null); // {id, name, ...}
+  const [menuAlbum, setMenuAlbum] = useState(null); 
   const [updatingCover, setUpdatingCover] = useState(false);
 
   const filtered = useMemo(() => {
@@ -42,7 +39,6 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     return albums.filter(a => a.name.toLowerCase().includes(query.trim().toLowerCase()));
   }, [albums, query]);
 
-  // ---------- PERMISOS PICKER ----------
   const ensurePermission = async (fromCamera) => {
     if (fromCamera) {
       const cam = await ImagePicker.requestCameraPermissionsAsync();
@@ -67,13 +63,9 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     return result.assets?.[0]?.uri ?? null;
   };
 
-  // ---------- CONTADOR ROBUSTO ----------
-  // Intenta múltiples rutas razonables y distintas estructuras de respuesta.
+  
   const probePhotoCount = async (albumId) => {
-    // 0) si el backend ya devuelve el conteo en el propio álbum
-    //    (p.ej. photos_count o photo_count), úsalo
-    // (Se llena desde fetchAlbums si existe)
-    // 1..N) rutas de prueba
+   
     const paths = [
       `${API_URL}/albums/${albumId}/photos/count`,
       `${API_URL}/photos/album/${albumId}/count`,
@@ -89,11 +81,8 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
         const ct = r.headers.get('content-type') || '';
         if (ct.includes('application/json')) {
           const data = await r.json();
-          // a) { count: number }
           if (typeof data?.count === 'number') return data.count;
-          // b) array de fotos
           if (Array.isArray(data)) return data.length;
-          // c) objeto con nested array: { items: [] } o { photos: [] } o { data: [] }
           if (Array.isArray(data?.items)) return data.items.length;
           if (Array.isArray(data?.photos)) return data.photos.length;
           if (Array.isArray(data?.data)) return data.data.length;
@@ -103,7 +92,6 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     return 0;
   };
 
-  // ---------- CARGA DE ÁLBUMES ----------
   const fetchAlbums = useCallback(async () => {
     if (!eventId || !token) return;
     setLoading(true);
@@ -112,7 +100,6 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
       if (!r.ok) throw new Error('No se pudo obtener los álbumes');
       const raw = await r.json();
 
-      // Normaliza
       const base = (raw || []).map(a => {
         const id = a.album_id ?? a.id ?? a.albumId ?? a?.album_id;
         const initialCount = Number(a?.photos_count ?? a?.photo_count);
@@ -120,12 +107,11 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
           id: String(id),
           name: a.name,
           coverUri: a.cover_url || a.coverUrl || null,
-          photosCount: Number.isFinite(initialCount) ? initialCount : null, // null = aún por resolver
+          photosCount: Number.isFinite(initialCount) ? initialCount : null, 
           raw: a,
         };
       });
 
-      // Para los que no tengan conteo, lo resolvemos
       const needCount = base.filter(b => b.photosCount === null);
 
       const results = await Promise.allSettled(needCount.map(b => probePhotoCount(b.id)));
@@ -153,7 +139,6 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     setRefreshing(false);
   }, [fetchAlbums]);
 
-  // ---------- CREAR ÁLBUM ----------
   const saveAlbum = async () => {
     if (!newName.trim()) return Alert.alert('Falta el nombre', 'Escribe un nombre para el álbum.');
     if (!newCover) return Alert.alert('Falta la portada', 'Elige una foto de portada.');
@@ -171,7 +156,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
       const r = await fetch(`${API_URL}/albums/`, {
         method: 'POST',
         headers: { ...authHeaders },
-        body: form, // NO setear Content-Type manualmente
+        body: form, 
       });
 
       if (!r.ok) {
@@ -189,7 +174,6 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     }
   };
 
-  // ---------- CAMBIAR PORTADA (PATCH /albums/{id}/cover con 'file') ----------
   const patchCover = async (albumId, fileUri) => {
     try {
       setUpdatingCover(true);
@@ -223,7 +207,6 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     await patchCover(menuAlbum.id, uri);
   };
 
-  // ---------- UI ----------
   const AlbumCard = ({ item }) => (
     <View style={styles.card}>
       <TouchableOpacity
@@ -398,6 +381,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? 8 : 0, paddingBottom: 8,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 22,
   },
   backBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '600' },
@@ -422,7 +406,7 @@ const styles = StyleSheet.create({
   bottomBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     padding: 12, backgroundColor: 'rgba(255,255,255,0.94)',
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e7e7ee',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e7e7ee', marginBottom: 28,
   },
   createBtn: {
     height: 48, borderRadius: 12, backgroundColor: '#c9b3e6',
@@ -447,7 +431,6 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, height: 44, borderRadius: 10, backgroundColor: '#7c5fbd', alignItems: 'center', justifyContent: 'center' },
   actionText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
-  // menú contextual
   menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
   menuCard: { backgroundColor: '#fff', padding: 16, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
   menuTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },

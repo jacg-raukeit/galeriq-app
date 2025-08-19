@@ -5,7 +5,7 @@ import { TextInput, Button, Text } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 
-const API_URL = 'http://192.168.1.106:8000'; 
+const API_URL = 'http://143.198.138.35:8000'; 
 
 export default function AddGuestManualScreen() {
   const navigation = useNavigation();

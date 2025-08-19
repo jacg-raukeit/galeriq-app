@@ -52,7 +52,7 @@ export default function AddExpenseScreen() {
     };
 
     try {
-      const res = await fetch('http://192.168.1.106:8000/expenses/', {
+      const res = await fetch('http://143.198.138.35:8000/expenses/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

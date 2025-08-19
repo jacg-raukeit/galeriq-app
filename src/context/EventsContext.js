@@ -11,7 +11,7 @@ export function EventsProvider({ children }) {
   
   useEffect(() => {
     if (!user) return;
-   fetch('http://192.168.1.106:8000/events/get-events', {
+   fetch('http://143.198.138.35:8000/events/get-events', {
       headers: { Authorization: `Bearer ${user.token}` }
     })
       .then(res => res.json())
@@ -42,7 +42,7 @@ export function EventsProvider({ children }) {
       form.append('event_cover', { uri: event_coverUri, name: filename, type });
     }
 
-    const res = await fetch('http://192.168.1.106:8000/events/', {
+    const res = await fetch('http://143.198.138.35:8000/events/', {
       method: 'POST',
       headers: { Authorization: `Bearer ${user.token}` },
       body: form

@@ -20,7 +20,7 @@ export default function ExpensesScreen({ route }) {
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
-    fetch(`http://192.168.1.106:8000/expenses/event/${eventId}/group-by-category`, {
+    fetch(`http://143.198.138.35:8000/expenses/event/${eventId}/group-by-category`, {
       headers: { Authorization: `Bearer ${user.token}` },
     })
       .then((r) => {
