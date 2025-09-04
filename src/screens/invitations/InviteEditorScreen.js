@@ -1,57 +1,73 @@
 // src/screens/invitations/InviteEditorScreen.js
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useContext } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ImageBackground,
-  Dimensions,
-  ScrollView,
-  Alert,
-  TextInput,
+  View, Text, StyleSheet, TouchableOpacity, ImageBackground, Image,
+  Dimensions, ScrollView, Alert, TextInput, InteractionManager, ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
-
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import ViewShot from 'react-native-view-shot';
-import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
+import * as ImagePicker from 'expo-image-picker';
+
+const API_URL = 'http://143.198.138.35:8000';
+
+import { EventsContext } from '../../context/EventsContext';
+import { AuthContext } from '../../context/AuthContext';
 
 
 const FONT_OPTIONS = [
-  { key: 'System', label: 'System', family: undefined },
-  { key: 'Montserrat', label: 'Montserrat', family: 'Montserrat_700Bold' },
-  { key: 'Lato', label: 'Lato', family: 'Lato_700Bold' },
-  { key: 'Playfair', label: 'Playfair', family: 'PlayfairDisplay_700Bold' },
-  { key: 'Lobster', label: 'Lobster', family: 'Lobster_400Regular' },
-  { key: 'Pacifico', label: 'Pacifico', family: 'Pacifico_400Regular' },
-  { key: 'Dancing', label: 'Dancing Script', family: 'DancingScript_700Bold' },
+  { key: 'System',     label: 'System',           family: undefined },
+  { key: 'Montserrat', label: 'Montserrat',       family: 'Montserrat_700Bold' },
+  { key: 'Lato',       label: 'Lato',             family: 'Lato_700Bold' },
+  { key: 'Playfair',   label: 'Playfair',         family: 'PlayfairDisplay_700Bold' },
+  { key: 'Lobster',    label: 'Lobster',          family: 'Lobster_400Regular' },
+  { key: 'Pacifico',   label: 'Pacifico',         family: 'Pacifico_400Regular' },
+  { key: 'Dancing',    label: 'Dancing Script',   family: 'DancingScript_700Bold' },
 ];
 const getFontFamily = (key) => FONT_OPTIONS.find(f => f.key === key)?.family;
 
+
+const STICKER_CATEGORIES = {
+  Flowers: [
+    require('../../assets/stickers/flowers/flowers1.png'),
+    require('../../assets/stickers/flowers/flowers2.png'),
+    require('../../assets/stickers/flowers/flowers3.png'),
+  ],
+  Balloons: [
+    require('../../assets/stickers/balloons/ballon1.png'),
+    require('../../assets/stickers/balloons/ballon2.png'),
+  ],
+  Borders: [
+    require('../../assets/stickers/borders/border1.png'),
+    require('../../assets/stickers/borders/border2.png'),
+  ],
+  Cake: [
+    require('../../assets/stickers/cake/cake1.png'),
+  ],
+ 
+};
 
 const { width } = Dimensions.get('window');
 const CANVAS_W = width - 32;
 const CANVAS_H = CANVAS_W * 1.4;
 
-
 const clamp = (n, min = 0, max = 255) => Math.max(min, Math.min(max, Math.round(n)));
 const hexToRgb = (hex) => {
-  if (!hex) return { r: 17, g: 24, b: 39 }; // #111827
+  if (!hex) return { r: 17, g: 24, b: 39 };
   let h = (hex || '').replace('#', '').trim();
   if (h.length === 3) h = h.split('').map(c => c + c).join('');
   if (!/^[0-9A-Fa-f]{6}$/.test(h)) return { r: 17, g: 24, b: 39 };
   const n = parseInt(h, 16);
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 };
-const rgbToHex = ({ r, g, b }) =>
-  '#' + [r, g, b].map(v => clamp(v).toString(16).padStart(2, '0')).join('').toUpperCase();
+const rgbToHex = ({ r, g, b }) => '#' + [r, g, b].map(v => clamp(v).toString(16).padStart(2, '0')).join('').toUpperCase();
+const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : '');
 
-
+/* -------------------- Picker de color inline -------------------- */
 function InlineColorPicker({ value, onChange, onClose }) {
   const [hex, setHex] = useState(value || '#111827');
   const [rgb, setRgb] = useState(hexToRgb(value));
@@ -62,7 +78,7 @@ function InlineColorPicker({ value, onChange, onClose }) {
       setHex(value);
       setRgb(hexToRgb(value));
     }
-  }, [value]); 
+  }, [value]);
 
   const commitToParent = (nextHex) => {
     if ((nextHex || '').toUpperCase() !== (hex || '').toUpperCase()) {
@@ -96,12 +112,10 @@ function InlineColorPicker({ value, onChange, onClose }) {
   return (
     <View style={styles.customWrap}>
       <Text style={styles.panelTitle}>Color personalizado</Text>
-
       <View style={{ alignSelf: 'stretch', marginBottom: 12 }}>
         <View style={{ height: 40, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: hex }} />
         <Text style={{ marginTop: 8, color: '#6B7280' }}>{hex}</Text>
       </View>
-
       <View style={{ alignSelf: 'stretch', marginBottom: 8 }}>
         <Text style={{ fontWeight: '700', color: '#111827', marginBottom: 6 }}>HEX</Text>
         <View style={{ backgroundColor: '#F9FAFB', borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 10 }}>
@@ -116,7 +130,6 @@ function InlineColorPicker({ value, onChange, onClose }) {
           />
         </View>
       </View>
-
       {(['r','g','b']).map((k, idx) => (
         <View key={k} style={{ alignSelf: 'stretch', marginTop: idx ? 8 : 0 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -124,16 +137,13 @@ function InlineColorPicker({ value, onChange, onClose }) {
             <Text style={{ color: '#6B7280' }}>{rgb[k]}</Text>
           </View>
           <Slider
-            minimumValue={0}
-            maximumValue={255}
-            step={1}
+            minimumValue={0} maximumValue={255} step={1}
             value={rgb[k]}
             onValueChange={(v) => handleSlideChange(k, v)}
             onSlidingComplete={(v) => handleSlideComplete(k, v)}
           />
         </View>
       ))}
-
       <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, alignSelf: 'stretch' }}>
         <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E5E7EB' }]} onPress={onClose}>
           <Text style={[styles.modalBtnText, { color: '#111827' }]}>Cerrar</Text>
@@ -143,14 +153,13 @@ function InlineColorPicker({ value, onChange, onClose }) {
   );
 }
 
-
+/* -------------------- Texto arrastrable -------------------- */
 function DraggableText({
   id, text, color, size, weight, align, font, x, y,
-  onSelect, selected, onDragEnd, clampW, clampH,
+  onSelect, selected, onDragEnd, clampW, clampH, hideSelection,
 }) {
   const xSV = useSharedValue(x);
   const ySV = useSharedValue(y);
-
   useEffect(() => { xSV.value = x; }, [x]);
   useEffect(() => { ySV.value = y; }, [y]);
 
@@ -158,10 +167,7 @@ function DraggableText({
   const startY = useSharedValue(0);
 
   const pan = Gesture.Pan()
-    .onBegin(() => {
-      startX.value = xSV.value; startY.value = ySV.value;
-      runOnJS(onSelect)(id);
-    })
+    .onBegin(() => { startX.value = xSV.value; startY.value = ySV.value; runOnJS(onSelect)(id); })
     .onUpdate((e) => {
       const nx = Math.max(0, Math.min(clampW, startX.value + e.translationX));
       const ny = Math.max(0, Math.min(clampH, startY.value + e.translationY));
@@ -182,23 +188,94 @@ function DraggableText({
       <Animated.View style={[aStyle, { paddingHorizontal: 4, maxWidth: CANVAS_W - 8 }]}>
         <Text
           onPress={() => onSelect(id)}
-          style={{
-            color,
-            fontSize: size,
-            fontWeight: weightStyle,
-            textAlign: align,
-            fontFamily: family,
-          }}
+          style={{ color, fontSize: size, fontWeight: weightStyle, textAlign: align, fontFamily: family }}
         >
           {text}
         </Text>
-        {selected && <View style={{ height: 2, backgroundColor: '#6B21A8', marginTop: 2 }} />}
+        {!hideSelection && selected && (
+          <View style={{ height: 2, backgroundColor: '#6B21A8', marginTop: 2 }} />
+        )}
       </Animated.View>
     </GestureDetector>
   );
 }
 
+/* -------------------- Sticker arrastrable (drag + pinch + rotate) -------------------- */
+function DraggableSticker({
+  id, uri, x, y, scale = 1, rotate = 0, base = 160, locked = false,
+  gesturesEnabled = true,
+  onSelect, selected, onUpdate, clampW, clampH, hideSelection,
+}) {
+  const xSV = useSharedValue(x);
+  const ySV = useSharedValue(y);
+  const sSV = useSharedValue(scale);
+  const rSV = useSharedValue(rotate);
 
+  useEffect(() => { xSV.value = x; ySV.value = y; sSV.value = scale; rSV.value = rotate; }, [x, y, scale, rotate]);
+
+  const start = {
+    x: useSharedValue(0), y: useSharedValue(0),
+    s: useSharedValue(1), r: useSharedValue(0),
+  };
+
+  const pan = Gesture.Pan()
+    .enabled(gesturesEnabled && !locked)
+    .onBegin(() => { start.x.value = xSV.value; start.y.value = ySV.value; runOnJS(onSelect)(id); })
+    .onUpdate((e) => {
+      const nx = Math.max(0, Math.min(clampW, start.x.value + e.translationX));
+      const ny = Math.max(0, Math.min(clampH, start.y.value + e.translationY));
+      xSV.value = nx; ySV.value = ny;
+    })
+    .onEnd(() => { runOnJS(onUpdate)(id, { x: xSV.value, y: ySV.value, scale: sSV.value, rotate: rSV.value }); });
+
+  const pinch = Gesture.Pinch()
+    .enabled(gesturesEnabled && !locked)
+    .onBegin(() => { start.s.value = sSV.value; })
+    .onUpdate((e) => { sSV.value = Math.max(0.25, Math.min(4, start.s.value * e.scale)); })
+    .onEnd(() => { runOnJS(onUpdate)(id, { x: xSV.value, y: ySV.value, scale: sSV.value, rotate: rSV.value }); });
+
+  const rotation = Gesture.Rotation()
+    .enabled(gesturesEnabled && !locked)
+    .onBegin(() => { start.r.value = rSV.value; })
+    .onUpdate((e) => { rSV.value = start.r.value + e.rotation; })
+    .onEnd(() => { runOnJS(onUpdate)(id, { x: xSV.value, y: ySV.value, scale: sSV.value, rotate: rSV.value }); });
+
+  const composed = Gesture.Simultaneous(pan, pinch, rotation);
+
+  const aStyle = useAnimatedStyle(() => ({
+  position: 'absolute',
+  transform: [
+    { translateX: xSV.value },
+    { translateY: ySV.value },
+    { scale: sSV.value },
+    { rotate: `${rSV.value * Math.PI / 180}rad` }, 
+  ],
+}));
+
+  return (
+    <GestureDetector gesture={composed}>
+      <Animated.View style={aStyle}>
+        <TouchableOpacity activeOpacity={0.9} onPress={() => onSelect(id)}>
+          <Image
+            source={typeof uri === 'string' ? { uri } : uri}
+            style={{ width: base, height: base }}
+            resizeMode="contain"
+          />
+          {locked && (
+            <View style={{ position:'absolute', right:4, top:4, backgroundColor:'rgba(0,0,0,0.35)', borderRadius:8, padding:2 }}>
+              <Ionicons name="lock-closed" size={14} color="#fff" />
+            </View>
+          )}
+        </TouchableOpacity>
+        {!hideSelection && selected && (
+          <View style={{ height: 2, backgroundColor: '#6B21A8', marginTop: 2 }} />
+        )}
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
+/* -------------------- Sliders -------------------- */
 function SizeSlider({ value, onChange, min = 10, max = 64 }) {
   return (
     <View style={{ width: '100%', paddingVertical: 8 }}>
@@ -206,7 +283,7 @@ function SizeSlider({ value, onChange, min = 10, max = 64 }) {
         <TouchableOpacity onPress={() => onChange(Math.max(min, value - 1))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
           <Text style={{ fontWeight: '700' }}>−</Text>
         </TouchableOpacity>
-        <Text style={{ fontWeight: '800', color: '#111827' }}>{value}</Text>
+        <Text style={{ fontWeight: '800', color: '#111827' }}>{Math.round(value)}</Text>
         <TouchableOpacity onPress={() => onChange(Math.min(max, value + 1))} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB' }}>
           <Text style={{ fontWeight: '700' }}>＋</Text>
         </TouchableOpacity>
@@ -216,73 +293,270 @@ function SizeSlider({ value, onChange, min = 10, max = 64 }) {
   );
 }
 
+function LiveSlider({ title, value, min, max, step = 1, format = (v) => v.toFixed?.(2) ?? String(v), onStart, onLive, onCommit }) {
+  const [local, setLocal] = useState(value ?? 0);
+  const slidingRef = useRef(false);
+  const rafRef = useRef(null);
+  const pendingRef = useRef(null);
 
+  useEffect(() => { if (!slidingRef.current) setLocal(value ?? 0); }, [value]);
+
+  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+
+  const tick = () => {
+    rafRef.current = null;
+    if (pendingRef.current != null) {
+      onLive?.(pendingRef.current);
+      pendingRef.current = null;
+    }
+  };
+
+  return (
+    <View style={{ marginTop: 8 }}>
+      <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center' }}>
+        <Text style={{ fontWeight:'700', color:'#111827' }}>{title}</Text>
+        <Text style={{ color:'#6B7280' }}>{format(local)}</Text>
+      </View>
+      <Slider
+        minimumValue={min}
+        maximumValue={max}
+        value={local}
+        step={step}
+        onSlidingStart={() => { slidingRef.current = true; onStart?.(); }}
+        onValueChange={(v) => {
+          setLocal(v);
+          pendingRef.current = v;
+          if (!rafRef.current) rafRef.current = requestAnimationFrame(tick);
+        }}
+        onSlidingComplete={(v) => {
+          slidingRef.current = false;
+          if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+          pendingRef.current = null;
+          setLocal(v);
+          onLive?.(v);    
+          onCommit?.(v);   // commit final
+        }}
+      />
+    </View>
+  );
+}
+
+/* ==================== PANTALLA PRINCIPAL ==================== */
 export default function InviteEditorScreen() {
   const navigation = useNavigation();
-  const { params } = useRoute();
-  const template = params?.template;
+  const route = useRoute();
+  const template = route.params?.template;
 
-  const [layers, setLayers] = useState([
-    { id: 't1', text: 'Te invito a mi', x: CANVAS_W * 0.2, y: CANVAS_H * 0.18, size: 18, color: '#4B5563', weight: '700', align: 'center', font: 'System' },
-    { id: 't2', text: 'FIESTA DE CUMPLEAÑOS', x: CANVAS_W * 0.1, y: CANVAS_H * 0.30, size: 22, color: '#5B2B2B', weight: '900', align: 'left', font: 'Montserrat' },
-    { id: 't3', text: 'Olivia', x: CANVAS_W * 0.28, y: CANVAS_H * 0.42, size: 34, color: '#6B2A4A', weight: '800', align: 'center', font: 'Pacifico' },
-    { id: 't4', text: 'Sábado 13 de diciembre · 18:00', x: CANVAS_W * 0.12, y: CANVAS_H * 0.54, size: 14, color: '#374151', weight: '700', align: 'left', font: 'Lato' },
-  ]);
+  const { events } = useContext(EventsContext);
+  const { user } = useContext(AuthContext);
+
+  const activeEventId = useMemo(() => {
+    const p1 = route.params?.eventId;
+    const p2 = route.params?.event?.event_id;
+    if (p1 != null) return Number(p1);
+    if (p2 != null) return Number(p2);
+    if (Array.isArray(events) && events.length === 1) return Number(events[0].event_id);
+    return null;
+  }, [route.params?.eventId, route.params?.event?.event_id, events]);
+
+  const currentEvent = useMemo(() => {
+    if (activeEventId != null && Array.isArray(events)) {
+      const found = events.find(e => Number(e.event_id) === Number(activeEventId));
+      if (found) return found;
+    }
+    return route.params?.event || null;
+  }, [activeEventId, events, route.params?.event]);
+
+  const eventName        = currentEvent?.event_name || 'Nuevo evento';
+  const eventType        = currentEvent?.event_type ?? 'Evento';
+  const eventDescription = currentEvent?.event_description ?? 'Descripción pendiente';
+  const eventDateISO     = currentEvent?.event_date ?? null;
+
+  const formattedDateTime = useMemo(() => {
+    if (!eventDateISO) return 'Fecha por definir';
+    const d = new Date(eventDateISO);
+    const fecha = d.toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    return `${capitalize(fecha)} · ${hora}`;
+  }, [eventDateISO]);
+
+  const baseLayers = useMemo(() => ([
+    { kind: 'text', id: 't1', text: 'Te invito a mi',                x: CANVAS_W * 0.29, y: CANVAS_H * 0.18, size: 18, color: '#4B5563', weight: '700', align: 'center', font: 'System' },
+    { kind: 'text', id: 't2', text: String(eventType).toUpperCase(), x: CANVAS_W * 0.29, y: CANVAS_H * 0.30, size: 22, color: '#5B2B2B', weight: '900', align: 'left',   font: 'Montserrat' },
+    { kind: 'text', id: 't3', text: eventDescription,                x: CANVAS_W * 0.07, y: CANVAS_H * 0.42, size: 24, color: '#6B2A4A', weight: '800', align: 'center', font: 'Pacifico' },
+    { kind: 'text', id: 't4', text: formattedDateTime,               x: CANVAS_W * 0.12, y: CANVAS_H * 0.54, size: 14, color: '#374151', weight: '700', align: 'left',   font: 'Lato' },
+    { kind: 'text', id: 't5', text: eventName,                       x: CANVAS_W * 0.29, y: CANVAS_H * 0.66, size: 14, color: '#374151', weight: '700', align: 'left',   font: 'Lato' },
+  ]), [eventType, eventDescription, formattedDateTime, eventName]);
+
+  const [layers, setLayers] = useState(baseLayers);
+  const [initializedFromEvent, setInitializedFromEvent] = useState(false);
+  useEffect(() => {
+    if (currentEvent && !initializedFromEvent) {
+      setLayers(baseLayers);
+      setInitializedFromEvent(true);
+    }
+  }, [currentEvent, baseLayers, initializedFromEvent]);
+
   const [selectedId, setSelectedId] = useState('t3');
+  const [hideSelection, setHideSelection] = useState(false);
   const selected = useMemo(() => layers.find(l => l.id === selectedId), [layers, selectedId]);
 
   const shotRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const [panel, setPanel] = useState('edit'); 
-  const palette = ['#111827', '#4B5563', '#6B7280', '#5B2B2B', '#6B2A4A', '#B91C1C', '#15803D', '#0EA5E9', '#7C3AED', '#F59E0B'];
+  const [panel, setPanel] = useState('edit');
+  const [isAdjusting, setIsAdjusting] = useState(false);
 
-  const changeSelected = (patch) => {
-    if (!selected) return;
-    setLayers(prev => prev.map(l => (l.id === selected.id ? { ...l, ...patch } : l)));
-  };
-  const updateLayerPosition = (id, nx, ny) => {
-    setLayers(prev => prev.map(l => (l.id === id ? { ...l, x: nx, y: ny } : l)));
-  };
+  /* ---------- Helpers de capas ---------- */
+  const patchLayer = (id, patch) => setLayers(prev => prev.map(l => (l.id === id ? { ...l, ...patch } : l)));
+  const changeSelected = (patch) => { if (selected) patchLayer(selected.id, patch); };
+  const updateLayerPosition = (id, nx, ny) => patchLayer(id, { x: nx, y: ny });
 
   const addText = () => {
     const id = `t${Date.now()}`;
-    setLayers(prev => [
-      ...prev,
-      { id, text: 'Tu texto', x: CANVAS_W * 0.5, y: CANVAS_H * 0.7, size: 20, color: '#111827', weight: '700', align: 'center', font: 'System' },
-    ]);
+    setLayers(prev => [...prev, {
+      kind: 'text', id, text: 'Tu texto',
+      x: CANVAS_W * 0.5, y: CANVAS_H * 0.7,
+      size: 20, color: '#111827', weight: '700', align: 'center', font: 'System'
+    }]);
     setSelectedId(id);
   };
+
+  const addSticker = (uri) => {
+    const id = `s${Date.now()}`;
+    setLayers(prev => [...prev, {
+      kind: 'sticker',
+      id, uri,
+      x: CANVAS_W * 0.25, y: CANVAS_H * 0.25,
+      scale: 1, rotate: 0, base: 160, locked: false,
+    }]);
+    setSelectedId(id);
+  };
+
   const duplicate = () => {
     if (!selected) return;
-    const id = `t${Date.now()}`;
-    setLayers(prev => [...prev, { ...selected, id, y: selected.y + 18 }]);
+    const id = `${selected.kind === 'text' ? 't' : 's'}${Date.now()}`;
+    const copy = { ...selected, id, y: selected.y + 18 };
+    setLayers(prev => [...prev, copy]);
     setSelectedId(id);
   };
+
   const remove = () => {
     if (!selected) return;
     setLayers(prev => prev.filter(l => l.id !== selected.id));
     setSelectedId(prev => (prev === selected.id ? null : prev));
   };
 
-  const saveImage = async () => {
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') { Alert.alert('Permiso requerido', 'Necesitamos permiso para guardar en tu galería.'); return; }
-      const uri = await shotRef.current.capture();
-      await MediaLibrary.saveToLibraryAsync(uri);
-      Alert.alert('Listo', 'Imagen guardada en tu galería.');
-    } catch (e) { Alert.alert('Error', 'No se pudo guardar la imagen.'); }
+  const bringToFront = () => {
+    if (!selected) return;
+    setLayers(prev => {
+      const idx = prev.findIndex(l => l.id === selected.id);
+      if (idx < 0) return prev;
+      const arr = [...prev];
+      const [item] = arr.splice(idx, 1);
+      arr.push(item);
+      return arr;
+    });
   };
-  const shareImage = async () => {
-    try { const uri = await shotRef.current.capture(); await Sharing.shareAsync(uri); }
-    catch (e) { Alert.alert('Error', 'No se pudo compartir la imagen.'); }
+  const sendToBack = () => {
+    if (!selected) return;
+    setLayers(prev => {
+      const idx = prev.findIndex(l => l.id === selected.id);
+      if (idx < 0) return prev;
+      const arr = [...prev];
+      const [item] = arr.splice(idx, 1);
+      arr.unshift(item);
+      return arr;
+    });
   };
 
+  const toggleLock = () => {
+    if (selected?.kind !== 'sticker') return;
+    patchLayer(selected.id, { locked: !selected.locked });
+  };
+
+  const updateSticker = (id, patch) => patchLayer(id, patch);
+
+  const pickStickerFromDevice = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 1,
+    });
+    if (!res.canceled && res.assets?.[0]?.uri) addSticker(res.assets[0].uri);
+  };
+
+  const waitNextFrame = () =>
+    new Promise((resolve) => {
+      InteractionManager.runAfterInteractions(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
+
+  const captureWithoutSelection = async () => {
+    setSelectedId(null);
+    setHideSelection(true);
+    await waitNextFrame();
+    const uri = await shotRef.current.capture();
+    setHideSelection(false);
+    return uri;
+  };
+
+  const uploadInvitation = async () => {
+    const eid = activeEventId != null ? Number(activeEventId) : null;
+    if (!eid) {
+      Alert.alert('Evento requerido','No se pudo determinar el ID del evento desde la navegación.\nAbre el editor con: navigate("InviteEditor", { eventId, event, template })');
+      return;
+    }
+    try {
+      setIsUploading(true);
+      const uri = await captureWithoutSelection();
+
+      const form = new FormData();
+      form.append('invitation_photo', { uri, name: `invitation_${eid}.jpg`, type: 'image/jpeg' });
+
+      const resp = await fetch(`${API_URL}/events/${eid}/upload-invitation-photo/`, {
+        method: 'POST',
+        headers: { ...(user?.token ? { Authorization: `Bearer ${user.token}` } : {}) },
+        body: form,
+      });
+
+      if (!resp.ok) {
+        if (resp.status === 403) throw new Error('Prohibido (403): Debes ser owner del evento.');
+        if (resp.status === 401) throw new Error('No autorizado (401): Inicia sesión nuevamente.');
+        const txt = await resp.text().catch(() => '');
+        throw new Error(`HTTP ${resp.status} - ${txt}`);
+      }
+
+      Alert.alert('¡Listo!','La invitación se guardó con éxito en la nube.',[
+        { text: 'OK', onPress: () => {
+          navigation.reset({
+            index: 1,
+            routes: [
+              { name: 'Events' },
+              { name: 'InvitationsHome', params: { event: currentEvent || null, eventId: activeEventId || null, fromEditor: true, refreshToken: Date.now() } },
+            ],
+          });
+        }},
+      ],{ cancelable: false });
+    } catch (e) {
+      Alert.alert('Error', `No se pudo subir la invitación.\n${String(e?.message || e)}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const shareImage = async () => {
+    try {
+      const uri = await captureWithoutSelection();
+      await Sharing.shareAsync(uri);
+    } catch (e) { Alert.alert('Error', 'No se pudo compartir la imagen.'); }
+  };
 
   const [showCustom, setShowCustom] = useState(false);
   const [customHex, setCustomHex] = useState(selected?.color || '#111827');
   useEffect(() => { setCustomHex(selected?.color || '#111827'); }, [selectedId]);
-  const handleCustomChange = (hex) => { setCustomHex(hex); if (selected) changeSelected({ color: hex }); };
+  const handleCustomChange = (hex) => { setCustomHex(hex); if (selected?.kind === 'text') changeSelected({ color: hex }); };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F6F2FA' }}>
@@ -306,23 +580,45 @@ export default function InviteEditorScreen() {
             >
               <View style={{ flex: 1 }} pointerEvents="box-none">
                 {layers.map(l => (
-                  <DraggableText
-                    key={l.id}
-                    id={l.id}
-                    text={l.text}
-                    color={l.color}
-                    size={l.size}
-                    weight={l.weight}
-                    align={l.align}
-                    font={l.font}
-                    x={l.x}
-                    y={l.y}
-                    onSelect={setSelectedId}
-                    selected={selectedId === l.id}
-                    onDragEnd={updateLayerPosition}
-                    clampW={CANVAS_W - 10}
-                    clampH={CANVAS_H - 10}
-                  />
+                  l.kind === 'text'
+                    ? (
+                      <DraggableText
+                        key={l.id}
+                        id={l.id}
+                        text={l.text}
+                        color={l.color}
+                        size={l.size}
+                        weight={l.weight}
+                        align={l.align}
+                        font={l.font}
+                        x={l.x} y={l.y}
+                        onSelect={setSelectedId}
+                        selected={selectedId === l.id}
+                        onDragEnd={updateLayerPosition}
+                        clampW={CANVAS_W - 10}
+                        clampH={CANVAS_H - 10}
+                        hideSelection={hideSelection}
+                      />
+                    )
+                    : (
+                      <DraggableSticker
+                        key={l.id}
+                        id={l.id}
+                        uri={l.uri}
+                        x={l.x} y={l.y}
+                        scale={l.scale}
+                        rotate={l.rotate}
+                        base={l.base}
+                        locked={l.locked}
+                        gesturesEnabled={!isAdjusting}
+                        onSelect={setSelectedId}
+                        selected={selectedId === l.id}
+                        onUpdate={(id, patch) => updateSticker(id, patch)}
+                        clampW={CANVAS_W - 10}
+                        clampH={CANVAS_H - 10}
+                        hideSelection={hideSelection}
+                      />
+                    )
                 ))}
               </View>
             </ImageBackground>
@@ -331,22 +627,31 @@ export default function InviteEditorScreen() {
 
         {/* Herramientas */}
         <View style={styles.toolbar}>
-          <Tool icon="text-outline" label="Texto" onPress={() => setPanel('edit')} active={panel === 'edit'} />
+          <Tool icon="text-outline" label="Texto" onPress={() => setPanel('edit')}   active={panel === 'edit'} />
           <Tool icon="color-palette-outline" label="Color" onPress={() => setPanel('color')} active={panel === 'color'} />
           <Tool icon="text" label="Tamaño" onPress={() => setPanel('size')} active={panel === 'size'} />
           <Tool icon="text-sharp" label="Fuente" onPress={() => setPanel('font')} active={panel === 'font'} />
-          {/* <Tool icon="reorder-two-outline" label="Alinear" onPress={() => setPanel('align')} active={panel === 'align'} /> */}
+          <Tool label="Stickers" onPress={() => setPanel('stickers')} active={panel === 'stickers'} />
         </View>
 
         {/* Paneles */}
         {panel === 'edit' && (
           <View style={styles.panel}>
             <Row>
-              <Btn onPress={addText} icon="add-outline" text="Añadir" />
+              <Btn onPress={addText} icon="add-outline" text="Añadir texto" />
               <Btn onPress={duplicate} icon="copy-outline" text="Duplicar" disabled={!selected} />
               <Btn onPress={remove} icon="trash-outline" text="Eliminar" danger disabled={!selected} />
             </Row>
-            {selected && (
+
+            {selected?.kind === 'sticker' && (
+              <Row>
+                <Btn onPress={bringToFront} icon="arrow-up-circle-outline" text="Al frente" />
+                <Btn onPress={sendToBack} icon="arrow-down-circle-outline" text="Atrás" />
+                <Btn onPress={toggleLock} icon={selected.locked ? 'lock-open-outline' : 'lock-closed-outline'} text={selected.locked ? 'Desbloquear' : 'Bloquear'} />
+              </Row>
+            )}
+
+            {selected?.kind === 'text' && (
               <>
                 <EditableText value={selected.text} onChange={(t) => changeSelected({ text: t })} />
                 <Row>
@@ -368,11 +673,11 @@ export default function InviteEditorScreen() {
           </View>
         )}
 
-        {panel === 'color' && selected && (
+        {panel === 'color' && selected?.kind === 'text' && (
           <View style={styles.panel}>
             <Text style={styles.panelTitle}>Color</Text>
             <View style={styles.palette}>
-              {palette.map(c => (
+              {['#111827','#4B5563','#6B7280','#5B2B2B','#6B2A4A','#B91C1C','#15803D','#0EA5E9','#7C3AED','#F59E0B'].map(c => (
                 <TouchableOpacity key={c} onPress={() => changeSelected({ color: c })} style={[styles.swatch, { backgroundColor: c }]} />
               ))}
               <TouchableOpacity
@@ -384,16 +689,12 @@ export default function InviteEditorScreen() {
             </View>
 
             {showCustom && (
-              <InlineColorPicker
-                value={customHex}
-                onChange={handleCustomChange}
-                onClose={() => setShowCustom(false)}
-              />
+              <InlineColorPicker value={customHex} onChange={handleCustomChange} onClose={() => setShowCustom(false)} />
             )}
           </View>
         )}
 
-        {panel === 'font' && selected && (
+        {panel === 'font' && selected?.kind === 'text' && (
           <View style={styles.panel}>
             <Text style={styles.panelTitle}>Fuente</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
@@ -406,10 +707,7 @@ export default function InviteEditorScreen() {
                     style={[styles.fontCard, active && styles.fontCardActive]}
                   >
                     <Text style={[styles.fontLabel]}>{opt.label}</Text>
-                    <Text
-                      numberOfLines={1}
-                      style={[styles.fontSample, { fontFamily: opt.family }]}
-                    >
+                    <Text numberOfLines={1} style={[styles.fontSample, { fontFamily: opt.family }]}>
                       {selected.text || 'Vista previa'}
                     </Text>
                   </TouchableOpacity>
@@ -419,28 +717,105 @@ export default function InviteEditorScreen() {
           </View>
         )}
 
-        {panel === 'size' && selected && (
+        {/* Panel de tamaño con vista previa en vivo */}
+        {panel === 'size' && (
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Tamaño: {Math.round(selected.size)}</Text>
-            <SizeSlider value={selected.size} min={10} max={64} onChange={(v) => changeSelected({ size: v })} />
+            {selected?.kind === 'text' && (
+              <>
+                <Text style={styles.panelTitle}>Tamaño de texto: {Math.round(selected.size)}</Text>
+                <SizeSlider value={selected.size} min={10} max={64} onChange={(v) => changeSelected({ size: v })} />
+              </>
+            )}
+
+            {selected?.kind === 'sticker' && (
+              <>
+                <Text style={styles.panelTitle}>Tamaño y rotación del sticker</Text>
+
+                <LiveSlider
+                  title="Base (px)"
+                  value={selected.base ?? 160}
+                  min={60}
+                  max={480}
+                  step={2}
+                  format={(v)=>`${Math.round(v)} px`}
+                  onStart={() => setIsAdjusting(true)}
+                  onLive={(v)  => changeSelected({ base: Math.round(v) })}
+                  onCommit={() => setIsAdjusting(false)}
+                />
+                <LiveSlider
+                  title="Escala"
+                  value={selected.scale ?? 1}
+                  min={0.25}
+                  max={4}
+                  step={0.01}
+                  onStart={() => setIsAdjusting(true)}
+                  onLive={(v)  => changeSelected({ scale: v })}
+                  onCommit={() => setIsAdjusting(false)}
+                />
+                <LiveSlider
+  title="Rotación"
+  value={selected.rotate ?? 0}
+  min={0}
+  max={360}
+  step={1}
+  format={(v) => `${Math.round(v)}°`}
+  onStart={() => setIsAdjusting(true)}
+  onLive={(v) => changeSelected({ rotate: Math.round(v) })}
+  onCommit={(v) => {
+    changeSelected({ rotate: Math.round(v) });
+    setIsAdjusting(false);
+  }}
+/>
+              </>
+            )}
+
+            {!selected && <Text style={{ color:'#6B7280' }}>Selecciona un elemento para editar su tamaño.</Text>}
           </View>
         )}
 
-        {panel === 'align' && selected && (
+        {panel === 'stickers' && (
           <View style={styles.panel}>
             <Row>
-              <Chip active={selected.align === 'left'} onPress={() => changeSelected({ align: 'left' })} label="Izquierda" />
-              <Chip active={selected.align === 'center'} onPress={() => changeSelected({ align: 'center' })} label="Centro" />
-              <Chip active={selected.align === 'right'} onPress={() => changeSelected({ align: 'right' })} label="Derecha" />
+              <Btn onPress={pickStickerFromDevice} icon="cloud-upload-outline" text="Cargar imagen" />
             </Row>
+
+            <Text style={[styles.panelTitle, { marginTop: 10 }]}>Categorías</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {Object.entries(STICKER_CATEGORIES).map(([cat, list]) => (
+                <View key={cat} style={{ marginRight: 16 }}>
+                  <Text style={{ fontWeight: '700', marginBottom: 8 }}>{cat}</Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    {list.map((asset, i) => (
+                      <TouchableOpacity key={i} onPress={() => addSticker(asset)}>
+                        <Image
+                          source={asset}
+                          style={{ width: 64, height: 64, borderRadius: 8, borderWidth: 1, borderColor: '#EEE' }}
+                          resizeMode="contain"
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         )}
 
         {/* Guardar / Compartir */}
         <View style={styles.bottomRow}>
-          <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: '#111827' }]} onPress={saveImage}>
-            <Ionicons name="download-outline" size={18} color="#fff" />
-            <Text style={styles.bottomBtnText}>Guardar</Text>
+          <TouchableOpacity
+            style={[styles.bottomBtn, { backgroundColor: '#111827', opacity: isUploading ? 0.7 : 1 }]}
+            onPress={uploadInvitation}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
+                <Text style={styles.bottomBtnText}>Guardar</Text>
+              </>
+            )}
           </TouchableOpacity>
           <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: '#6B21A8' }]} onPress={shareImage}>
             <Ionicons name="share-social-outline" size={18} color="#fff" />
@@ -452,6 +827,7 @@ export default function InviteEditorScreen() {
   );
 }
 
+/* ---------- UI helpers ---------- */
 function Tool({ icon, label, onPress, active }) {
   return (
     <TouchableOpacity onPress={onPress} style={[styles.tool, active && styles.toolActive]}>
@@ -474,13 +850,6 @@ function Toggle({ active, onPress, icon, text }) {
     <TouchableOpacity onPress={onPress} style={[styles.btn, active && { backgroundColor: '#EEF2FF' }]}>
       <Ionicons name={icon} size={16} color="#111827" />
       <Text style={styles.btnText}>{text}</Text>
-    </TouchableOpacity>
-  );
-}
-function Chip({ label, active, onPress }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={[styles.chip, active && { backgroundColor: '#6B21A8' }]}>
-      <Text style={[styles.chipText, active && { color: '#fff' }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -524,10 +893,10 @@ const styles = StyleSheet.create({
 
   canvasWrap: { padding: 16, alignItems: 'center' },
 
-  toolbar: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
+  toolbar: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, width: '100%' },
   tool: { flex: 1, height: 42, backgroundColor: '#F3E8FF', borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 4, flexDirection: 'row' },
   toolActive: { backgroundColor: '#6B21A8' },
-  toolText: { color: '#6B21A8', fontWeight: '800', fontSize: 12.5 },
+  toolText: { color: '#6B21A8', fontWeight: '800', fontSize: 9 },
 
   panel: { backgroundColor: '#fff', margin: 16, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1E7FF' },
   panelTitle: { fontWeight: '800', color: '#111827', marginBottom: 8 },
@@ -538,31 +907,16 @@ const styles = StyleSheet.create({
   customWrap: { alignSelf: 'stretch', marginTop: 12, backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', padding: 12 },
 
   btn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
-  btnText: { color: '#111827', fontWeight: '700' },
+  btnText: { color: '#111827', fontWeight: '700', fontSize: 11 },
 
-  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: '#EDE9FE' },
-  chipText: { color: '#6B21A8', fontWeight: '800' },
-
-  fontCard: {
-    width: 160,
-    backgroundColor: '#FAFAFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 10,
-    marginRight: 10,
-  },
-  fontCardActive: {
-    borderColor: '#6B21A8',
-    backgroundColor: '#F4EAFE',
-  },
+  fontCard: { width: 160, backgroundColor: '#FAFAFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 10, marginRight: 10 },
+  fontCardActive: { borderColor: '#6B21A8', backgroundColor: '#F4EAFE' },
   fontLabel: { fontWeight: '700', color: '#6B7280', marginBottom: 6 },
   fontSample: { fontSize: 20, color: '#111827' },
 
-  bottomRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 28, marginTop: 2 },
+  bottomRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, marginBottom: 28, marginTop: 12 },
   bottomBtn: { flex: 1, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   bottomBtnText: { color: '#fff', fontWeight: '800' },
 
   modalBtn: { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  modalBtnText: { color: '#fff', fontWeight: '800' },
 });

@@ -20,26 +20,33 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { AuthContext } from '../context/AuthContext';
 
-const API_URL = 'http://143.198.138.35:8000'; 
+
+const API_URL = 'http://143.198.138.35:8000';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const GUTTER = 12;
 const COLS = 2;
 const COL_W = (SCREEN_W - (GUTTER * (COLS + 1))) / COLS;
 
-const UPLOAD_URL = (albumId) => `${API_URL}/albums/${albumId}/photos`;
+// Endpoints
+const CREATE_ALBUM_URL = `${API_URL}/albums/`;                                      // POST (multipart)
+const ALBUMS_BY_EVENT_URL = (eventId) => `${API_URL}/albums/${eventId}`;           // GET
+const UPLOAD_URL = (albumId) => `${API_URL}/albums/${albumId}/photos`;             // POST (file)
+const PHOTOS_BY_ALBUM_URL = (albumId) => `${API_URL}/photos/album/${albumId}`;     // GET
+const FAVORITE_URL = (photoId) => `${API_URL}/photos/${photoId}/favorite`;         // PATCH
 
 const mapAlbumFromApi = (a) => ({
   id: String(a.album_id ?? a.id ?? a.albumId),
   name: a.name,
-  photos: [], 
+  photos: [],
 });
 
 const mapPhotoFromApi = (p) => {
   const uri =
-    p.path || 
+    p.path ||
     p.url ||
     p.photo_url ||
     p.image_url ||
@@ -47,6 +54,9 @@ const mapPhotoFromApi = (p) => {
     p.file_url ||
     p.secure_url ||
     p.uri;
+
+  const isHttp = typeof uri === 'string' && /^https?:\/\//i.test(uri);
+  if (!isHttp) return null;
 
   const w = p.w || p.width || 800;
   const h = p.h || p.height || 1200;
@@ -56,8 +66,8 @@ const mapPhotoFromApi = (p) => {
     uri,
     w,
     h,
-    title: p.title || p.name || 'Foto',
-    fav: false,
+    title: p.title || p.name || '',
+    fav: Boolean(p.is_favorite ?? p.favorite ?? p.fav ?? false),
   };
 };
 
@@ -66,12 +76,15 @@ export default function AlbumsScreen({ navigation, route }) {
   const { user } = useContext(AuthContext);
   const token = user?.token || user?.accessToken || '';
 
-  const [albums, setAlbums] = useState([]); 
+  const [albums, setAlbums] = useState([]);
   const [activeAlbumId, setActiveAlbumId] = useState(null);
 
   const [pickerBusy, setPickerBusy] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState('');
+  const [newAlbumCover, setNewAlbumCover] = useState(null);       
+  const [newAlbumBusy, setNewAlbumBusy] = useState(false);        
+
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerPhoto, setViewerPhoto] = useState(null);
 
@@ -80,12 +93,24 @@ export default function AlbumsScreen({ navigation, route }) {
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
-  
+  // Normaliza cualquier asset a JPEG y devuelve { uri, name, type }
+  const normalizeToJpeg = useCallback(async (asset) => {
+    const result = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      [],
+      { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    const base = asset.fileName || asset.uri?.split('/').pop() || `image_${Date.now()}.jpg`;
+    const name = base.toLowerCase().endsWith('.jpg') ? base : `${base.replace(/\.[^/.]+$/,'')}.jpg`;
+    return { uri: result.uri, name, type: 'image/jpeg' };
+  }, []);
+
+  // Cargar pestañas/álbumes por evento
   const fetchAlbums = useCallback(async () => {
     if (!eventId || !token) return;
     setLoadingAlbums(true);
     try {
-      const r = await fetch(`${API_URL}/albums/${eventId}`, { headers: authHeaders });
+      const r = await fetch(ALBUMS_BY_EVENT_URL(eventId), { headers: authHeaders });
       if (!r.ok) throw new Error('No se pudieron cargar los álbumes.');
       const data = await r.json();
       const tabs = (data || []).map(mapAlbumFromApi);
@@ -100,63 +125,40 @@ export default function AlbumsScreen({ navigation, route }) {
     } finally {
       setLoadingAlbums(false);
     }
-  }, [eventId, token, initialAlbumId]);
+  }, [eventId, token]);
 
-  
+  // Cargar fotos de un álbum
   const fetchPhotos = useCallback(
     async (albumId, currentAlbums = albums) => {
       if (!albumId || !token) return;
       setLoadingPhotos(true);
+      try {
+        const r = await fetch(PHOTOS_BY_ALBUM_URL(albumId), { headers: authHeaders });
+        if (!r.ok) throw new Error('No se pudieron cargar las fotos del álbum.');
+        const list = await r.json();
+        const mapped = (list || []).map(mapPhotoFromApi).filter(Boolean);
 
-      
-      const paths = [
-        `${API_URL}/albums/${albumId}/photos`,     
-        `${API_URL}/photos/album/${albumId}`,
-        `${API_URL}/photos?album_id=${albumId}`,
-      ];
-
-      let list = [];
-      for (const url of paths) {
-        try {
-          const r = await fetch(url, { headers: authHeaders });
-          if (!r.ok) continue;
-          const ct = r.headers.get('content-type') || '';
-          if (ct.includes('application/json')) {
-            const data = await r.json();
-            if (Array.isArray(data)) { list = data; break; }
-            if (Array.isArray(data?.items)) { list = data.items; break; }
-            if (Array.isArray(data?.photos)) { list = data.photos; break; }
-            if (Array.isArray(data?.data)) { list = data.data; break; }
-          }
-        } catch {
-          
-        }
+        setAlbums(prev => {
+          const base = currentAlbums?.length ? currentAlbums : prev;
+          return base.map(a => (a.id === String(albumId) ? { ...a, photos: mapped } : a));
+        });
+      } catch (e) {
+        Alert.alert('Error', e?.message || 'No se pudieron cargar las fotos del álbum.');
+      } finally {
+        setLoadingPhotos(false);
       }
-
-      const mapped = (list || [])
-        .map(mapPhotoFromApi)
-        .filter(p => !!p.uri);
-
-      setAlbums(prev => {
-        const base = currentAlbums?.length ? currentAlbums : prev;
-        return base.map(a => (a.id === String(albumId) ? { ...a, photos: mapped } : a));
-      });
-
-      setLoadingPhotos(false);
     },
     [albums, token]
   );
 
-  
   useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
 
-  
   const activeAlbum = useMemo(
     () => albums.find(a => a.id === activeAlbumId),
     [albums, activeAlbumId]
   );
 
-  
+  // Masonry
   const columns = useMemo(() => {
     const heights = Array(COLS).fill(0);
     const cols = Array(COLS).fill(0).map(() => []);
@@ -170,18 +172,17 @@ export default function AlbumsScreen({ navigation, route }) {
     return cols;
   }, [activeAlbum]);
 
+  // Subir 1 foto
   const uploadOnePhoto = useCallback(
     async (asset, albumId) => {
       try {
-        const name = asset.fileName || asset.uri?.split('/').pop() || `photo_${Date.now()}.jpg`;
-        const type = asset.mimeType || 'image/jpeg';
-
+        const file = await normalizeToJpeg(asset);
         const form = new FormData();
-        form.append('file', { uri: asset.uri, name, type }); 
+        form.append('file', file);
 
         const res = await fetch(UPLOAD_URL(albumId), {
           method: 'POST',
-          headers: { ...authHeaders }, 
+          headers: { ...authHeaders },
           body: form,
         });
 
@@ -190,90 +191,193 @@ export default function AlbumsScreen({ navigation, route }) {
           throw new Error(txt || 'Fallo al subir la foto');
         }
 
-        let json = {};
-        try { json = await res.json(); } catch {}
-        const uploadedUrl = json?.url;
-
-        if (uploadedUrl) {
-          setAlbums(prev =>
-            prev.map(a => {
-              if (a.id !== String(albumId)) return a;
-              const optimisticPhoto = mapPhotoFromApi({ path: uploadedUrl, width: 800, height: 1200 });
-              return { ...a, photos: [optimisticPhoto, ...(a.photos || [])] };
-            })
-          );
-        }
-
+        await fetchPhotos(albumId);
         return true;
       } catch (e) {
         console.log('upload error:', e?.message);
         return false;
       }
     },
-    [authHeaders]
+    [authHeaders, normalizeToJpeg, fetchPhotos]
   );
 
-  const pickImages = useCallback(async () => {
-    if (!activeAlbumId) {
-      Alert.alert('Selecciona un álbum', 'Antes elige una pestaña/álbum para subir fotos.');
+
+  const ensureActiveAlbumReady = useCallback(async () => {
+  if (!activeAlbumId) return false;
+  const exists = albums.some(a => a.id === String(activeAlbumId));
+  if (exists) return true;
+
+  await fetchAlbums();
+  return albums.some(a => a.id === String(activeAlbumId));
+}, [activeAlbumId, albums, fetchAlbums]);
+
+const pickImages = useCallback(async () => {
+  //  Evita subir si el álbum aún no está listo en memoria
+  const ready = await ensureActiveAlbumReady();
+  if (!ready) {
+    Alert.alert('Espera un segundo', 'Estamos preparando tu nuevo álbum. Intenta de nuevo.');
+    return;
+  }
+
+  try {
+    setPickerBusy(true);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permisos', 'Necesito acceso a tu galería para subir fotos.');
       return;
     }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsMultipleSelection: true,
+      quality: 0.9,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    });
+    if (result.canceled) return;
+
+    const assets = result.assets || [];
+    if (!assets.length) return;
+
+    let okCount = 0;
+    for (const asset of assets) {
+      const ok = await uploadOnePhoto(asset, activeAlbumId);
+      if (ok) okCount += 1;
+    }
+
+    if (okCount > 0) {
+      await fetchPhotos(activeAlbumId);
+      Alert.alert('Listo', `Se subieron ${okCount} foto(s).`);
+    } else {
+      Alert.alert('Error', 'No se pudo subir ninguna foto. Revisa el token/endpoint.');
+    }
+  } catch (e) {
+    console.error(e);
+    Alert.alert('Error', 'No se pudieron subir las fotos.');
+  } finally {
+    setPickerBusy(false);
+  }
+}, [activeAlbumId, ensureActiveAlbumReady, uploadOnePhoto, fetchPhotos]);
+
+  // -------- CREAR ÁLBUM --------
+  const selectNewAlbumCover = useCallback(async () => {
     try {
-      setPickerBusy(true);
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permisos', 'Necesito acceso a tu galería para subir fotos.');
+        Alert.alert('Permisos', 'Necesito acceso a tu galería para elegir la portada.');
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
-        allowsMultipleSelection: true,
+        allowsMultipleSelection: false,
         quality: 0.9,
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
       });
       if (result.canceled) return;
-
-      const assets = result.assets || [];
-      if (!assets.length) return;
-
-      let okCount = 0;
-      for (const asset of assets) {
-        const ok = await uploadOnePhoto(asset, activeAlbumId);
-        if (ok) okCount += 1;
-      }
-
-      if (okCount > 0) {
-        await fetchPhotos(activeAlbumId); 
-        Alert.alert('Listo', `Se subieron ${okCount} foto(s).`);
-      } else {
-        Alert.alert('Error', 'No se pudo subir ninguna foto. Revisa el token/endpoint.');
-      }
+      setNewAlbumCover(result.assets?.[0] || null);
     } catch (e) {
-      console.error(e);
-      Alert.alert('Error', 'No se pudieron subir las fotos.');
-    } finally {
-      setPickerBusy(false);
+      console.log(e);
+      Alert.alert('Error', 'No se pudo seleccionar la portada.');
     }
-  }, [activeAlbumId, uploadOnePhoto, fetchPhotos]);
+  }, []);
 
-  const createAlbum = useCallback(() => {
-    const name = (newAlbumName || '').trim();
-    if (!name) return;
-    setAlbums(prev => [{ id: `${Date.now()}`, name, photos: [] }, ...prev]);
-    setActiveAlbumId(`${Date.now()}`);
+ const createAlbum = useCallback(async () => {
+  const name = (newAlbumName || '').trim();
+  if (!name) return;
+  if (!eventId) {
+    Alert.alert('Falta información', 'No hay eventId para crear el álbum.');
+    return;
+  }
+
+  setNewAlbumBusy(true);
+  try {
+    const form = new FormData();
+    form.append('name', name);
+    form.append('event_id', String(eventId));
+    if (newAlbumCover) {
+      const file = await normalizeToJpeg(newAlbumCover);
+      form.append('cover_url', file);
+    }
+
+    const res = await fetch(CREATE_ALBUM_URL, { method: 'POST', headers: { ...authHeaders }, body: form });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(txt || 'No se pudo crear el álbum.');
+    }
+    const created = await res.json().catch(() => ({}));
+    const newId = String(created?.album_id ?? created?.id ?? '');
+
+    if (newId) {
+      setAlbums(prev => [...prev, { id: newId, name, photos: [] }]);
+      setActiveAlbumId(newId);
+      fetchPhotos(newId);
+    }
+
+    fetchAlbums();
+
+    // Limpia UI
     setNewAlbumName('');
+    setNewAlbumCover(null);
     setShowCreate(false);
-  }, [newAlbumName]);
+  } catch (e) {
+    console.error(e);
+    Alert.alert('Error', e?.message || 'No se pudo crear el álbum.');
+  } finally {
+    setNewAlbumBusy(false);
+  }
+}, [newAlbumName, eventId, newAlbumCover, authHeaders, normalizeToJpeg, fetchAlbums, fetchPhotos]);
 
-  const toggleFav = useCallback((photoId) => {
+
+  // --- FAVORITOS ---
+  const apiToggleFavorite = useCallback(
+    async (photoId, nextFav) => {
+      let res = await fetch(FAVORITE_URL(photoId), {
+        method: 'PATCH',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_favorite: nextFav }),
+      });
+
+      if (!res.ok) {
+        res = await fetch(`${FAVORITE_URL(photoId)}?is_favorite=${nextFav}`, {
+          method: 'PATCH',
+          headers: { ...authHeaders },
+        });
+      }
+      if (!res.ok) {
+        const errTxt = await res.text().catch(() => '');
+        throw new Error(errTxt || `Fav error ${res.status}`);
+      }
+      return res.json().catch(() => ({}));
+    },
+    [authHeaders]
+  );
+
+  const patchPhotoFavInState = useCallback((photoId, value) => {
     setAlbums(prev =>
       prev.map(a =>
         a.id !== activeAlbumId
           ? a
-          : { ...a, photos: a.photos.map(p => p.id === photoId ? { ...p, fav: !p.fav } : p) }
+          : { ...a, photos: a.photos.map(p => (p.id === photoId ? { ...p, fav: value } : p)) }
       )
     );
+    setViewerPhoto(prev => (prev && prev.id === photoId ? { ...prev, fav: value } : prev));
   }, [activeAlbumId]);
+
+  const toggleFav = useCallback(async (photoId) => {
+    const album = albums.find(a => a.id === activeAlbumId);
+    if (!album) return;
+
+    const photo = album.photos.find(p => p.id === photoId);
+    if (!photo) return;
+
+    const nextFav = !photo.fav;
+    patchPhotoFavInState(photoId, nextFav);
+
+    try {
+      await apiToggleFavorite(photoId, nextFav);
+    } catch (e) {
+      patchPhotoFavInState(photoId, !nextFav);
+      console.error('Fav error:', e?.message);
+      Alert.alert('Error', 'No se pudo cambiar el estado de favorito.');
+    }
+  }, [albums, activeAlbumId, patchPhotoFavInState, apiToggleFavorite]);
 
   const shareAlbum = useCallback(async () => {
     try {
@@ -292,26 +396,60 @@ export default function AlbumsScreen({ navigation, route }) {
   }, [activeAlbum?.name]);
 
   const downloadPhoto = useCallback(async (photo) => {
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permisos', 'Necesito permiso para guardar en tu galería.');
-        return;
-      }
-      const fileUri = FileSystem.documentDirectory + `${photo.id}.jpg`;
-      const { uri } = await FileSystem.downloadAsync(photo.uri, fileUri);
-      await MediaLibrary.saveToLibraryAsync(uri);
-      Alert.alert('Descargada', 'La foto se guardó en tu galería.');
-    } catch (e) {
-      console.error(e);
-      Alert.alert('Error', 'No se pudo descargar la foto.');
+  try {
+    const ok = await ensureWritePermission();
+    if (!ok) {
+      Alert.alert('Permisos', 'Necesito permiso para guardar en tu galería.');
+      return;
     }
-  }, []);
+
+    // Detectar extensión
+    let ext = 'jpg';
+    try {
+      const u = new URL(photo.uri);
+      const match = (u.pathname || '').match(/\.(\w+)(?:$|\?)/i);
+      if (match?.[1]) {
+        ext = match[1].toLowerCase();
+        if (ext === 'jpeg' || ext === 'heic') ext = 'jpg';
+      }
+    } catch {}
+
+    // Descargar a sandbox y guardar en galería
+    const fileUri = FileSystem.documentDirectory + `${photo.id}.${ext}`;
+    const { uri } = await FileSystem.downloadAsync(photo.uri, fileUri);
+    await MediaLibrary.saveToLibraryAsync(uri);
+    Alert.alert('Descargada', 'La foto se guardó en tu galería.');
+  } catch (e) {
+    console.error(e);
+    Alert.alert('Error', 'No se pudo descargar la foto.');
+  }
+}, [ensureWritePermission]);
+
 
   const openViewer = (p) => {
     setViewerPhoto(p);
     setViewerOpen(true);
   };
+
+
+
+const ensureWritePermission = useCallback(async () => {
+  let perm = await MediaLibrary.getPermissionsAsync();
+  if (!perm.granted) {
+    perm = await MediaLibrary.requestPermissionsAsync(); 
+  }
+  return perm.granted;
+}, []);
+
+useEffect(() => {
+  (async () => {
+    try {
+      await ensureWritePermission();
+    } catch (e) {
+      // opcional: log o Alert
+    }
+  })();
+}, [ensureWritePermission]);
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -360,7 +498,12 @@ export default function AlbumsScreen({ navigation, route }) {
           })
         )}
 
-        <TouchableOpacity style={styles.chipOutline} onPress={() => setShowCreate(true)}>
+        {/* Botón Nuevo álbum */}
+        <TouchableOpacity
+          style={[styles.chipOutline, (newAlbumBusy || loadingAlbums) && { opacity: 0.6 }]}
+          onPress={() => !newAlbumBusy && setShowCreate(true)}
+          disabled={newAlbumBusy || loadingAlbums}
+        >
           <Ionicons name="add" size={18} color="#6F4C8C" />
           <Text style={styles.chipOutlineText}>Nuevo álbum</Text>
         </TouchableOpacity>
@@ -380,7 +523,6 @@ export default function AlbumsScreen({ navigation, route }) {
                 <View key={p.id} style={{ marginBottom: GUTTER }}>
                   <TouchableOpacity activeOpacity={0.9} onPress={() => openViewer(p)} style={styles.card}>
                     <Image source={{ uri: p.uri }} style={{ width: '100%', height: p._h, borderRadius: 12 }} />
-                    {/* Fav */}
                     <TouchableOpacity
                       style={styles.favBtn}
                       onPress={() => toggleFav(p.id)}
@@ -389,17 +531,18 @@ export default function AlbumsScreen({ navigation, route }) {
                       <Ionicons name={p.fav ? 'heart' : 'heart-outline'} size={20} color={p.fav ? '#E11D48' : '#fff'} />
                     </TouchableOpacity>
                   </TouchableOpacity>
-                  <Text style={styles.caption} numberOfLines={1}>{p.title || 'Foto'}</Text>
+                 {p.title ? (
+  <Text style={styles.caption} numberOfLines={1}>{p.title}</Text>
+) : null}
 
-                  {/* Acciones rápidas */}
                   <View style={styles.actionsRow}>
                     <TouchableOpacity style={styles.action} onPress={() => sharePhoto(p)}>
                       <Ionicons name="share-social-outline" size={16} color="#6F4C8C" />
-                      <Text style={styles.actionText}>Compartir</Text>
+                      {/* <Text style={styles.actionText}>Compartir</Text> */}
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.action} onPress={() => downloadPhoto(p)}>
                       <Ionicons name="download-outline" size={16} color="#6F4C8C" />
-                      <Text style={styles.actionText}>Descargar</Text>
+                      {/* <Text style={styles.actionText}>Descargar</Text> */}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -408,8 +551,8 @@ export default function AlbumsScreen({ navigation, route }) {
           ))}
         </View>
 
-        {/* Botón Agregar fotos (sube al backend) */}
-        <TouchableOpacity style={styles.addButton} onPress={pickImages} disabled={pickerBusy}>
+        {/* Botón Agregar fotos */}
+        <TouchableOpacity style={styles.addButton} onPress={pickImages} disabled={pickerBusy }>
           {pickerBusy ? (
             <ActivityIndicator />
           ) : (
@@ -422,26 +565,56 @@ export default function AlbumsScreen({ navigation, route }) {
       </ScrollView>
 
       {/* Modal crear álbum */}
-      <Modal visible={showCreate} animationType="fade" transparent>
+      <Modal visible={showCreate} animationType="fade" transparent onRequestClose={() => setShowCreate(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Crear álbum</Text>
+
             <TextInput
               value={newAlbumName}
               onChangeText={setNewAlbumName}
               placeholder="Nombre del álbum"
               style={styles.input}
+              editable={!newAlbumBusy}
             />
+
+            {/* Selector de portada */}
+            <TouchableOpacity
+              style={styles.coverPicker}
+              onPress={selectNewAlbumCover}
+              disabled={newAlbumBusy}
+            >
+              <Ionicons name="image-outline" size={18} color="#6F4C8C" />
+              <Text style={styles.coverPickerText}>
+                {newAlbumCover ? 'Cambiar portada' : 'Elegir portada (opcional)'}
+              </Text>
+            </TouchableOpacity>
+
+            {newAlbumCover && (
+              <View style={styles.coverPreviewRow}>
+                <Image source={{ uri: newAlbumCover.uri }} style={styles.coverPreview} />
+                <TouchableOpacity onPress={() => setNewAlbumCover(null)} disabled={newAlbumBusy} style={styles.removeCoverBtn}>
+                  <Ionicons name="trash-outline" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: '#E5E7EB' }]} onPress={() => setShowCreate(false)}>
+              <TouchableOpacity
+                style={[styles.btn, { backgroundColor: '#E5E7EB' }]}
+                onPress={() => !newAlbumBusy && setShowCreate(false)}
+                disabled={newAlbumBusy}
+              >
                 <Text style={[styles.btnText, { color: '#111827' }]}>Cancelar</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                style={[styles.btn, { backgroundColor: '#6F4C8C' }]}
+                style={[styles.btn, { backgroundColor: '#6F4C8C', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }]}
                 onPress={createAlbum}
-                disabled={!newAlbumName.trim()}
+                disabled={!newAlbumName.trim() || newAlbumBusy}
               >
-                <Text style={styles.btnText}>Crear</Text>
+                {newAlbumBusy ? <ActivityIndicator color="#fff" /> : <Ionicons name="checkmark-circle" size={18} color="#fff" />}
+                <Text style={styles.btnText}>{newAlbumBusy ? 'Creando...' : 'Crear'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -455,7 +628,7 @@ export default function AlbumsScreen({ navigation, route }) {
             <Ionicons name="close" size={26} color="#fff" />
           </TouchableOpacity>
 
-        {viewerPhoto && (
+          {viewerPhoto && (
             <>
               <Image source={{ uri: viewerPhoto.uri }} style={styles.viewerImage} resizeMode="contain" />
               <View style={styles.viewerActions}>
@@ -538,6 +711,23 @@ const styles = StyleSheet.create({
   modalCard: { width: '85%', backgroundColor: '#fff', borderRadius: 14, padding: 16, gap: 12 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#3E2757' },
   input: { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+
+  coverPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#F8F5FB',
+    borderWidth: 1,
+    borderColor: '#E5D9F2',
+  },
+  coverPickerText: { color: '#6F4C8C', fontWeight: '600' },
+
+  coverPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  coverPreview: { width: 90, height: 90, borderRadius: 10, backgroundColor: '#EEE' },
+  removeCoverBtn: { backgroundColor: '#EF4444', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
 
   viewerBg: { flex: 1, backgroundColor: 'black', justifyContent: 'center', alignItems: 'center' },
   viewerClose: { position: 'absolute', top: 40, right: 20, padding: 8 },

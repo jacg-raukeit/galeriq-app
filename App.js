@@ -32,6 +32,7 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import EventsScreen from './src/screens/EventsScreen';
 import CreateEventScreen from './src/screens/CreateEventScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
+import EventCreatedScreen from './src/screens/EventCreatedScreen';
 import PlanningScreen from './src/screens/PlanningScreen';
 import PlanningHomeScreen from './src/screens/PlanningHomeScreen';
 import AgendaScreen from './src/screens/AgendaScreen';
@@ -46,6 +47,12 @@ import InvitationsHomeScreen from './src/screens/invitations/InvitationsHomeScre
 import ExploreDesignsScreen from './src/screens/invitations/ExploreDesignsScreen';
 import InviteEditorScreen from './src/screens/invitations/InviteEditorScreen';
 import PortadaAlbumsScreens from './src/screens/PortadaAlbumsScreens';
+import NotificationsScreen from './src/screens/NotificationsScreen';
+import BudgetControlScreen from './src/screens/BudgetControlScreen';
+import MiPerfilScreen from './src/screens/MiPerfilScreen';
+import FaqScreen from './src/screens/FaqScreen';
+import PlansScreen from './src/screens/PlansScreen';
+import InConstructionScreen from './src/screens/InConstructionScreen';
 
 const Stack = createStackNavigator();
 
@@ -82,13 +89,19 @@ export default function App() {
             >
               <Stack.Screen name="Splash" component={SplashScreen} />
               <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="MiPerfil" component={MiPerfilScreen} />
+              <Stack.Screen name="Faq" component={FaqScreen} />
+              <Stack.Screen name="Plans" component={PlansScreen} />
+              <Stack.Screen name="InConstruction" component={InConstructionScreen} />
               <Stack.Screen name="Register" component={RegisterScreen} />
               <Stack.Screen name="Events" component={EventsScreen} />
               <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
               <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+              <Stack.Screen name="EventCreated" component={EventCreatedScreen} />
               <Stack.Screen name="PlanningHome" component={PlanningHomeScreen} />
               <Stack.Screen name="Planning" component={PlanningScreen} />
               <Stack.Screen name="Agenda" component={AgendaScreen} />
+              <Stack.Screen name="BudgetControl" component={BudgetControlScreen} />
               <Stack.Screen name="GuestList" component={GuestScreen} />
               <Stack.Screen name="AddGuestManual" component={AddGuestManualScreen} />
               <Stack.Screen name="AddGuestFromCSV" component={AddGuestFromCSVScreen} />
@@ -100,6 +113,7 @@ export default function App() {
               <Stack.Screen name="InvitationsHome" component={InvitationsHomeScreen} />
               <Stack.Screen name="ExploreDesigns" component={ExploreDesignsScreen} />
               <Stack.Screen name="InviteEditor" component={InviteEditorScreen} />
+              <Stack.Screen name="Notifications" component={NotificationsScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </EventsProvider>

@@ -7,8 +7,6 @@ import {
   TouchableOpacity
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-// Si usas Expo:
-// import Ionicons from '@expo/vector-icons/Ionicons';
 
 const STATUS_STYLES = {
   Activo:   { backgroundColor: '#D1FAE5', textColor: '#059669' },
@@ -113,7 +111,7 @@ const styles = StyleSheet.create({
     top: 8,
     right: 8,
     padding: 6,
-    zIndex: 10,    // asegura que quede por encima de la imagen
-    elevation: 4,  // Android
+    zIndex: 10,    
+    elevation: 4,  
   },
 });

@@ -11,9 +11,12 @@ import {
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
   Alert,
 } from 'react-native';
 import { List, FAB, Snackbar, Text, Portal, Provider } from 'react-native-paper';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
@@ -248,19 +251,22 @@ export default function GuestScreen({ route }) {
   return (
     <Provider>
       <SafeAreaView style={styles.container}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <Ionicons name="arrow-back" size={24} color="#254236" />
+                </TouchableOpacity>
         <Text style={styles.title}>Lista de invitados</Text>
 
         <View style={styles.statusBar}>
-          <Pressable style={[styles.statusBox, { backgroundColor: 'blue' }]} onPress={() => setFilter('all')}>
+          <Pressable style={[styles.statusBox, { backgroundColor: '#093FB4' }]} onPress={() => setFilter('all')}>
             <Text style={styles.statusText}>👥 {totalCount}</Text>
           </Pressable>
-          <Pressable style={[styles.statusBox, { backgroundColor: 'green' }]} onPress={() => setFilter('confirmed')}>
+          <Pressable style={[styles.statusBox, { backgroundColor: '#78C841' }]} onPress={() => setFilter('confirmed')}>
             <Text style={styles.statusText}>✅ {confirmedCount}</Text>
           </Pressable>
-          <Pressable style={[styles.statusBox, { backgroundColor: 'orange' }]} onPress={() => setFilter('pending')}>
+          <Pressable style={[styles.statusBox, { backgroundColor: '#FFCC00' }]} onPress={() => setFilter('pending')}>
             <Text style={styles.statusText}>⏳ {pendingCount}</Text>
           </Pressable>
-          <Pressable style={[styles.statusBox, { backgroundColor: 'red' }]} onPress={() => setFilter('rejected')}>
+          <Pressable style={[styles.statusBox, { backgroundColor: '#EA2264' }]} onPress={() => setFilter('rejected')}>
             <Text style={styles.statusText}>❌ {rejectedCount}</Text>
           </Pressable>
         </View>
@@ -324,7 +330,7 @@ export default function GuestScreen({ route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, marginTop: 8, color: '#254236' },
   avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 8 },
   statusBar: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, gap: 8 },
   statusBox: { flex: 1, padding: 8, borderRadius: 8 },

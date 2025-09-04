@@ -11,8 +11,8 @@ import {
   Platform,
   Image,
   Alert,
+  ActivityIndicator, // 👈 agregado
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -45,7 +45,7 @@ export default function CreateEventScreen({ navigation }) {
   const [name, setName]               = useState('');
   const [description, setDescription] = useState('');
   const [type, setType]               = useState(EVENT_TYPES[0]);
-  const [otherType, setOtherType]     = useState(''); 
+  const [otherType, setOtherType]     = useState('');
 
   const [date, setDate]               = useState(new Date());
   const [showDatePicker, setShowDatePicker]   = useState(false);
@@ -54,6 +54,9 @@ export default function CreateEventScreen({ navigation }) {
   const [location, setLocation]               = useState('');
   const [tempImageUri, setTempImageUri]       = useState(null);
   const [status, setStatus]                   = useState(STATUS_OPTIONS[0].value);
+  const [budget, setBudget] = useState('');
+
+  const [submitting, setSubmitting] = useState(false);
 
   const pad = n => String(n).padStart(2, '0');
   const formattedDate =
@@ -125,6 +128,8 @@ export default function CreateEventScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
+    if (submitting) return;
+
     if (!name.trim()) {
       return Alert.alert('Error', 'El nombre del evento es obligatorio');
     }
@@ -133,7 +138,13 @@ export default function CreateEventScreen({ navigation }) {
       return Alert.alert('Tipo de evento', 'Por favor, escribe el tipo de evento.');
     }
 
+    const cleanBudget = budget?.trim()
+  ? budget.trim().replace(/\./g, '').replace(',', '.')
+  : '';
+
     try {
+      setSubmitting(true);
+
       await addEvent({
         event_name:        name,
         event_description: description,
@@ -144,15 +155,20 @@ export default function CreateEventScreen({ navigation }) {
         event_status:      status,
         event_latitude:    '',
         event_longitude:   '',
+        budget:            cleanBudget,
       });
-      navigation.replace('Events');
+
+      navigation.replace('EventCreated');
     } catch (e) {
       console.error(e);
       Alert.alert('Error', 'No se pudo crear el evento. Intenta de nuevo.');
+    } finally {
+      setSubmitting(false); 
     }
   };
 
   const confirmCancel = () => {
+    if (submitting) return;
     Alert.alert(
       'Cancelar creación',
       '¿Deseas cancelar la creación del evento?',
@@ -174,6 +190,7 @@ export default function CreateEventScreen({ navigation }) {
           style={styles.input}
           placeholder="Ej. Boda de Ana y Luis"
           value={name}
+          editable={!submitting}
           onChangeText={setName}
         />
 
@@ -182,6 +199,7 @@ export default function CreateEventScreen({ navigation }) {
           style={[styles.input, styles.textArea]}
           placeholder="Descripción del evento"
           value={description}
+          editable={!submitting}
           onChangeText={text => text.length <= 200 && setDescription(text)}
           multiline
           maxLength={200}
@@ -195,11 +213,12 @@ export default function CreateEventScreen({ navigation }) {
           valueField="value"
           placeholder="Selecciona un tipo"
           value={type}
+          disable={submitting}
           onChange={item => {
             setType(item.value);
             if (item.value !== 'Otro') setOtherType('');
           }}
-          style={[styles.dropdown, type && styles.dropdownFilled]}
+          style={[styles.dropdown, type && styles.dropdownFilled, submitting && { opacity: 0.7 }]}
           placeholderStyle={styles.placeholder}
           selectedTextStyle={styles.selectedText}
           iconStyle={styles.icon}
@@ -208,7 +227,6 @@ export default function CreateEventScreen({ navigation }) {
           activeColor="#EDE9FE"
         />
 
-        {/* Si eligen "Otro", input adicional para escribir el tipo */}
         {type === 'Otro' && (
           <>
             <Text style={[styles.label, { marginTop: 12 }]}>Especifica el tipo</Text>
@@ -216,6 +234,7 @@ export default function CreateEventScreen({ navigation }) {
               style={[styles.input, !otherType.trim() && styles.inputWarning]}
               placeholder="Escribe el tipo de evento"
               value={otherType}
+              editable={!submitting}
               onChangeText={setOtherType}
             />
             {!otherType.trim() && (
@@ -226,8 +245,9 @@ export default function CreateEventScreen({ navigation }) {
 
         <Text style={styles.label}>Fecha y hora del evento</Text>
         <TouchableOpacity
-          style={styles.dateButton}
-          onPress={() => setShowDatePicker(true)}
+          style={[styles.dateButton, submitting && { opacity: 0.7 }]}
+          onPress={() => !submitting && setShowDatePicker(true)}
+          disabled={submitting}
         >
           <Ionicons name="calendar-outline" size={20} color="#4B5563" />
           <Text style={styles.dateText}>{formattedDate}</Text>
@@ -255,11 +275,27 @@ export default function CreateEventScreen({ navigation }) {
           style={styles.input}
           placeholder="Ej. Jardín El Roble, Cuernavaca, Mor."
           value={location}
+          editable={!submitting}
           onChangeText={setLocation}
         />
 
+        {/* Presupuesto */}
+<Text style={styles.label}>Presupuesto (opcional)</Text>
+<TextInput
+  style={styles.input}
+  placeholder="Ej. 7500"
+  value={budget}
+  keyboardType="numeric"
+  editable={!submitting}
+  onChangeText={(t) => setBudget(t.replace(/[^\d.,]/g, ''))}
+/>
+
         <Text style={styles.label}>Portada</Text>
-        <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+        <TouchableOpacity
+          style={[styles.imagePicker, submitting && { opacity: 0.7 }]}
+          onPress={!submitting ? pickImage : undefined}
+          disabled={submitting}
+        >
           <Ionicons name="camera-outline" size={24} color="#6B21A8" />
           <Text style={styles.imagePickerText}>
             {tempImageUri ? 'Cambiar imagen' : 'Seleccionar imagen'}
@@ -269,19 +305,40 @@ export default function CreateEventScreen({ navigation }) {
           <Image source={{ uri: tempImageUri }} style={styles.previewImage} />
         )}
 
+        {/* Estado */}
         <Text style={styles.label}>Estado</Text>
-        <Picker
-          selectedValue={status}
-          onValueChange={setStatus}
-          style={styles.picker}
-        >
-          {STATUS_OPTIONS.map(o => (
-            <Picker.Item key={o.value} label={o.label} value={o.value} />
-          ))}
-        </Picker>
+        <Dropdown
+          data={STATUS_OPTIONS}
+          labelField="label"
+          valueField="value"
+          placeholder="Selecciona estado"
+          value={status}
+          disable={submitting}
+          onChange={item => setStatus(item.value)}
+          style={[styles.dropdown, status && styles.dropdownFilled, submitting && { opacity: 0.7 }]}
+          placeholderStyle={styles.placeholder}
+          selectedTextStyle={styles.selectedText}
+          iconStyle={styles.icon}
+          containerStyle={styles.containerStyle}
+          itemContainerStyle={styles.itemContainer}
+          activeColor="#EDE9FE"
+        />
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitText}>Guardar evento</Text>
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            submitting && styles.submitButtonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={submitting}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: submitting, busy: submitting }}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <Text style={styles.submitText}>Guardar evento</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -299,14 +356,13 @@ const styles = StyleSheet.create({
     padding: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    color: '#1F2937',          
+    color: '#1F2937',
     placeholderTextColor: '#6B7280',
   },
   inputWarning: { borderColor: '#F59E0B' },
   helperText: { marginTop: 6, color: '#9CA3AF', fontSize: 12 },
   textArea:      { height: 100, textAlignVertical: 'top' },
   counter:       { alignSelf: 'flex-end', marginTop: 4, color: '#6B7280', fontSize: 12 },
-  picker:        { marginTop: 8, backgroundColor: '#FFF', borderRadius: 8 },
 
   dateButton:    {
     marginTop: 8, flexDirection: 'row', alignItems: 'center',
@@ -326,6 +382,9 @@ const styles = StyleSheet.create({
     marginTop: 24, backgroundColor: '#6B21A8', paddingVertical: 14,
     borderRadius: 8, alignItems: 'center', marginBottom: 19,
   },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
   submitText:    { color: '#FFF', fontWeight: '600' },
 
   title: {
@@ -336,6 +395,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
+  // 🎯 Estilos usados por ambos Dropdowns
   dropdown: {
     marginTop: 8,
     backgroundColor: '#fff',

@@ -8,18 +8,74 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
 
-const API_URL = 'http://143.198.138.35:8000'; 
+const API_URL = 'http://143.198.138.35:8000';
 
 const CARD_RADIUS = 14;
+
+const PHOTO_COUNT_URL   = (albumId) => `${API_URL}/photos/album/${albumId}/count`;
+const ALBUM_BY_ID_URL   = (albumId) => `${API_URL}/albums/get_one/${albumId}`;
+const ALBUMS_BY_EVENT   = (eventId) => `${API_URL}/albums/${eventId}`;
+
+function toLocalTimeLabel(hms) {
+  if (!hms || typeof hms !== 'string') return null;
+  const [hh, mm = '00', ss = '00'] = hms.split(':');
+  const h = Number(hh), m = Number(mm), s = Number(ss);
+  if (Number.isNaN(h) || Number.isNaN(m) || Number.isNaN(s)) return null;
+
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), h, m, s));
+  try {
+    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(h)}:${pad(m)}`;
+  }
+}
+
+function pickTimesFromObject(obj) {
+  if (!obj || typeof obj !== 'object') return { start: null, end: null };
+  const s = obj.start_time ?? obj.startTime ?? obj.start ?? null;
+  const e = obj.end_time   ?? obj.endTime   ?? obj.end   ?? null;
+  return { start: typeof s === 'string' ? s : null, end: typeof e === 'string' ? e : null };
+}
+
+function extractTimes(albumTime) {
+  if (albumTime && !Array.isArray(albumTime) && typeof albumTime === 'object') {
+    const { start, end } = pickTimesFromObject(albumTime);
+    return { startRaw: start, endRaw: end };
+  }
+  if (Array.isArray(albumTime)) {
+    let minStart = null;
+    let maxEnd   = null;
+    for (const item of albumTime) {
+      const { start, end } = pickTimesFromObject(item);
+      if (start && /^\d{2}:\d{2}(:\d{2})?$/.test(start)) {
+        if (minStart === null || start < minStart) minStart = start;
+      }
+      if (end && /^\d{2}:\d{2}(:\d{2})?$/.test(end)) {
+        if (maxEnd === null || end > maxEnd) maxEnd = end;
+      }
+    }
+    return { startRaw: minStart, endRaw: maxEnd };
+  }
+  return { startRaw: null, endRaw: null };
+}
+
+function isAllDayTimes(start, end) {
+  const s = (start || '').trim();
+  const e = (end || '').trim();
+  return (s === '00:00:00' && (e === '23:59:59' || e === '23:59:00' || e === '23:59')) ||
+         (s === '00:00'    && (e === '23:59'));
+}
 
 export default function PortadaAlbumsScreens({ navigation, route }) {
   const { eventId } = route.params || {};
   const { user } = useContext(AuthContext);
-  const token = user?.token || user?.accessToken || '';
 
-  const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
+  const token = user?.token || user?.access_token || user?.accessToken || '';
+  const authHeaders = useMemo(() => (token ? { Authorization: `Bearer ${token}` } : {}), [token]);
 
-  const [albums, setAlbums] = useState([]); 
+  const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -31,8 +87,66 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
   const [creating, setCreating] = useState(false);
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuAlbum, setMenuAlbum] = useState(null); 
+  const [menuAlbum, setMenuAlbum] = useState(null);
   const [updatingCover, setUpdatingCover] = useState(false);
+
+  const [role, setRole] = useState(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  const toRoleNumber = (data) => {
+    if (typeof data === 'number') return data;
+    if (typeof data === 'string') {
+      const n = parseInt(data, 10);
+      return Number.isFinite(n) ? n : null;
+    }
+    if (data && typeof data === 'object') {
+      if (data.role_id != null) return parseInt(String(data.role_id), 10);
+      if (data.role != null) return parseInt(String(data.role), 10);
+    }
+    return null;
+  };
+
+  const fetchRole = useCallback(async (eid) => {
+    if (!eid) return null;
+    try {
+      const res = await fetch(`${API_URL}/user/role?event_id=${encodeURIComponent(eid)}`, {
+        headers: { ...authHeaders },
+      });
+      const raw = await res.text();
+      if (!res.ok) throw new Error(raw || `HTTP ${res.status}`);
+      let data; try { data = JSON.parse(raw); } catch { data = raw; }
+      const r = toRoleNumber(data);
+      if (r != null) return r;
+      throw new Error('role parse error');
+    } catch {
+      try {
+        const res2 = await fetch(`${API_URL}/user/role`, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ event_id: String(eid) }).toString(),
+        });
+        const raw2 = await res2.text();
+        if (!res2.ok) throw new Error(raw2 || `HTTP ${res2.status}`);
+        let data2; try { data2 = JSON.parse(raw2); } catch { data2 = raw2; }
+        return toRoleNumber(data2);
+      } catch {
+        return null;
+      }
+    }
+  }, [authHeaders]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!eventId) return;
+      setRoleLoading(true);
+      const r = await fetchRole(eventId);
+      if (mounted) { setRole(r); setRoleLoading(false); }
+    })();
+    return () => { mounted = false; };
+  }, [eventId, fetchRole]);
+
+  const isOwner = role === 1;
 
   const filtered = useMemo(() => {
     if (!query.trim()) return albums;
@@ -63,73 +177,101 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     return result.assets?.[0]?.uri ?? null;
   };
 
-  
-  const probePhotoCount = async (albumId) => {
-   
-    const paths = [
-      `${API_URL}/albums/${albumId}/photos/count`,
-      `${API_URL}/photos/album/${albumId}/count`,
-      `${API_URL}/albums/${albumId}/photos`,
-      `${API_URL}/photos/album/${albumId}`,
-      `${API_URL}/photos?album_id=${albumId}`,
-    ];
+  const fetchCountsForAlbums = useCallback(async (list) => {
+    if (!list?.length) return;
+    const results = await Promise.allSettled(
+      list.map(async (a) => {
+        const r = await fetch(PHOTO_COUNT_URL(a.id), { headers: { ...authHeaders } });
+        if (!r.ok) throw new Error('count error');
+        const json = await r.json(); // { album_id, photo_count }
+        return { id: String(a.id), count: Number(json?.photo_count ?? 0) };
+      })
+    );
+    const byId = new Map();
+    results.forEach(res => {
+      if (res.status === 'fulfilled') byId.set(res.value.id, res.value.count);
+    });
+    setAlbums(prev =>
+      prev.map(a => ({
+        ...a,
+        photosCount: byId.has(String(a.id)) ? byId.get(String(a.id)) : a.photosCount ?? null,
+      }))
+    );
+  }, [authHeaders]);
 
-    for (const url of paths) {
-      try {
-        const r = await fetch(url, { headers: { ...authHeaders } });
-        if (!r.ok) continue;
-        const ct = r.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          const data = await r.json();
-          if (typeof data?.count === 'number') return data.count;
-          if (Array.isArray(data)) return data.length;
-          if (Array.isArray(data?.items)) return data.items.length;
-          if (Array.isArray(data?.photos)) return data.photos.length;
-          if (Array.isArray(data?.data)) return data.data.length;
-        }
-      } catch { /* continua */ }
-    }
-    return 0;
-  };
+  const fetchTimesForAlbums = useCallback(async (list) => {
+    if (!list?.length) return;
+    const results = await Promise.allSettled(
+      list.map(async (a) => {
+        const r = await fetch(ALBUM_BY_ID_URL(a.id), { headers: { ...authHeaders } });
+        if (!r.ok) throw new Error('time error');
+        const json = await r.json(); // { album: {...}, album_time: ... }
+
+        const { startRaw, endRaw } = extractTimes(json?.album_time);
+        const allDay = isAllDayTimes(startRaw, endRaw);
+
+        return {
+          id: String(a.id),
+          startTimeRaw:   startRaw,
+          endTimeRaw:     endRaw,
+          startTimeLabel: allDay ? null : toLocalTimeLabel(startRaw),
+          endTimeLabel:   allDay ? null : toLocalTimeLabel(endRaw),
+        };
+      })
+    );
+
+    const byId = new Map();
+    results.forEach(res => {
+      if (res.status === 'fulfilled') byId.set(res.value.id, res.value);
+    });
+
+    setAlbums(prev =>
+      prev.map(a => {
+        const t = byId.get(String(a.id));
+        if (!t) return a;
+        return {
+          ...a,
+          startTimeRaw:   t.startTimeRaw ?? null,
+          endTimeRaw:     t.endTimeRaw ?? null,
+          startTimeLabel: t.startTimeLabel ?? null,
+          endTimeLabel:   t.endTimeLabel ?? null,
+        };
+      })
+    );
+  }, [authHeaders]);
 
   const fetchAlbums = useCallback(async () => {
     if (!eventId || !token) return;
     setLoading(true);
     try {
-      const r = await fetch(`${API_URL}/albums/${eventId}`, { headers: { ...authHeaders } });
+      const r = await fetch(ALBUMS_BY_EVENT(eventId), { headers: { ...authHeaders } });
       if (!r.ok) throw new Error('No se pudo obtener los álbumes');
       const raw = await r.json();
 
-      const base = (raw || []).map(a => {
-        const id = a.album_id ?? a.id ?? a.albumId ?? a?.album_id;
-        const initialCount = Number(a?.photos_count ?? a?.photo_count);
+      const mapped = (raw || []).map(a => {
+        const id = a.album_id ?? a.id ?? a.albumId;
         return {
           id: String(id),
           name: a.name,
           coverUri: a.cover_url || a.coverUrl || null,
-          photosCount: Number.isFinite(initialCount) ? initialCount : null, 
+          photosCount: null,
+          startTimeRaw: null,
+          endTimeRaw: null,
+          startTimeLabel: null,
+          endTimeLabel: null,
           raw: a,
         };
       });
 
-      const needCount = base.filter(b => b.photosCount === null);
-
-      const results = await Promise.allSettled(needCount.map(b => probePhotoCount(b.id)));
-
-      const withCounts = base.map(b => {
-        if (b.photosCount !== null) return b;
-        const i = needCount.findIndex(n => n.id === b.id);
-        const count = results[i]?.status === 'fulfilled' ? results[i].value : 0;
-        return { ...b, photosCount: count };
-      });
-
-      setAlbums(withCounts);
+      setAlbums(mapped);
+      fetchCountsForAlbums(mapped);
+      fetchTimesForAlbums(mapped);
     } catch (e) {
       Alert.alert('Error', e?.message || 'No se pudieron cargar los álbumes.');
     } finally {
       setLoading(false);
     }
-  }, [API_URL, eventId, token]);
+  }, [eventId, token, authHeaders, fetchCountsForAlbums, fetchTimesForAlbums]);
 
   useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
 
@@ -156,7 +298,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
       const r = await fetch(`${API_URL}/albums/`, {
         method: 'POST',
         headers: { ...authHeaders },
-        body: form, 
+        body: form,
       });
 
       if (!r.ok) {
@@ -207,32 +349,46 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     await patchCover(menuAlbum.id, uri);
   };
 
-  const AlbumCard = ({ item }) => (
-    <View style={styles.card}>
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => navigation.navigate('Albums', {
-          albumId: item.id, albumName: item.name, coverUrl: item.coverUri, eventId
-        })}
-      >
-        <Image source={{ uri: item.coverUri }} style={styles.cover} />
-      </TouchableOpacity>
+  const AlbumCard = ({ item }) => {
+    const hasTimes = !!(item.startTimeLabel && item.endTimeLabel);
+    return (
+      <View style={styles.card}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Albums', {
+            albumId: item.id, albumName: item.name, coverUrl: item.coverUri, eventId
+          })}
+        >
+          <Image source={{ uri: item.coverUri }} style={styles.cover} />
+        </TouchableOpacity>
 
-      {/* Botón contextual (3 puntos) */}
-      <TouchableOpacity
-        style={styles.menuBtn}
-        onPress={() => { setMenuAlbum(item); setMenuOpen(true); }}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      >
-        <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuBtn}
+          onPress={() => { setMenuAlbum(item); setMenuOpen(true); }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+        </TouchableOpacity>
 
-      <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-      <Text style={styles.cardSubtitle}>
-        {Number.isFinite(item.photosCount) ? `${item.photosCount} fotos` : '...'}
-      </Text>
-    </View>
-  );
+        <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+
+        {hasTimes && (
+          <View style={styles.timeRow}>
+            <Ionicons name="time-outline" size={12} color="#555" style={{ marginRight: 4 }} />
+            <Text style={styles.timeText} numberOfLines={1}>
+              {item.startTimeLabel} — {item.endTimeLabel}
+            </Text>
+          </View>
+        )}
+
+        {Number.isFinite(item.photosCount) ? (
+          <Text style={styles.cardSubtitle}>{`${item.photosCount} fotos`}</Text>
+        ) : (
+          <Text style={[styles.cardSubtitle, { color: '#aaa' }]}>—</Text>
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -278,17 +434,23 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
           renderItem={({ item }) => <AlbumCard item={item} />}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={<View style={{ padding: 32, alignItems: 'center' }}><Text style={{ color: '#666' }}>Aún no hay álbumes.</Text></View>}
+          ListEmptyComponent={
+            <View style={{ padding: 32, alignItems: 'center' }}>
+              <Text style={{ color: '#666' }}>Aún no hay álbumes.</Text>
+            </View>
+          }
         />
       )}
 
-      {/* Botón crear */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.createBtn} onPress={() => setCreateOpen(true)}>
-          <Ionicons name="add" size={22} color="#fff" />
-          <Text style={styles.createText}>Crear álbum</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Botón crear — oculto para invitados (rol 2) */}
+      {isOwner && !roleLoading && (
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.createBtn} onPress={() => setCreateOpen(true)}>
+            <Ionicons name="add" size={22} color="#fff" />
+            <Text style={styles.createText}>Crear álbum</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Modal crear */}
       <Modal visible={createOpen} transparent animationType="slide" onRequestClose={() => setCreateOpen(false)}>
@@ -300,9 +462,11 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
             <TextInput value={newName} onChangeText={setNewName} placeholder="Ej. Preparativos" style={styles.input} />
 
             <Text style={[styles.label, { marginTop: 12 }]}>Portada</Text>
-            <TouchableOpacity style={styles.coverPicker} activeOpacity={0.9} onPress={async () => {
-              const uri = await pickImage(false); if (uri) setNewCover(uri);
-            }}>
+            <TouchableOpacity
+              style={styles.coverPicker}
+              activeOpacity={0.9}
+              onPress={async () => { const uri = await pickImage(false); if (uri) setNewCover(uri); }}
+            >
               {newCover ? (
                 <Image source={{ uri: newCover }} style={styles.coverPreview} />
               ) : (
@@ -314,18 +478,20 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
             </TouchableOpacity>
 
             <View style={styles.row}>
-              <TouchableOpacity style={[styles.smallBtn, { flex: 1 }]} onPress={async () => {
-                const uri = await pickImage(false); if (uri) setNewCover(uri);
-              }}>
+              <TouchableOpacity
+                style={[styles.smallBtn, { flex: 1 }]}
+                onPress={async () => { const uri = await pickImage(false); if (uri) setNewCover(uri); }}
+              >
                 <Ionicons name="images-outline" size={18} color="#fff" />
                 <Text style={styles.smallBtnText}>Galería</Text>
               </TouchableOpacity>
 
               <View style={{ width: 10 }} />
 
-              <TouchableOpacity style={[styles.smallBtn, { flex: 1 }]} onPress={async () => {
-                const uri = await pickImage(true); if (uri) setNewCover(uri);
-              }}>
+              <TouchableOpacity
+                style={[styles.smallBtn, { flex: 1 }]}
+                onPress={async () => { const uri = await pickImage(true); if (uri) setNewCover(uri); }}
+              >
                 <Ionicons name="camera-outline" size={18} color="#fff" />
                 <Text style={styles.smallBtnText}>Cámara</Text>
               </TouchableOpacity>
@@ -364,7 +530,10 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
               <Text style={styles.menuText}>Cambiar portada desde cámara</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItem, { justifyContent: 'center' }]} onPress={() => { setMenuOpen(false); setMenuAlbum(null); }}>
+            <TouchableOpacity
+              style={[styles.menuItem, { justifyContent: 'center' }]}
+              onPress={() => { setMenuOpen(false); setMenuAlbum(null); }}
+            >
               <Text style={[styles.menuText, { fontWeight: '700' }]}>Cancelar</Text>
             </TouchableOpacity>
 
@@ -392,7 +561,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 15 },
 
-  grid: { paddingHorizontal: 12, paddingBottom: 90 },
+  grid: { paddingHorizontal: 12, paddingBottom: 120 },
 
   card: { flex: 1, margin: 6, borderRadius: CARD_RADIUS },
   cover: { width: '100%', aspectRatio: 1.1, borderRadius: CARD_RADIUS, backgroundColor: '#eee' },
@@ -400,7 +569,21 @@ const styles = StyleSheet.create({
     position: 'absolute', right: 10, top: 10, width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center',
   },
-  cardTitle: { marginTop: 6, fontSize: 14, fontWeight: '600' },
+
+  cardTitle: { fontSize: 14, fontWeight: '600', marginTop: 6, marginBottom: 2 },
+
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    backgroundColor: '#f1eff8',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  timeText: { fontSize: 11, color: '#555' },
+
   cardSubtitle: { marginTop: 2, fontSize: 12, color: '#666' },
 
   bottomBar: {

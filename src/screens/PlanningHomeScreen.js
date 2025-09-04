@@ -1,4 +1,3 @@
-// src/screens/PlanningHomeScreen.js
 import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import {
   View,
@@ -96,13 +95,14 @@ function iconForCategory(cat) {
 }
 
 export default function PlanningHomeScreen({ navigation, route }) {
-  const { eventId } = route.params || {};
+   const { eventId, eventDate = null } = route.params || {};
   const { user } = useContext(AuthContext);
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('checklist');
+  const [activeTab, setActiveTab] = useState(route?.params?.initialTab ?? 'checklist');
 
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -205,49 +205,60 @@ export default function PlanningHomeScreen({ navigation, route }) {
 
   useFocusEffect(
     useCallback(() => {
+      if (route?.params?.initialTab) {
+        setActiveTab(route.params.initialTab);
+      } else {
+        setActiveTab('checklist');
+      }
       loadCategories();
     }, [loadCategories])
   );
 
   const handleCreateCategory = useCallback(async () => {
-    const token = user?.token || user?.accessToken;
-    if (!newCategoryName?.trim()) {
-      Alert.alert('Error', 'El nombre de la categoría no puede estar vacío.');
-      return;
-    }
-    if (newCategoryBudget && isNaN(parseFloat(newCategoryBudget))) {
-      Alert.alert('Error', 'El presupuesto debe ser un número válido.');
-      return;
+  const token = user?.token || user?.accessToken;
+  if (!newCategoryName?.trim()) {
+    Alert.alert('Error', 'El nombre de la categoría no puede estar vacío.');
+    return;
+  }
+  if (newCategoryBudget && isNaN(parseFloat(newCategoryBudget))) {
+    Alert.alert('Error', 'El presupuesto debe ser un número válido.');
+    return;
+  }
+
+  if (creatingCategory) return;
+
+  const payload = {
+    name: newCategoryName.trim(),
+    event_id: eventId,
+    budget_category: newCategoryBudget ? parseFloat(newCategoryBudget) : null,
+  };
+
+  try {
+    setCreatingCategory(true);
+    const res = await fetch(`${API_URL}/category-checklists/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(t || `HTTP ${res.status}`);
     }
 
-    const payload = {
-      name: newCategoryName.trim(),
-      event_id: eventId,
-      budget_category: newCategoryBudget ? parseFloat(newCategoryBudget) : null,
-    };
-
-    try {
-      const res = await fetch(`${API_URL}/category-checklists/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || `HTTP ${res.status}`);
-      }
-      setShowAddCategoryModal(false);
-      setNewCategoryName('');
-      setNewCategoryBudget('');
-      await loadCategories();
-    } catch (err) {
-      console.error('Error al crear la categoría:', err);
-      Alert.alert('Error', 'No se pudo crear la categoría.');
-    }
-  }, [eventId, newCategoryName, newCategoryBudget, user?.token, user?.accessToken, loadCategories]);
+    setShowAddCategoryModal(false);
+    setNewCategoryName('');
+    setNewCategoryBudget('');
+    await loadCategories();
+  } catch (err) {
+    console.error('Error al crear la categoría:', err);
+    Alert.alert('Error', 'No se pudo crear la categoría.');
+  } finally {
+    setCreatingCategory(false);
+  }
+}, [eventId, newCategoryName, newCategoryBudget, user?.token, user?.accessToken, loadCategories, creatingCategory]);
 
   
   const { total, doneCount, percent } = useMemo(() => {
@@ -442,7 +453,8 @@ export default function PlanningHomeScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      {/* Tab bar inferior */}
+      
+      {/* Tab bar inferior  */}
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'checklist' && styles.tabActive]}
@@ -455,14 +467,30 @@ export default function PlanningHomeScreen({ navigation, route }) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'gastos' && styles.tabActive]}
-          onPress={() => setActiveTab('gastos')}
-        >
-          <Ionicons name="cash-outline" size={20} color={activeTab === 'gastos' ? '#FFF' : '#254236'} />
-          <Text style={[styles.tabText, activeTab === 'gastos' && styles.tabTextActive]}>
-            Gastos
-          </Text>
-        </TouchableOpacity>
+  style={[styles.tabButton, activeTab === 'gastos' && styles.tabActive]}
+  onPress={() => navigation.replace('BudgetControl', { eventId })}
+>
+  <Ionicons
+    name="cash-outline"
+    size={20}
+    color={activeTab === 'gastos' ? '#FFF' : '#254236'}
+  />
+  <Text style={[styles.tabText, activeTab === 'gastos' && styles.tabTextActive]}>
+    Gastos
+  </Text>
+</TouchableOpacity>
+
+      
+
+        <TouchableOpacity
+  style={[styles.tabButton, activeTab === 'agenda' && styles.tabActive]}
+  onPress={() => navigation.replace('Agenda', { eventId, eventDate })}
+>
+  <Ionicons name="calendar-outline" size={20} color={activeTab === 'agenda' ? '#FFF' : '#254236'} />
+  <Text style={[styles.tabText, activeTab === 'agenda' && styles.tabTextActive]}>
+    Agenda
+  </Text>
+</TouchableOpacity>
       </View>
 
       {/* Modal crear categoría */}
@@ -473,12 +501,14 @@ export default function PlanningHomeScreen({ navigation, route }) {
             <TextInput
               style={styles.input}
               placeholder="Nombre de la categoría"
+              placeholderTextColor="#888"
               value={newCategoryName}
               onChangeText={setNewCategoryName}
             />
             <TextInput
               style={styles.input}
               placeholder="Presupuesto de la categoría (opcional)"
+              placeholderTextColor="#888"
               value={newCategoryBudget}
               onChangeText={setNewCategoryBudget}
               keyboardType="numeric"
@@ -494,13 +524,19 @@ export default function PlanningHomeScreen({ navigation, route }) {
               >
                 <Text style={styles.buttonText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.createButton}
-                onPress={handleCreateCategory}
-                disabled={!newCategoryName?.trim()}
-              >
-                <Text style={styles.buttonText}>Crear</Text>
-              </TouchableOpacity>
+             <TouchableOpacity
+  style={[
+    styles.createButton,
+    (creatingCategory || !newCategoryName?.trim()) && { opacity: 0.6 }
+  ]}
+  onPress={handleCreateCategory}
+  disabled={creatingCategory || !newCategoryName?.trim()}
+>
+  {creatingCategory
+    ? <ActivityIndicator color="#FFF" />
+    : <Text style={styles.buttonText}>Crear</Text>
+  }
+</TouchableOpacity>
             </View>
           </View>
         </View>
@@ -563,7 +599,6 @@ const styles = StyleSheet.create({
   },
   addText: { flex: 1, marginLeft: 12, fontSize: 16, color: '#1A2E2A', fontWeight: '500' },
 
-  // Fila de gasto
   expenseRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -578,7 +613,6 @@ const styles = StyleSheet.create({
   expenseTitle: { fontSize: 16, color: '#254236', fontWeight: '600' },
   expenseMeta: { fontSize: 13, color: '#254236', opacity: 0.8, marginTop: 2 },
 
-  // Tab bar inferior
   tabBar: {
     position: 'absolute',
     bottom: 12,
@@ -591,7 +625,7 @@ const styles = StyleSheet.create({
     borderColor: '#EAEBDB',
     borderWidth: 1,
     elevation: 2,
-    marginBottom: 24, // Espacio para el botón flotante
+    marginBottom: 24,
   },
   tabButton: {
     flex: 1,
@@ -606,7 +640,6 @@ const styles = StyleSheet.create({
   tabText: { marginLeft: 6, color: '#254236', fontWeight: '600' },
   tabTextActive: { color: '#FFF' },
 
-  // Modal
   modalOverlay: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

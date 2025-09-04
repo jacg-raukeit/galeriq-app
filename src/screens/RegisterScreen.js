@@ -1,17 +1,18 @@
 // src/screens/RegisterScreen.js
-import React, { useState, useContext, useMemo } from 'react';
+import React, { useState, useContext, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   TextInput,
   StyleSheet,
-  ImageBackground,
   Dimensions,
   Alert,
   ActivityIndicator,
   Image,
   Platform,
+  Animated,
+  Easing,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,8 +20,74 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
+import { Image as ExpoImage } from 'expo-image';
 const { width, height } = Dimensions.get('window');
 
+const BG_IMAGES = [
+  require('../../src/assets/images/carousel1.jpg'),
+  require('../../src/assets/images/carousel2.jpg'),
+  require('../../src/assets/images/carousel3.jpg'),
+  require('../../src/assets/images/fondol.jpg'),
+];
+
+export function BackgroundSlideshow({
+  interval = 3500,      
+  transition = 900,     
+}) {
+  const [ready, setReady] = useState(false);
+  const [idx, setIdx] = useState(0);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        await Promise.all(
+          BG_IMAGES.map(src => ExpoImage.prefetch(src))
+        );
+      } catch {}
+      if (mounted) setReady(true);
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const armTimer = () => {
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setIdx(prev => (prev + 1) % BG_IMAGES.length);
+    }, interval);
+  };
+
+  useEffect(() => {
+    if (!ready) return;
+    armTimer();
+    return () => clearTimeout(timerRef.current);
+  }, [ready, idx]);
+
+  if (!ready) {
+    return <View style={StyleSheet.absoluteFill} />;
+  }
+
+  const source = BG_IMAGES[idx];
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <ExpoImage
+        source={source}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        transition={transition}
+        cachePolicy="disk"
+        recyclingKey={`bg-${idx}`}
+        onLoad={armTimer}
+      />
+      <View style={{
+        position:'absolute', top:0, left:0, right:0, bottom:0,
+        backgroundColor:'rgba(0,0,0,0.35)'
+      }}/>
+    </View>
+  );
+}
 export default function RegisterScreen() {
   const navigation = useNavigation();
   const { setUser } = useContext(AuthContext);
@@ -149,12 +216,9 @@ export default function RegisterScreen() {
   const barWidth = ['20%', '40%', '60%', '80%', '100%'][passScore] || '20%';
 
   return (
-    <ImageBackground
-      source={require('../../src/assets/images/fondol.jpg')}
-      style={styles.bg}
-      resizeMode="cover"
-    >
-      <View style={styles.overlay} />
+    <View style={styles.container}>
+      {/* Slideshow de fondo */}
+      <BackgroundSlideshow interval={3000} fadeDuration={700} />
 
       {/* KeyboardAwareScrollView para evitar que el teclado tape inputs */}
       <KeyboardAwareScrollView
@@ -314,7 +378,7 @@ export default function RegisterScreen() {
           <ActivityIndicator size="large" color="#fff" />
         </View>
       )}
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -328,7 +392,9 @@ function Req({ ok, text }) {
 }
 
 const styles = StyleSheet.create({
-  bg: { flex: 1, width, height, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, width, height, justifyContent: 'center', alignItems: 'center' },
+
+  bgImage: { width: '100%', height: '100%' },
   overlay:{ position:'absolute', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.35)' },
 
   scroll: { alignItems: 'center', padding: 16, paddingBottom: 28, minHeight: height * 1.05 },
@@ -342,7 +408,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.6)',
     shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 6 },
     elevation: 6,
-    marginTop: 70,
+    marginTop: 40,
   },
 
   title: { fontSize: 28, fontWeight: '800', color: '#111827', textAlign: 'center' },
@@ -371,7 +437,6 @@ const styles = StyleSheet.create({
   eyeBtn: { padding: 6, marginLeft: 4 },
 
   errorText: { color: '#DC2626', fontSize: 12.5, marginTop: 4 },
-
   inputError: { borderColor: '#F59E0B' },
 
   strengthBox: { marginTop: 8 },

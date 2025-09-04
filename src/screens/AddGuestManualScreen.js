@@ -171,6 +171,6 @@ export default function AddGuestManualScreen() {
 
 const styles = StyleSheet.create({
   container: { padding: 20, flex: 1, backgroundColor: '#fff' },
-  title: { fontSize: 22, marginBottom: 20, fontWeight: 'bold' },
+  title: { fontSize: 22, marginBottom: 20, fontWeight: 'bold', marginTop: 10, color: '#111827' },
   input: { marginBottom: 12 },
 });

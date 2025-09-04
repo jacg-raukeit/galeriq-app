@@ -25,7 +25,8 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "mx.raukeit.galeriq",
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,7 +35,10 @@
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
       "expo-sqlite",
-      "expo-font"
+      "expo-font",
+      "expo-secure-store",
+      "expo-router",
+      "expo-notifications"
     ],
     "extra": {
       "eas": {
