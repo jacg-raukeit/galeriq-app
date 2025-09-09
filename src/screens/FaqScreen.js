@@ -1,5 +1,4 @@
-// src/screens/FaqScreen.js
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   SafeAreaView,
   View,
@@ -11,14 +10,18 @@ import {
   Linking,
   Platform,
   UIManager,
-  LayoutAnimation,
   Animated,
   Easing,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
+import * as WebBrowser from 'expo-web-browser';
+
 const WEBSITE_URL = 'https://vicman28-tv.github.io/Galeriq/';
 const SUPPORT_EMAIL = 'ayudagaleriq@gmail.com';
+
+const TERMS_PDF_LOCAL = require('../assets/documents/terminos.pdf');
+
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -26,7 +29,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function FaqScreen({ navigation }) {
   const [query, setQuery] = useState('');
-  const [openId, setOpenId] = useState('false');
+  const [openId, setOpenId] = useState(null);
 
   const faqs = useMemo(
     () => [
@@ -60,15 +63,11 @@ export default function FaqScreen({ navigation }) {
     return faqs.filter((f) => f.q.toLowerCase().includes(ql) || f.a.toLowerCase().includes(ql));
   }, [query, faqs]);
 
-  const toggle = (id) => setOpenId((prev) => (prev === id ? -1 : id));
+  const toggle = (id) => setOpenId((prev) => (prev === id ? null : id));
 
 
   const openWebsite = async () => {
-    const url = WEBSITE_URL;
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) await Linking.openURL(url);
-    } catch (_) {}
+    await WebBrowser.openBrowserAsync(WEBSITE_URL);
   };
 
   const emailSupport = async () => {
@@ -82,7 +81,7 @@ export default function FaqScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        {/* Back button (como en la imagen, arriba a la izquierda) */}
+        {/* Back button */}
         <View style={styles.headerRow}>
           <Pressable
             onPress={() => navigation?.goBack?.()}
@@ -102,7 +101,16 @@ export default function FaqScreen({ navigation }) {
         <View style={styles.actions}>
           <RowItem icon="globe-outline" text="Ir al sitio web" onPress={openWebsite} />
           <RowItem icon="mail-outline" text="Email" onPress={emailSupport} />
-          <RowItem icon="document-text-outline" text="Términos de Servicio" onPress={null} />
+         <RowItem
+  icon="document-text-outline"
+  text="Términos de Servicio"
+  onPress={() => {
+    navigation.navigate('PdfViewer', {
+      title: 'Términos y condiciones',
+      localRequire: TERMS_PDF_LOCAL,
+    });
+  }}
+/>
         </View>
 
         {/* Buscador azul */}
@@ -153,8 +161,7 @@ function RowItem({ icon, text, onPress }) {
 }
 
 function FaqCard({ item, open, onToggle }) {
-  const [contentHeight, setContentHeight] = React.useState(0);
-  const progress = React.useRef(new Animated.Value(open ? 1 : 0)).current;
+  const progress = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     Animated.timing(progress, {
@@ -165,21 +172,11 @@ function FaqCard({ item, open, onToggle }) {
     }).start();
   }, [open]);
 
-  const height = progress.interpolate({
+  const contentHeight = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, contentHeight || 1],
+    outputRange: [0, 100],
   });
-
-  const opacity = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
-
-  const translateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-6, 0], 
-  });
-
+  
   const rotate = progress.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
@@ -193,33 +190,12 @@ function FaqCard({ item, open, onToggle }) {
           <Ionicons name="chevron-down" size={18} color="#111" />
         </Animated.View>
       </Pressable>
-
-      {/* Medidor invisible para saber la altura real del contenido */}
-      <View
-        style={{ position: 'absolute', opacity: 0, zIndex: -1, left: 14, right: 14 }}
-        pointerEvents="none"
-        onLayout={(e) => setContentHeight(e.nativeEvent.layout.height)}
-      >
+      <Animated.View style={{ height: contentHeight, overflow: 'hidden' }}>
         <Text style={styles.cardBody}>{item.a}</Text>
-      </View>
-
-      {/* Contenedor animado */}
-      <Animated.View
-        style={{
-          height,
-          overflow: 'hidden',
-          opacity,
-          transform: [{ translateY }],
-        }}
-      >
-        <View>
-          <Text style={styles.cardBody}>{item.a}</Text>
-        </View>
       </Animated.View>
     </View>
   );
 }
-
 
 const PRIMARY_BLUE = '#D6C4E3';
 const BG = '#F5F6FA';
@@ -318,11 +294,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: 10,
+    paddingTop: 4,
   },
 });
 
 function shadow(elevation = 8) {
-  // Sombras similares a iOS/Android para cards y el buscador (como en la imagen)
   return Platform.select({
     android: { elevation },
     ios: {

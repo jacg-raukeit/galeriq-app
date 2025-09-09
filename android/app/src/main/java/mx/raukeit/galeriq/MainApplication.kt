@@ -1,4 +1,4 @@
-package mx.raukeit.galeriq
+package galeriq.com
 
 import android.app.Application
 import android.content.res.Configuration

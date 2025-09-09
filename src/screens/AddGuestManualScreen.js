@@ -5,7 +5,7 @@ import { TextInput, Button, Text } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 
-const API_URL = 'http://143.198.138.35:8000'; 
+const API_URL = 'http://143.198.138.35:8000';
 
 export default function AddGuestManualScreen() {
   const navigation = useNavigation();
@@ -19,6 +19,7 @@ export default function AddGuestManualScreen() {
   const [correo, setCorreo] = useState('');
   const [telefono, setTelefono] = useState('');
   const [alias, setAlias] = useState('');
+  const [nPasses, setNPasses] = useState('0');
   const [saving, setSaving] = useState(false);
 
   const validateEmail = (email) => /\S+@\S+\.\S+/.test(email);
@@ -37,9 +38,15 @@ export default function AddGuestManualScreen() {
       return;
     }
 
+    const nPassesNumber = parseInt(nPasses, 10);
+    if (isNaN(nPassesNumber) || nPassesNumber < 1) {
+      Alert.alert('Número de pases inválido', 'Ingresa un entero mayor o igual a 1.');
+      return;
+    }
+
     Alert.alert(
       'Confirmar guardado',
-      '¿Deseas guardar este invitado?',
+      `¿Deseas guardar este invitado con ${nPassesNumber} pase(s)?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -49,13 +56,13 @@ export default function AddGuestManualScreen() {
             try {
               setSaving(true);
 
-              
               const payload = {
                 event_id: Number(eventId),
                 full_name: nombre,
                 email: correo,
+                n_passes: nPassesNumber, 
               };
-              
+
               if (telefono) payload.phone = telefono;
               if (alias) payload.alias = alias;
 
@@ -73,19 +80,15 @@ export default function AddGuestManualScreen() {
                 throw new Error(`Error ${resp.status}: ${body || 'No se pudo crear el invitado'}`);
               }
 
-              await resp.json(); 
+              await resp.json();
               Alert.alert('Éxito', 'Invitado guardado correctamente.', [
                 { text: 'OK', onPress: () => navigation.goBack() },
               ]);
             } catch (error) {
               console.error('Error al guardar invitado:', error);
-              
-              const msg =
-                String(error?.message || '')
-                  .toLowerCase()
-                  .includes('422')
-                  ? 'Datos inválidos para el backend (verifica los campos).'
-                  : 'No se pudo guardar el invitado.';
+              const msg = String(error?.message || '').toLowerCase().includes('422')
+                ? 'Datos inválidos para el backend (verifica los campos).'
+                : 'No se pudo guardar el invitado.';
               Alert.alert('Error', msg);
             } finally {
               setSaving(false);
@@ -97,7 +100,7 @@ export default function AddGuestManualScreen() {
   };
 
   const handleCancelar = () => {
-    if (nombre || correo || telefono || alias) {
+    if (nombre || correo || telefono || alias || (nPasses && nPasses !== '1')) {
       Alert.alert(
         '¿Cancelar?',
         'Perderás la información escrita. ¿Deseas continuar?',
@@ -145,6 +148,17 @@ export default function AddGuestManualScreen() {
         onChangeText={setAlias}
         style={styles.input}
         disabled={saving}
+      />
+
+      {/* Número de pases */}
+      <TextInput
+        label="Número de pases"
+        value={nPasses}
+        onChangeText={(t) => setNPasses(t.replace(/[^0-9]/g, ''))} // solo dígitos
+        keyboardType="number-pad"
+        style={styles.input}
+        disabled={saving}
+        right={<TextInput.Affix text="pases" />}
       />
 
       <View style={{ flexDirection: 'row', marginTop: 16 }}>

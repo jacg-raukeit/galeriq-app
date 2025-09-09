@@ -891,8 +891,7 @@ detailCard: {
   modalBackdrop: {
     flex: 1,
     backgroundColor: '#EBD6FB',
-    // backgroundColor: '#EBD8F590', // lila translúcido (puedes usar '#00000055' si quieres oscurecido)
-    alignItems: 'center',
+    // backgroundColor: '#EBD8F590', 
     justifyContent: 'center',
     padding: 20,
   },

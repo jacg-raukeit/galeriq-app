@@ -1,5 +1,4 @@
-// src/screens/GuestScreen.js
-import React, { useEffect, useState, useCallback, useContext } from 'react';
+import React, { useEffect, useState, useCallback, useContext, useRef, memo } from 'react';
 import {
   View,
   FlatList,
@@ -16,12 +15,14 @@ import {
 } from 'react-native';
 import { List, FAB, Snackbar, Text, Portal, Provider } from 'react-native-paper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Swipeable } from 'react-native-gesture-handler';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
+// Se importan los hooks desde la librería de navegación
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 
-const API_URL = 'http://143.198.138.35:8000'; 
+const API_URL = 'http://143.198.138.35:8000';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -41,16 +42,12 @@ const getStatusColor = (status) => {
     default: return 'orange';
   }
 };
-
-
 const mapRSVPToStatus = (rsvp) => {
   if (rsvp === 1 || rsvp === '1' || rsvp === 'accepted' || rsvp === 'confirmed') return 'confirmed';
   if (rsvp === 2 || rsvp === '2' || rsvp === 'rejected') return 'rejected';
   return 'pending';
 };
-
 const statusToCode = (status) => (status === 'confirmed' ? 1 : status === 'rejected' ? 2 : 0);
-
 
 const adaptGuest = (g) => ({
   id: g.guest_id ?? g.id,
@@ -60,6 +57,68 @@ const adaptGuest = (g) => ({
   alias: g.alias ?? '',
   status: mapRSVPToStatus(g.rsvp_status ?? g.status),
   avatar: g.avatar_url ?? g.avatar ?? '',
+});
+
+/** ===== Fila con Swipe (usa hooks aquí, no en renderItem) ===== */
+const ACTION_WIDTH = 96;
+
+const GuestRow = memo(function GuestRow({ item, onToggleStatus, onRequestDelete }) {
+  const swipeRef = useRef(null);
+
+  const confirmDelete = () => {
+    Alert.alert(
+      'Confirmar eliminación',
+      `Esta acción eliminará a ${item.nombre} de la lista. ¿Deseas continuar?`,
+      [
+        { text: 'Cancelar', style: 'cancel', onPress: () => swipeRef.current?.close?.() },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            await onRequestDelete(item.id);
+            swipeRef.current?.close?.();
+          },
+        },
+      ]
+    );
+  };
+
+  const RightActions = () => (
+    <View style={styles.rightActions}>
+      <TouchableOpacity style={styles.deleteButton} onPress={confirmDelete} activeOpacity={0.85}>
+        <Ionicons name="trash-outline" size={22} color="#fff" />
+        <Text style={styles.deleteText}>Eliminar</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      friction={2}
+      rightThreshold={40}
+      renderRightActions={RightActions}
+      overshootRight={false}
+    >
+      <Pressable>
+        <List.Item
+          title={item.nombre}
+          description={item.alias || item.correo || item.telefono}
+          left={() => (
+            <Image
+              source={item.avatar ? { uri: item.avatar } : require('../assets/images/google.png')}
+              style={styles.avatar}
+            />
+          )}
+          right={() => (
+            <Pressable onPress={() => onToggleStatus(item)}>
+              <List.Icon icon={getStatusIcon(item.status)} color={getStatusColor(item.status)} />
+            </Pressable>
+          )}
+        />
+      </Pressable>
+    </Swipeable>
+  );
 });
 
 export default function GuestScreen({ route }) {
@@ -84,7 +143,6 @@ export default function GuestScreen({ route }) {
     else setFilteredGuests(dataList.filter((g) => g.status === filterStatus));
   }, []);
 
-  
   const fetchGuestsFromAPI = useCallback(async () => {
     if (!eventId) throw new Error('Falta eventId');
     const url = `${API_URL}/guests/event/${eventId}`;
@@ -103,7 +161,6 @@ export default function GuestScreen({ route }) {
     return Array.isArray(json) ? json.map(adaptGuest) : [];
   }, [eventId, token]);
 
-  
   const loadGuests = useCallback(async () => {
     setLoading(true);
     try {
@@ -151,6 +208,7 @@ export default function GuestScreen({ route }) {
     }
     return resp.json();
   };
+
   const acceptGuest = async (guestId) => {
     const url = `${API_URL}/guests/${guestId}/accept`;
     const resp = await fetch(url, {
@@ -166,6 +224,7 @@ export default function GuestScreen({ route }) {
     }
     return resp.json();
   };
+
   const rejectGuest = async (guestId) => {
     const url = `${API_URL}/guests/${guestId}/reject`;
     const resp = await fetch(url, {
@@ -180,6 +239,22 @@ export default function GuestScreen({ route }) {
       throw new Error(`Rechazar falló (${resp.status}): ${t}`);
     }
     return resp.json();
+  };
+
+  const deleteGuest = async (guestId) => {
+    const url = `${API_URL}/guests/${guestId}`;
+    const resp = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!resp.ok) {
+      const t = await resp.text().catch(() => '');
+      throw new Error(`Eliminar falló (${resp.status}): ${t || 'No se pudo eliminar invitado'}`);
+    }
+    try { await resp.json(); } catch (_) {}
+    return true;
   };
 
   const toggleStatus = async (guest) => {
@@ -200,47 +275,22 @@ export default function GuestScreen({ route }) {
     }
   };
 
-  const onLongPressGuest = (guest) => {
-    Alert.alert(
-      'Acciones del invitado',
-      `¿Qué deseas hacer con ${guest.nombre}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Aceptar (dueño)',
-          onPress: async () => {
-            try {
-              const ok = await acceptGuest(guest.id);
-              if (!ok) throw new Error('Respuesta false');
-              await loadGuests();
-              setSnackbarMsg('Invitado aceptado por el dueño');
-              setSnackbarVisible(true);
-            } catch (e) {
-              console.error(e);
-              setSnackbarMsg('No se pudo aceptar al invitado');
-              setSnackbarVisible(true);
-            }
-          },
-        },
-        {
-          text: 'Rechazar (dueño)',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const ok = await rejectGuest(guest.id);
-              if (!ok) throw new Error('Respuesta false');
-              await loadGuests();
-              setSnackbarMsg('Invitado rechazado por el dueño');
-              setSnackbarVisible(true);
-            } catch (e) {
-              console.error(e);
-              setSnackbarMsg('No se pudo rechazar al invitado');
-              setSnackbarVisible(true);
-            }
-          },
-        },
-      ]
-    );
+  // función que se pasa a la fila para borrar
+  const handleDelete = async (guestId) => {
+    try {
+      await deleteGuest(guestId);
+      setGuests((prev) => {
+        const next = prev.filter((g) => g.id !== guestId);
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        return next;
+      });
+      setSnackbarMsg('Invitado eliminado');
+      setSnackbarVisible(true);
+    } catch (e) {
+      console.error(e);
+      setSnackbarMsg('No se pudo eliminar al invitado');
+      setSnackbarVisible(true);
+    }
   };
 
   const confirmedCount = guests.filter((g) => g.status === 'confirmed').length;
@@ -252,8 +302,8 @@ export default function GuestScreen({ route }) {
     <Provider>
       <SafeAreaView style={styles.container}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-                  <Ionicons name="arrow-back" size={24} color="#254236" />
-                </TouchableOpacity>
+          <Ionicons name="arrow-back" size={24} color="#254236" />
+        </TouchableOpacity>
         <Text style={styles.title}>Lista de invitados</Text>
 
         <View style={styles.statusBar}>
@@ -282,38 +332,33 @@ export default function GuestScreen({ route }) {
             keyExtractor={(item) => String(item.id)}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             renderItem={({ item }) => (
-              <Pressable onLongPress={() => onLongPressGuest(item)}>
-                <List.Item
-                  title={item.nombre}
-                  description={item.alias || item.correo || item.telefono}
-                  left={() => (
-                    <Image
-                      source={item.avatar ? { uri: item.avatar } : require('../assets/images/google.png')}
-                      style={styles.avatar}
-                    />
-                  )}
-                  right={() => (
-                    <Pressable onPress={() => toggleStatus(item)}>
-                      <List.Icon icon={getStatusIcon(item.status)} color={getStatusColor(item.status)} />
-                    </Pressable>
-                  )}
-                />
-              </Pressable>
+              <GuestRow
+                item={item}
+                onToggleStatus={toggleStatus}
+                onRequestDelete={handleDelete}
+              />
             )}
           />
         )}
 
         <Portal>
-          <FAB.Group
-            open={fabOpen}
-            icon={fabOpen ? 'close' : 'plus'}
-            actions={[
-              { icon: 'account-plus', label: 'Agregar Manualmente', onPress: () => navigation.navigate('AddGuestManual', { eventId }) },
-              { icon: 'file-upload', label: 'Subir CSV', onPress: () => navigation.navigate('AddGuestFromCSV', { eventId }) },
-            ]}
-            onStateChange={({ open }) => setFabOpen(open)}
-            visible={true}
-          />
+          {fabOpen && (
+            <Pressable style={styles.backdrop} onPress={() => setFabOpen(false)} />
+          )}
+
+          <View style={styles.fabContainer} pointerEvents="box-none">
+            <FAB.Group
+              open={fabOpen}
+              icon={fabOpen ? 'close' : 'plus'}
+              actions={[
+                { icon: 'account-plus', label: 'Agregar Manualmente', onPress: () => navigation.navigate('AddGuestManual', { eventId }) },
+                { icon: 'file-upload', label: 'Subir CSV', onPress: () => navigation.navigate('AddGuestFromCSV', { eventId }) },
+              ]}
+              onStateChange={({ open }) => setFabOpen(open)}
+              visible={true}
+              fabStyle={styles.fabButton}
+            />
+          </View>
         </Portal>
 
         <Snackbar
@@ -336,4 +381,51 @@ const styles = StyleSheet.create({
   statusBox: { flex: 1, padding: 8, borderRadius: 8 },
   statusText: { color: 'white', fontWeight: 'bold', textAlign: 'center' },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  rightActions: {
+    width: ACTION_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#E11D48',
+    marginVertical: 4,
+    borderRadius: 8,
+  },
+  deleteButton: {
+    width: ACTION_WIDTH,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
+  deleteText: { color: '#fff', fontWeight: 'bold', marginTop: 4 },
+
+  // La nueva forma de posicionar el FAB.Group
+  fabContainer: {
+    position: 'absolute',
+    // Hacemos que el contenedor ocupe toda la pantalla
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    // Usamos flexbox para alinear el contenido (el FAB.Group)
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    // Agregamos padding para crear el espacio desde los bordes
+    paddingRight: 16,
+    paddingBottom: 80,
+  },
+  fabButton: {
+    backgroundColor: '#5E35B1',
+    borderRadius: 28,
+    height: 56,
+    width: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 80,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
 });
+

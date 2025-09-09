@@ -1,4 +1,4 @@
-package mx.raukeit.galeriq
+package galeriq.com
 
 import android.os.Build
 import android.os.Bundle

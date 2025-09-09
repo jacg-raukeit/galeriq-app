@@ -20,6 +20,7 @@ import LottieView from "lottie-react-native";
 
 import { AuthContext } from "../context/AuthContext";
 import { EventsContext } from "../context/EventsContext";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CreateEventButton from "../components/CreateEventButton";
 import EventCard from "../components/EventCard";
@@ -34,6 +35,7 @@ const USER_ID_KEY = "galeriq_user_id";
 const EMPTY_ANIM = require("../assets/lottie/empty.json");
 
 export default function EventsScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { user, setUser } = useContext(AuthContext);
   const { events, refreshEvents, fetchEvents, loadEvents } =
@@ -253,7 +255,7 @@ export default function EventsScreen() {
   return (
     <View style={styles.screen}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity
           style={styles.menuBtn}
           onPress={() => setOpen(true)}
@@ -371,7 +373,7 @@ export default function EventsScreen() {
 
       {/* DRAWER */}
       <Animated.View
-        style={[styles.drawer, { transform: [{ translateX: x }] }]}
+        style={[styles.drawer, { transform: [{ translateX: x }], paddingTop: insets.top }]}
       >
         <View style={styles.drawerHeader}>
           <Text style={styles.drawerBrand}>Galeriq</Text>
@@ -510,9 +512,9 @@ export default function EventsScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F9FAFB", paddingTop: 6, marginTop: 22 },
+  screen: { flex: 1, backgroundColor: "#F9FAFB", paddingTop: 6 },
   header: {
-    height: 50,
+    height: 70,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",

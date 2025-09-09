@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "mx.raukeit.galeriq"
+      "bundleIdentifier": "galeriq.com"
     },
     "android": {
       "softwareKeyboardLayoutMode": "pan",
@@ -24,10 +24,16 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "mx.raukeit.galeriq",
+      "package": "galeriq.com",
       "usesCleartextTraffic": true,
       "googleServicesFile": "./google-services.json"
     },
+    "useNextNotificationsApi": true,
+    "permissions": [
+      "NOTIFICATIONS",
+      "INTERNET",
+      "VIBRATE"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -38,7 +44,8 @@
       "expo-font",
       "expo-secure-store",
       "expo-router",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-asset"
     ],
     "extra": {
       "eas": {

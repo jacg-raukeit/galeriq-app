@@ -1,12 +1,14 @@
 // App.js
 import 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as AuthSession from 'expo-auth-session';
-import { LogBox } from 'react-native';
+import { LogBox, Alert, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 
 
 import { useFonts } from 'expo-font';
@@ -18,7 +20,7 @@ import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
 import { Lobster_400Regular } from '@expo-google-fonts/lobster';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 import { DancingScript_700Bold } from '@expo-google-fonts/dancing-script';
-
+import PdfViewerScreen from './src/screens/PdfViewerScreen';
 
 
 
@@ -58,10 +60,30 @@ const Stack = createStackNavigator();
 
 LogBox.ignoreLogs(['useInsertionEffect']);
 
+
 export default function App() {
-  useEffect(() => {
+const notificationListener = useRef();
+const responseListener = useRef();
+useEffect(() => {
+    // URI de redirección OAuth
     const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
     console.log('URI de redirección OAuth:', redirectUri);
+
+    // === Escucha notificaciones cuando la app está abierta ===
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notificación recibida:', notification);
+    });
+
+    // === Escucha cuando el usuario toca la notificación ===
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Usuario respondió a la notificación:', response);
+      Alert.alert('Notificación', 'Abriste una notificación');
+    });
+
+    return () => {
+      Notifications.removeNotificationSubscription(notificationListener.current);
+      Notifications.removeNotificationSubscription(responseListener.current);
+    };
   }, []);
 
 
@@ -91,6 +113,7 @@ export default function App() {
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="MiPerfil" component={MiPerfilScreen} />
               <Stack.Screen name="Faq" component={FaqScreen} />
+              <Stack.Screen name="PdfViewer" component={PdfViewerScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Plans" component={PlansScreen} />
               <Stack.Screen name="InConstruction" component={InConstructionScreen} />
               <Stack.Screen name="Register" component={RegisterScreen} />

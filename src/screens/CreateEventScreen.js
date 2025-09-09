@@ -16,6 +16,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Header from '../components/Header';
 import { AuthContext } from '../context/AuthContext';
@@ -39,6 +40,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function CreateEventScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { user }     = useContext(AuthContext);
   const { addEvent } = useContext(EventsContext);
 
@@ -180,7 +182,7 @@ export default function CreateEventScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { marginTop: insets.top }]}>
       <Header title="Crear un nuevo evento" onBack={confirmCancel} />
       <Text style={styles.title}>Galeriq</Text>
 
@@ -346,7 +348,7 @@ export default function CreateEventScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  screen:        { flex: 1, backgroundColor: '#F9FAFB', marginTop: 10 },
+  screen:        { flex: 1, backgroundColor: '#F9FAFB' },
   container:     { padding: 16, paddingBottom: 32 },
   label:         { marginTop: 16, fontSize: 14, fontWeight: '600', color: '#1F2937' },
   input: {
