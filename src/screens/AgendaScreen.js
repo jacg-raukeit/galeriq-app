@@ -22,8 +22,8 @@ export default function AgendaScreen({ navigation, route }) {
   const { user } = useContext(AuthContext);
   const { eventId, eventDate } = route.params;
 
-  const TAB_BAR_HEIGHT = 72;         
-  const EXTRA_SAFE_SPACE = 28;       
+  const TAB_BAR_HEIGHT = 72;
+  const EXTRA_SAFE_SPACE = 28;
   const CONTENT_BOTTOM_INSET = TAB_BAR_HEIGHT + EXTRA_SAFE_SPACE;
 
   const [viewMode, setViewMode] = useState("Día");
@@ -53,6 +53,16 @@ export default function AgendaScreen({ navigation, route }) {
 
   const colors = ["#FFECDC", "#EDDCF4", "#BA8FD8", "#FAB08C"];
   const formatTime = (t) => (t ? t.slice(0, 5) : "");
+
+ 
+  const pad2 = (n) => String(n).padStart(2, "0");
+
+  const toUtcTime = (localTime, ymd /* YYYY-MM-DD */) => {
+    if (!localTime || !ymd) return localTime;
+    const [h = 0, m = 0, s = 0] = localTime.split(":").map(Number);
+    const dLocal = new Date(`${ymd}T${pad2(h)}:${pad2(m)}:${pad2(s)}`);
+    return dLocal.toISOString().slice(11, 19); // "HH:mm:ss"
+  };
 
   const toLocalYMD = (input) => {
     const d =
@@ -101,7 +111,7 @@ export default function AgendaScreen({ navigation, route }) {
         `http://143.198.138.35:8000/stages/event/${eventId}`,
         { headers: { Authorization: `Bearer ${user.token}` } }
       );
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
       data.sort((a, b) => {
@@ -118,7 +128,8 @@ export default function AgendaScreen({ navigation, route }) {
       }));
 
       setStages(stagesWithColor);
-    } catch {
+    } catch (e) {
+      console.error("Error al cargar actividades:", e);
       Alert.alert("Error", "No se pudieron cargar las actividades.");
     } finally {
       setLoading(false);
@@ -179,9 +190,9 @@ export default function AgendaScreen({ navigation, route }) {
 
       const body = {
         title,
-        date,
-        start_time: allDay ? "00:00:00" : startTime,
-        end_time: allDay ? "23:59:59" : endTime,
+        date, // YYYY-MM-DD tal cual
+        start_time: allDay ? "00:00:00" : toUtcTime(startTime, date),
+        end_time: allDay ? "23:59:59" : toUtcTime(endTime, date),
         description,
         location,
         ...(isEditing
@@ -202,7 +213,7 @@ export default function AgendaScreen({ navigation, route }) {
         },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       setModalVisible(false);
       setDetailModalVisible(false);
@@ -218,7 +229,8 @@ export default function AgendaScreen({ navigation, route }) {
       setAllDay(false);
 
       await fetchStages();
-    } catch {
+    } catch (e) {
+      console.error("Error al crear/actualizar etapa:", e);
       Alert.alert(
         "Error",
         isEditing
@@ -226,7 +238,7 @@ export default function AgendaScreen({ navigation, route }) {
           : "No se pudo crear la actividad."
       );
     } finally {
-      setSubmittingStage(false); 
+      setSubmittingStage(false);
     }
   };
 
@@ -236,10 +248,11 @@ export default function AgendaScreen({ navigation, route }) {
         `http://143.198.138.35:8000/stages/${selectedStage.id}`,
         { method: "DELETE", headers: { Authorization: `Bearer ${user.token}` } }
       );
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setDetailModalVisible(false);
       await fetchStages();
-    } catch {
+    } catch (e) {
+      console.error("Error al eliminar actividad:", e);
       Alert.alert("Error", "No se pudo eliminar la actividad.");
     }
   };
@@ -291,7 +304,7 @@ export default function AgendaScreen({ navigation, route }) {
       </View>
 
       {/* Lista/Timeline */}
-       <ScrollView
+      <ScrollView
         contentContainerStyle={[styles.list, { paddingBottom: CONTENT_BOTTOM_INSET }]}
         keyboardShouldPersistTaps="handled"
       >
@@ -349,9 +362,6 @@ export default function AgendaScreen({ navigation, route }) {
         <View style={{ height: 8 }} />
       </ScrollView>
 
-
-
-
       {/* Tab bar inferior */}
       <View style={styles.tabBar}>
         <TouchableOpacity
@@ -369,12 +379,12 @@ export default function AgendaScreen({ navigation, route }) {
         </TouchableOpacity>
 
         <TouchableOpacity
-  style={styles.tabButton}
-  onPress={() => navigation.replace('BudgetControl', { eventId })}
->
-  <Ionicons name="cash-outline" size={20} color={"#254236"} />
-  <Text style={styles.tabText}>Gastos</Text>
-</TouchableOpacity>
+          style={styles.tabButton}
+          onPress={() => navigation.replace("BudgetControl", { eventId })}
+        >
+          <Ionicons name="cash-outline" size={20} color={"#254236"} />
+          <Text style={styles.tabText}>Gastos</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.tabButton, styles.tabActive]}
@@ -386,79 +396,80 @@ export default function AgendaScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-
-{/* Detalle */}
-<Modal
-  visible={detailModalVisible}
-  animationType="fade"
-  transparent
-  statusBarTranslucent
-  onRequestClose={() => setDetailModalVisible(false)}
->
-  {/* Backdrop a pantalla completa */}
-  <View style={styles.modalBackdrop}>
-    {/* Panel centrado */}
-    <View style={styles.detailSheet}>
-      {/* Header del panel */}
-      <View style={styles.detailSheetHeader}>
-        <Text style={styles.detailHeaderTitle}>Detalles de Actividad</Text>
-
-        <TouchableOpacity onPress={() => setDetailModalVisible(false)} hitSlop={{top:10,left:10,bottom:10,right:10}}>
-          <Ionicons name="close" size={22} color="#254236" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Contenido con scroll si se desborda */}
-      <ScrollView
-        contentContainerStyle={styles.detailSheetContent}
-        bounces={false}
-        showsVerticalScrollIndicator={false}
+      {/* Detalle */}
+      <Modal
+        visible={detailModalVisible}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setDetailModalVisible(false)}
       >
-        <View style={styles.detailCard}>
-          {selectedStage && (
-            <>
-              <Text style={styles.detailText}>
-                <Text style={{ fontWeight: "700" }}>Título:</Text> {selectedStage.title}
-              </Text>
-              <Text style={styles.detailText}>
-                <Text style={{ fontWeight: "700" }}>Fecha:</Text> {selectedStage.date.split("T")[0]}
-              </Text>
-              <Text style={styles.detailText}>
-                <Text style={{ fontWeight: "700" }}>Hora:</Text>{" "}
-                {selectedStage.all_day
-                  ? "Todo el día"
-                  : `${formatTime(selectedStage.start_time)} - ${formatTime(selectedStage.end_time)}`}
-              </Text>
-              {selectedStage.description ? (
-                <Text style={styles.detailText}>
-                  <Text style={{ fontWeight: "700" }}>Descripción:</Text> {selectedStage.description}
-                </Text>
-              ) : null}
-              {selectedStage.location ? (
-                <Text style={styles.detailText}>
-                  <Text style={{ fontWeight: "700" }}>Ubicación:</Text> {selectedStage.location}
-                </Text>
-              ) : null}
-            </>
-          )}
+        {/* Backdrop a pantalla completa */}
+        <View style={styles.modalBackdrop}>
+          {/* Panel centrado */}
+          <View style={styles.detailSheet}>
+            {/* Header del panel */}
+            <View style={styles.detailSheetHeader}>
+              <Text style={styles.detailHeaderTitle}>Detalles de Actividad</Text>
 
-          <View style={styles.modalButtonsColumn}>
-            <TouchableOpacity style={styles.customButton} onPress={startEditing}>
-              <Text style={styles.buttonText}>Actualizar tarea</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.customButton, styles.deleteButton]}
-              onPress={handleDelete}
+              <TouchableOpacity
+                onPress={() => setDetailModalVisible(false)}
+                hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#254236" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Contenido con scroll si se desborda */}
+            <ScrollView
+              contentContainerStyle={styles.detailSheetContent}
+              bounces={false}
+              showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.buttonText}>Eliminar tarea</Text>
-            </TouchableOpacity>
+              <View style={styles.detailCard}>
+                {selectedStage && (
+                  <>
+                    <Text style={styles.detailText}>
+                      <Text style={{ fontWeight: "700" }}>Título:</Text> {selectedStage.title}
+                    </Text>
+                    <Text style={styles.detailText}>
+                      <Text style={{ fontWeight: "700" }}>Fecha:</Text> {selectedStage.date.split("T")[0]}
+                    </Text>
+                    <Text style={styles.detailText}>
+                      <Text style={{ fontWeight: "700" }}>Hora:</Text>{" "}
+                      {selectedStage.all_day
+                        ? "Todo el día"
+                        : `${formatTime(selectedStage.start_time)} - ${formatTime(selectedStage.end_time)}`}
+                    </Text>
+                    {selectedStage.description ? (
+                      <Text style={styles.detailText}>
+                        <Text style={{ fontWeight: "700" }}>Descripción:</Text> {selectedStage.description}
+                      </Text>
+                    ) : null}
+                    {selectedStage.location ? (
+                      <Text style={styles.detailText}>
+                        <Text style={{ fontWeight: "700" }}>Ubicación:</Text> {selectedStage.location}
+                      </Text>
+                    ) : null}
+                  </>
+                )}
+
+                <View style={styles.modalButtonsColumn}>
+                  <TouchableOpacity style={styles.customButton} onPress={startEditing}>
+                    <Text style={styles.buttonText}>Actualizar tarea</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.customButton, styles.deleteButton]}
+                    onPress={handleDelete}
+                  >
+                    <Text style={styles.buttonText}>Eliminar tarea</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
           </View>
         </View>
-      </ScrollView>
-    </View>
-  </View>
-</Modal>
-
+      </Modal>
 
       {/* Crear/Editar */}
       <Modal
@@ -486,12 +497,12 @@ export default function AgendaScreen({ navigation, route }) {
               Título de la etapa <Text style={styles.requiredText}>(*)</Text>
             </Text>
             <TextInput
-  style={styles.input}
-  placeholder="Título"
-  value={title}
-  editable={!submittingStage}
-  onChangeText={setTitle}
-/>
+              style={styles.input}
+              placeholder="Título"
+              value={title}
+              editable={!submittingStage}
+              onChangeText={setTitle}
+            />
 
             {/* Descripción (opcional) */}
             <Text style={styles.modalOptions}>Descripción</Text>
@@ -642,7 +653,10 @@ export default function AgendaScreen({ navigation, route }) {
                 onPress={handleSubmit}
                 disabled={!isFormValid || submittingStage}
                 accessibilityRole="button"
-                accessibilityState={{ disabled: !isFormValid || submittingStage, busy: submittingStage }}
+                accessibilityState={{
+                  disabled: !isFormValid || submittingStage,
+                  busy: submittingStage,
+                }}
               >
                 {submittingStage ? (
                   <ActivityIndicator size="small" color="#FFF" />
@@ -769,18 +783,18 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 10,
   },
- 
+
   detailScroll: {
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
-detailCard: {
-    width: '100%',
-    alignSelf: 'center',
-    backgroundColor: '#FFFFFF',
+  detailCard: {
+    width: "100%",
+    alignSelf: "center",
+    backgroundColor: "#FFFFFF",
     borderRadius: 18,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -887,25 +901,23 @@ detailCard: {
     backgroundColor: "#CCC",
   },
 
-  // Backdrop morado claro, ocupa toda la pantalla
   modalBackdrop: {
     flex: 1,
-    backgroundColor: '#EBD6FB',
-    // backgroundColor: '#EBD8F590', 
-    justifyContent: 'center',
+    backgroundColor: "#EBD6FB",
+    // backgroundColor: '#EBD8F590',
+    justifyContent: "center",
     padding: 20,
   },
 
-  // Panel/Sheet centrado
   detailSheet: {
-    width: '90%',
+    width: "90%",
     maxWidth: 420,
-    maxHeight: '80%',
-    backgroundColor: '#FDF6F7',
+    maxHeight: "80%",
+    backgroundColor: "#FDF6F7",
     borderRadius: 20,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.15,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },
@@ -914,9 +926,9 @@ detailCard: {
 
   // Header dentro del panel
   detailSheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 6,
     marginBottom: 10,
   },
@@ -925,8 +937,8 @@ detailCard: {
   detailHeaderTitle: {
     flex: 1,
     fontSize: 20,
-    fontWeight: '800',
-    color: '#AF8EC1',
+    fontWeight: "800",
+    color: "#AF8EC1",
   },
 
   // Área scrolleable del panel

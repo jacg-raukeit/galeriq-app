@@ -275,7 +275,6 @@ export default function GuestScreen({ route }) {
     }
   };
 
-  // función que se pasa a la fila para borrar
   const handleDelete = async (guestId) => {
     try {
       await deleteGuest(guestId);
@@ -399,18 +398,14 @@ const styles = StyleSheet.create({
   },
   deleteText: { color: '#fff', fontWeight: 'bold', marginTop: 4 },
 
-  // La nueva forma de posicionar el FAB.Group
   fabContainer: {
     position: 'absolute',
-    // Hacemos que el contenedor ocupe toda la pantalla
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    // Usamos flexbox para alinear el contenido (el FAB.Group)
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    // Agregamos padding para crear el espacio desde los bordes
     paddingRight: 16,
     paddingBottom: 80,
   },

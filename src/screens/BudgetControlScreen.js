@@ -22,7 +22,6 @@ const TOTALS_URL = (eventId) => `${API_URL}/checklists/event/${eventId}/totals`;
 const TOTALS_BY_CATEGORY_URL = (eventId) => `${API_URL}/checklists/event/${eventId}/totals-by-category`;
 const CATS_URL = (eventId) => `${API_URL}/category-checklists/event/${eventId}`;
 
-// Colores
 const C_BUDGET = '#D6C7FF';  
 const C_REAL   = '#5F3EE6';  
 const C_TEXT   = '#0B1220';
@@ -66,7 +65,6 @@ export default function BudgetControlScreen({ route, navigation }) {
   const [eventBudget, setEventBudget] = useState(0);
   const [totals, setTotals] = useState({ total_budget: 0, total_real_price: 0 });
 
-  // filas por categoría
   const [rows, setRows] = useState([]);
 
   const headers = useMemo(
@@ -91,7 +89,6 @@ export default function BudgetControlScreen({ route, navigation }) {
         setEventBudget(0);
       }
 
-      // Totales globales
       if (!totalsRes.ok) throw new Error('No se pudo obtener el total');
       if (!byCatRes.ok) throw new Error('No se pudieron obtener las categorías');
 
@@ -143,7 +140,6 @@ export default function BudgetControlScreen({ route, navigation }) {
     }
   };
 
-  // --- Dona ---
   const size = 220;
   const stroke = 26;
   const r = (size - stroke) / 2;

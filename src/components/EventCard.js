@@ -8,10 +8,24 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
+// Normalizador de estado
+const norm = (s) => String(s || '').toLowerCase();
+
+// Mapa de estilos por estado (admite español e inglés)
 const STATUS_STYLES = {
-  Activo:   { backgroundColor: '#D1FAE5', textColor: '#059669' },
-  Pasado:   { backgroundColor: '#FEF3C7', textColor: '#B45309' },
-  Borrador: { backgroundColor: '#E5E7EB', textColor: '#6B7280' },
+  // Activos (verde)
+  'activo':   { backgroundColor: '#ECFDF5', textColor: '#059669' },
+  'active':   { backgroundColor: '#ECFDF5', textColor: '#059669' },
+
+  // Finalizados (rojo)
+  'finished': { backgroundColor: '#FEF2F2', textColor: '#EF4444' },
+  'pasado':   { backgroundColor: '#FEF2F2', textColor: '#EF4444' },
+
+  // Borrador (gris)
+  'borrador': { backgroundColor: '#E5E7EB', textColor: '#6B7280' },
+
+  // Default (gris claro)
+  'default':  { backgroundColor: '#F3F4F6', textColor: '#374151' },
 };
 
 export default function EventCard({
@@ -22,8 +36,9 @@ export default function EventCard({
   archived = false,
   onToggleArchive,
 }) {
-  const { backgroundColor, textColor } =
-    STATUS_STYLES[status] || STATUS_STYLES.Activo;
+  const key = norm(status);
+  const styleForStatus = STATUS_STYLES[key] || STATUS_STYLES.default;
+  const { backgroundColor, textColor } = styleForStatus;
 
   const source = typeof imageUri === 'string' ? { uri: imageUri } : imageUri;
 
@@ -111,7 +126,7 @@ const styles = StyleSheet.create({
     top: 8,
     right: 8,
     padding: 6,
-    zIndex: 10,    
-    elevation: 4,  
+    zIndex: 10,
+    elevation: 4,
   },
 });

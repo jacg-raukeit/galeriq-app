@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   header: {
     height: 52, flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 12, backgroundColor: '#fff',
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e6e6e6',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e6e6e6', marginTop: 40,
   },
   back: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '600', color: '#111' },

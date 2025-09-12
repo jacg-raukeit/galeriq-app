@@ -55,6 +55,8 @@ import MiPerfilScreen from './src/screens/MiPerfilScreen';
 import FaqScreen from './src/screens/FaqScreen';
 import PlansScreen from './src/screens/PlansScreen';
 import InConstructionScreen from './src/screens/InConstructionScreen';
+import FeedbackScreen from './src/screens/FeedbackScreen';
+import QuienesSomosScreen from './src/screens/QuienesSomosScreen';
 
 const Stack = createStackNavigator();
 
@@ -113,9 +115,11 @@ useEffect(() => {
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="MiPerfil" component={MiPerfilScreen} />
               <Stack.Screen name="Faq" component={FaqScreen} />
+              <Stack.Screen name="Feedback" component={FeedbackScreen} />
               <Stack.Screen name="PdfViewer" component={PdfViewerScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Plans" component={PlansScreen} />
               <Stack.Screen name="InConstruction" component={InConstructionScreen} />
+              <Stack.Screen name="QuienesSomos" component={QuienesSomosScreen} />
               <Stack.Screen name="Register" component={RegisterScreen} />
               <Stack.Screen name="Events" component={EventsScreen} />
               <Stack.Screen name="CreateEvent" component={CreateEventScreen} />

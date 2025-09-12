@@ -195,7 +195,6 @@ export default function PlansScreen({ navigation }) {
               {/* CTA */}
               <Pressable
                 onPress={() => {
-                  // TODO: conecta a tu flujo de compra/cambio de plan
                 }}
                 style={({ pressed }) => [
                   styles.cta,

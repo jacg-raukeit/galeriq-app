@@ -414,7 +414,10 @@ export default function PlanningScreen({ navigation, route }) {
 
           <ScrollView contentContainerStyle={styles.modalContainer}>
             <View style={styles.labelWithIcon}>
-              <Text style={styles.labelText}>Título</Text>
+              <Text style={styles.labelText}>
+                Título{" "}
+                <Text style={{ color: "red", fontSize: 8 }}>(obligatorio)</Text>
+              </Text>
             </View>
             <TextInput
               style={styles.input}
@@ -596,7 +599,6 @@ const styles = StyleSheet.create({
   },
   addText: { marginLeft: 8, fontSize: 16, color: "#254236", fontWeight: "500" },
 
-  // Modal
   modalScreen: { flex: 1, backgroundColor: "#F9FAFB" },
   modalHeader: {
     flexDirection: "row",
@@ -625,7 +627,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#EEE",
   },
-  picker: { width: "100%" },
+  picker: { width: "100%", color: "#111827" },
   saveButton: {
     marginTop: 24,
     backgroundColor: "#AF64BC",

@@ -31,13 +31,11 @@ const GUTTER = 12;
 const COLS = 2;
 const COL_W = (SCREEN_W - (GUTTER * (COLS + 1))) / COLS;
 
-// Endpoints
-const CREATE_ALBUM_URL = `${API_URL}/albums/`;                                      // POST (multipart)
-const ALBUMS_BY_EVENT_URL = (eventId) => `${API_URL}/albums/${eventId}`;           // GET
-const UPLOAD_URL = (albumId) => `${API_URL}/albums/${albumId}/photos`;             // POST (file)
-const PHOTOS_BY_ALBUM_URL = (albumId) => `${API_URL}/photos/album/${albumId}`;     // GET
-const FAVORITE_URL = (photoId) => `${API_URL}/photos/${photoId}/favorite`;         // PATCH
-
+const CREATE_ALBUM_URL = `${API_URL}/albums/`;                                      
+const ALBUMS_BY_EVENT_URL = (eventId) => `${API_URL}/albums/${eventId}`;
+const UPLOAD_URL = (albumId) => `${API_URL}/albums/${albumId}/photos`;    
+const PHOTOS_BY_ALBUM_URL = (albumId) => `${API_URL}/photos/album/${albumId}`;
+const FAVORITE_URL = (photoId) => `${API_URL}/photos/${photoId}/favorite`;
 const mapAlbumFromApi = (a) => ({
   id: String(a.album_id ?? a.id ?? a.albumId),
   name: a.name,
@@ -93,7 +91,6 @@ export default function AlbumsScreen({ navigation, route }) {
 
   const authHeaders = { Authorization: `Bearer ${token}` };
 
-  // Normaliza cualquier asset a JPEG y devuelve { uri, name, type }
   const normalizeToJpeg = useCallback(async (asset) => {
     const result = await ImageManipulator.manipulateAsync(
       asset.uri,
@@ -105,7 +102,6 @@ export default function AlbumsScreen({ navigation, route }) {
     return { uri: result.uri, name, type: 'image/jpeg' };
   }, []);
 
-  // Cargar pestañas/álbumes por evento
   const fetchAlbums = useCallback(async () => {
     if (!eventId || !token) return;
     setLoadingAlbums(true);
@@ -127,7 +123,6 @@ export default function AlbumsScreen({ navigation, route }) {
     }
   }, [eventId, token]);
 
-  // Cargar fotos de un álbum
   const fetchPhotos = useCallback(
     async (albumId, currentAlbums = albums) => {
       if (!albumId || !token) return;
@@ -158,7 +153,6 @@ export default function AlbumsScreen({ navigation, route }) {
     [albums, activeAlbumId]
   );
 
-  // Masonry
   const columns = useMemo(() => {
     const heights = Array(COLS).fill(0);
     const cols = Array(COLS).fill(0).map(() => []);
@@ -172,7 +166,6 @@ export default function AlbumsScreen({ navigation, route }) {
     return cols;
   }, [activeAlbum]);
 
-  // Subir 1 foto
   const uploadOnePhoto = useCallback(
     async (asset, albumId) => {
       try {
@@ -212,7 +205,6 @@ export default function AlbumsScreen({ navigation, route }) {
 }, [activeAlbumId, albums, fetchAlbums]);
 
 const pickImages = useCallback(async () => {
-  //  Evita subir si el álbum aún no está listo en memoria
   const ready = await ensureActiveAlbumReady();
   if (!ready) {
     Alert.alert('Espera un segundo', 'Estamos preparando tu nuevo álbum. Intenta de nuevo.');
@@ -257,7 +249,6 @@ const pickImages = useCallback(async () => {
   }
 }, [activeAlbumId, ensureActiveAlbumReady, uploadOnePhoto, fetchPhotos]);
 
-  // -------- CREAR ÁLBUM --------
   const selectNewAlbumCover = useCallback(async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -312,7 +303,6 @@ const pickImages = useCallback(async () => {
 
     fetchAlbums();
 
-    // Limpia UI
     setNewAlbumName('');
     setNewAlbumCover(null);
     setShowCreate(false);
@@ -325,7 +315,6 @@ const pickImages = useCallback(async () => {
 }, [newAlbumName, eventId, newAlbumCover, authHeaders, normalizeToJpeg, fetchAlbums, fetchPhotos]);
 
 
-  // --- FAVORITOS ---
   const apiToggleFavorite = useCallback(
     async (photoId, nextFav) => {
       let res = await fetch(FAVORITE_URL(photoId), {
@@ -403,7 +392,6 @@ const pickImages = useCallback(async () => {
       return;
     }
 
-    // Detectar extensión
     let ext = 'jpg';
     try {
       const u = new URL(photo.uri);
@@ -414,7 +402,6 @@ const pickImages = useCallback(async () => {
       }
     } catch {}
 
-    // Descargar a sandbox y guardar en galería
     const fileUri = FileSystem.documentDirectory + `${photo.id}.${ext}`;
     const { uri } = await FileSystem.downloadAsync(photo.uri, fileUri);
     await MediaLibrary.saveToLibraryAsync(uri);
@@ -446,7 +433,6 @@ useEffect(() => {
     try {
       await ensureWritePermission();
     } catch (e) {
-      // opcional: log o Alert
     }
   })();
 }, [ensureWritePermission]);

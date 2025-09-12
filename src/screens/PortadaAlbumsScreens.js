@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useContext } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList,
-  Image, TextInput, Modal, Alert, Platform, RefreshControl, ActivityIndicator
+  Image, TextInput, Modal, Alert, Platform, RefreshControl, ActivityIndicator, Animated
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,6 +15,7 @@ const CARD_RADIUS = 14;
 const PHOTO_COUNT_URL   = (albumId) => `${API_URL}/photos/album/${albumId}/count`;
 const ALBUM_BY_ID_URL   = (albumId) => `${API_URL}/albums/get_one/${albumId}`;
 const ALBUMS_BY_EVENT   = (eventId) => `${API_URL}/albums/${eventId}`;
+const DELETE_ALBUM_URL  = (albumId) => `${API_URL}/albums/${albumId}`;
 
 function toLocalTimeLabel(hms) {
   if (!hms || typeof hms !== 'string') return null;
@@ -92,6 +93,27 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
 
   const [role, setRole] = useState(null);
   const [roleLoading, setRoleLoading] = useState(true);
+
+  const [toast, setToast] = useState({ msg: '', type: 'success' });
+  const toastY = useState(new Animated.Value(-60))[0];
+  const toastOpacity = useState(new Animated.Value(0))[0];
+
+  const [deletingId, setDeletingId] = useState(null);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    Animated.parallel([
+      Animated.timing(toastY, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start(() => {
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(toastY, { toValue: -60, duration: 220, useNativeDriver: true }),
+          Animated.timing(toastOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+        ]).start();
+      }, 1500);
+    });
+  };
 
   const toRoleNumber = (data) => {
     if (typeof data === 'number') return data;
@@ -205,7 +227,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
       list.map(async (a) => {
         const r = await fetch(ALBUM_BY_ID_URL(a.id), { headers: { ...authHeaders } });
         if (!r.ok) throw new Error('time error');
-        const json = await r.json(); // { album: {...}, album_time: ... }
+        const json = await r.json();
 
         const { startRaw, endRaw } = extractTimes(json?.album_time);
         const allDay = isAllDayTimes(startRaw, endRaw);
@@ -349,8 +371,48 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     await patchCover(menuAlbum.id, uri);
   };
 
+  const confirmDelete = (album) => {
+    if (!isOwner) return;
+    if (album.photosCount !== 0) {
+      Alert.alert('No se puede eliminar', 'Solo puedes eliminar álbumes vacíos.');
+      return;
+    }
+    Alert.alert(
+      'Eliminar álbum',
+      `¿Seguro que quieres eliminar “${album.name}”? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => deleteAlbum(album.id) },
+      ]
+    );
+  };
+
+  const deleteAlbum = async (albumId) => {
+    try {
+      setMenuOpen(false);
+      setMenuAlbum(null);
+      setDeletingId(albumId);
+      const r = await fetch(DELETE_ALBUM_URL(albumId), {
+        method: 'DELETE',
+        headers: { ...authHeaders },
+      });
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(txt || 'No se pudo eliminar el álbum.');
+      }
+      setAlbums(prev => prev.filter(a => String(a.id) !== String(albumId)));
+      showToast('Álbum eliminado', 'success');
+    } catch (e) {
+      Alert.alert('Error', e?.message || 'No se pudo eliminar el álbum.');
+      showToast('Error al eliminar', 'error');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const AlbumCard = ({ item }) => {
     const hasTimes = !!(item.startTimeLabel && item.endTimeLabel);
+    const isDeleting = String(deletingId) === String(item.id);
     return (
       <View style={styles.card}>
         <TouchableOpacity
@@ -360,12 +422,19 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
           })}
         >
           <Image source={{ uri: item.coverUri }} style={styles.cover} />
+          {isDeleting && (
+            <View style={styles.cardOverlay}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.overlayTxt}>Eliminando…</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.menuBtn}
           onPress={() => { setMenuAlbum(item); setMenuOpen(true); }}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          disabled={isDeleting}
         >
           <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
         </TouchableOpacity>
@@ -392,6 +461,29 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.screen}>
+      {/* Toast */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.toast,
+          {
+            transform: [{ translateY: toastY }],
+            opacity: toastOpacity,
+            backgroundColor: toast.type === 'error' ? '#fee2e2' : '#dcfce7',
+            borderColor: toast.type === 'error' ? '#fecaca' : '#bbf7d0',
+          },
+        ]}
+      >
+        <Ionicons
+          name={toast.type === 'error' ? 'alert-circle' : 'checkmark-circle'}
+          size={18}
+          color={toast.type === 'error' ? '#b91c1c' : '#16a34a'}
+        />
+        <Text style={[styles.toastTxt, { color: toast.type === 'error' ? '#7f1d1d' : '#166534' }]}>
+          {toast.msg}
+        </Text>
+      </Animated.View>
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -514,21 +606,40 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
         </View>
       </Modal>
 
-      {/* Menú contextual cambiar portada */}
+      {/* Menú contextual */}
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.menuBackdrop}>
           <View style={styles.menuCard}>
             <Text style={styles.menuTitle}>{menuAlbum?.name}</Text>
 
-            <TouchableOpacity style={styles.menuItem} disabled={updatingCover} onPress={() => onChangeCoverFrom(false)}>
+            <TouchableOpacity style={styles.menuItem} disabled={updatingCover || !!deletingId} onPress={() => onChangeCoverFrom(false)}>
               <Ionicons name="images-outline" size={18} />
               <Text style={styles.menuText}>Cambiar portada desde galería</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem} disabled={updatingCover} onPress={() => onChangeCoverFrom(true)}>
+            <TouchableOpacity style={styles.menuItem} disabled={updatingCover || !!deletingId} onPress={() => onChangeCoverFrom(true)}>
               <Ionicons name="camera-outline" size={18} />
               <Text style={styles.menuText}>Cambiar portada desde cámara</Text>
             </TouchableOpacity>
+
+            {/* Eliminar: solo propietario y álbum vacío */}
+            {isOwner && menuAlbum?.photosCount === 0 && (
+              <TouchableOpacity
+                style={[styles.menuItem]}
+                disabled={!!deletingId}
+                onPress={() => confirmDelete(menuAlbum)}
+              >
+                <Ionicons name="trash-outline" size={18} color="#dc2626" />
+                <Text style={[styles.menuText, { color: '#dc2626' }]}>Eliminar álbum</Text>
+              </TouchableOpacity>
+            )}
+
+            {isOwner && Number(menuAlbum?.photosCount) > 0 && (
+              <View style={[styles.menuItem, { opacity: 0.6 }]}>
+                <Ionicons name="lock-closed-outline" size={18} />
+                <Text style={styles.menuText}>No se puede eliminar (tiene fotos)</Text>
+              </View>
+            )}
 
             <TouchableOpacity
               style={[styles.menuItem, { justifyContent: 'center' }]}
@@ -537,7 +648,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
               <Text style={[styles.menuText, { fontWeight: '700' }]}>Cancelar</Text>
             </TouchableOpacity>
 
-            {updatingCover && <ActivityIndicator style={{ marginTop: 10 }} />}
+            {(updatingCover || !!deletingId) && <ActivityIndicator style={{ marginTop: 10 }} />}
           </View>
         </View>
       </Modal>
@@ -547,6 +658,23 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#fff' },
+
+  toast: {
+    position: 'absolute',
+    top: 10,
+    left: 16,
+    right: 16,
+    zIndex: 20,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  toastTxt: { fontWeight: '700', fontSize: 13 },
+
   header: {
     paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? 8 : 0, paddingBottom: 8,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -569,6 +697,15 @@ const styles = StyleSheet.create({
     position: 'absolute', right: 10, top: 10, width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center',
   },
+
+  cardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: CARD_RADIUS,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overlayTxt: { marginTop: 6, color: '#fff', fontWeight: '700' },
 
   cardTitle: { fontSize: 14, fontWeight: '600', marginTop: 6, marginBottom: 2 },
 

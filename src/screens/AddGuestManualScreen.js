@@ -154,7 +154,7 @@ export default function AddGuestManualScreen() {
       <TextInput
         label="Número de pases"
         value={nPasses}
-        onChangeText={(t) => setNPasses(t.replace(/[^0-9]/g, ''))} // solo dígitos
+        onChangeText={(t) => setNPasses(t.replace(/[^0-9]/g, ''))}
         keyboardType="number-pad"
         style={styles.input}
         disabled={saving}

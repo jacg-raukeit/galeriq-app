@@ -11,7 +11,6 @@ export default function SplashScreen() {
   const animRef = useRef(null);
   const { user } = useContext(AuthContext);
 
-  // ---- Animaciones UI (todas con driver nativo) ----
   const topRightProg = useRef(new Animated.Value(0)).current;
   const bottomLeftProg = useRef(new Animated.Value(0)).current;
 
@@ -29,7 +28,6 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    // Brand entrance (fade + spring + translateY)
     Animated.parallel([
       Animated.timing(brandOpacity, {
         toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true,
@@ -105,7 +103,7 @@ export default function SplashScreen() {
           style={styles.lottie}
         />
 
-        {/* Texto animado: wrapper con opacity/scale/translateY */}
+        {/* Texto animado */}
         <Animated.View
           style={{
             opacity: brandOpacity,
@@ -124,7 +122,7 @@ const { width: W, height: H } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFE8D6', // fondo durazno
+    backgroundColor: '#FFE8D6',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -143,7 +141,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
     color: '#442D49',
-    letterSpacing: 1, // fijo (ya no se anima)
+    letterSpacing: 1,
   },
   cornerCircle: {
     position: 'absolute',

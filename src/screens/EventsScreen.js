@@ -20,7 +20,7 @@ import LottieView from "lottie-react-native";
 
 import { AuthContext } from "../context/AuthContext";
 import { EventsContext } from "../context/EventsContext";
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import CreateEventButton from "../components/CreateEventButton";
 import EventCard from "../components/EventCard";
@@ -34,6 +34,9 @@ const USER_ID_KEY = "galeriq_user_id";
 
 const EMPTY_ANIM = require("../assets/lottie/empty.json");
 
+const ROLE_ORGANIZER = 1;
+const ROLE_INVITADO = 2;
+
 export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -41,11 +44,15 @@ export default function EventsScreen() {
   const { events, refreshEvents, fetchEvents, loadEvents } =
     useContext(EventsContext);
   const refetchEvents = refreshEvents || fetchEvents || loadEvents;
+
   const [sessionExpired, setSessionExpired] = useState(false);
   const [closingSession, setClosingSession] = useState(false);
 
   const [archivedById, setArchivedById] = useState({});
   const [notificationsCount, setNotificationsCount] = useState(0);
+
+  const [filterVisible, setFilterVisible] = useState(false);
+  const [filterMode, setFilterMode] = useState("all");
 
   const handleAuthExpired = async (instant = false) => {
     if (closingSession) return;
@@ -65,6 +72,23 @@ export default function EventsScreen() {
 
     if (instant) return doLogout();
     setTimeout(doLogout, 1800);
+  };
+
+  const isAuthError = (err, resJson) => {
+    if (
+      resJson?.detail &&
+      String(resJson.detail).includes("Could not validate credentials")
+    )
+      return true;
+    if (err?.status === 401) return true;
+    if (typeof err?.message === "string" && err.message.includes("401"))
+      return true;
+    if (
+      typeof err?.message === "string" &&
+      err.message.includes("validate credentials")
+    )
+      return true;
+    return false;
   };
 
   const fetchNotificationsCount = async () => {
@@ -113,7 +137,7 @@ export default function EventsScreen() {
     React.useCallback(() => {
       const run = async () => {
         try {
-          await refetchEvents?.(); 
+          await refetchEvents?.();
         } catch (e) {
           if (isAuthError(e)) return handleAuthExpired();
         }
@@ -127,14 +151,35 @@ export default function EventsScreen() {
     setArchivedById((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
   };
 
+  const matchFilter = (evt) => {
+    if (!evt?.role) return filterMode === "all";
+    const roleId = evt.role.role_id;
+    const roleType = String(evt.role.type || "").toLowerCase();
+
+    if (filterMode === "organizer") {
+      return roleId === ROLE_ORGANIZER || roleType.includes("organizador");
+    }
+    if (filterMode === "guest") {
+      return roleId === ROLE_INVITADO || roleType.includes("invitado");
+    }
+    return true;
+  };
+
+  const filteredEvents = useMemo(
+    () => (events || []).filter(matchFilter),
+    [events, filterMode]
+  );
+
   const activeEvents = useMemo(
-    () => (events || []).filter((e) => !(archivedById[e.event_id] ?? false)),
-    [events, archivedById]
+    () =>
+      (filteredEvents || []).filter((e) => !(archivedById[e.event_id] ?? false)),
+    [filteredEvents, archivedById]
   );
 
   const archivedEvents = useMemo(
-    () => (events || []).filter((e) => archivedById[e.event_id] ?? false),
-    [events, archivedById]
+    () =>
+      (filteredEvents || []).filter((e) => archivedById[e.event_id] ?? false),
+    [filteredEvents, archivedById]
   );
 
   const [open, setOpen] = useState(false);
@@ -235,22 +280,12 @@ export default function EventsScreen() {
 
   if (!user) return null;
 
-  const isAuthError = (err, resJson) => {
-    if (
-      resJson?.detail &&
-      String(resJson.detail).includes("Could not validate credentials")
-    )
-      return true;
-    if (err?.status === 401) return true;
-    if (typeof err?.message === "string" && err.message.includes("401"))
-      return true;
-    if (
-      typeof err?.message === "string" &&
-      err.message.includes("validate credentials")
-    )
-      return true;
-    return false;
-  };
+  const filterLabel =
+    filterMode === "organizer"
+      ? "Organizados"
+      : filterMode === "guest"
+      ? "Invitado"
+      : "Todos";
 
   return (
     <View style={styles.screen}>
@@ -263,11 +298,40 @@ export default function EventsScreen() {
         >
           <Ionicons name="menu-outline" size={24} color="#111827" />
         </TouchableOpacity>
+
         <Text style={styles.title}>Galeriq</Text>
-        <View style={{ width: 40 }} />
+
+        {/* NUEVO: Botón de filtro */}
+        <TouchableOpacity
+          style={styles.menuBtn}
+          onPress={() => setFilterVisible(true)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="funnel-outline" size={20} color="#111827" />
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.titleSection}>Mis Eventos</Text>
+
+      {/* NUEVO: Chip mostrando filtro activo (solo si no es "Todos") */}
+      {filterMode !== "all" && (
+        <View style={styles.filterChipRow}>
+          <View style={styles.filterChip}>
+            <Ionicons
+              name={filterMode === "organizer" ? "briefcase-outline" : "people-outline"}
+              size={14}
+              color="#6B21A8"
+            />
+            <Text style={styles.filterChipText}>{filterLabel}</Text>
+            <Pressable
+              onPress={() => setFilterMode("all")}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons name="close" size={14} color="#6B21A8" />
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       <View style={styles.actionContainer}>
         <CreateEventButton onPress={() => navigation.navigate("CreateEvent")} />
@@ -354,7 +418,21 @@ export default function EventsScreen() {
 
       {/* OVERLAY */}
       <Pressable
-        onPress={closeDrawer}
+        onPress={() => setFilterVisible(false)}
+        style={StyleSheet.absoluteFill}
+        pointerEvents={filterVisible ? "auto" : "none"}
+      >
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: filterVisible ? "#00000040" : "transparent" },
+          ]}
+        />
+      </Pressable>
+
+      {/* DRAWER OVERLAY */}
+      <Pressable
+        onPress={() => setOpen(false)}
         style={StyleSheet.absoluteFill}
         pointerEvents={open ? "auto" : "none"}
       >
@@ -373,12 +451,15 @@ export default function EventsScreen() {
 
       {/* DRAWER */}
       <Animated.View
-        style={[styles.drawer, { transform: [{ translateX: x }], paddingTop: insets.top }]}
+        style={[
+          styles.drawer,
+          { transform: [{ translateX: x }], paddingTop: insets.top },
+        ]}
       >
         <View style={styles.drawerHeader}>
           <Text style={styles.drawerBrand}>Galeriq</Text>
           <TouchableOpacity
-            onPress={closeDrawer}
+            onPress={() => setOpen(false)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="close" size={22} color="#111827" />
@@ -399,7 +480,10 @@ export default function EventsScreen() {
 
         <TouchableOpacity
           style={styles.item}
-          onPress={() => goTo("Notifications")}
+          onPress={() => {
+            setOpen(false);
+            navigation.navigate("Notifications");
+          }}
           activeOpacity={0.85}
         >
           <Ionicons name="notifications-outline" size={20} color="#6B21A8" />
@@ -427,29 +511,38 @@ export default function EventsScreen() {
           <Text style={styles.itemText}>Ayuda</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.item} 
-        onPress={() => {
+        <TouchableOpacity
+          style={styles.item}
+          onPress={() => {
             setOpen(false);
             navigation.navigate("InConstruction");
-          }} activeOpacity={0.85}>
+          }}
+          activeOpacity={0.85}
+        >
           <Ionicons name="star-outline" size={20} color="#6B21A8" />
           <Text style={styles.itemText}>Ayúdanos a mejorar</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.item}
-        onPress={() => {
+        <TouchableOpacity
+          style={styles.item}
+          onPress={() => {
             setOpen(false);
             navigation.navigate("Plans");
-          }} activeOpacity={0.85}>
+          }}
+          activeOpacity={0.85}
+        >
           <Ionicons name="diamond-outline" size={20} color="#6B21A8" />
           <Text style={styles.itemText}>Planes y Suscripciones</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.item} 
-        onPress={() => {
+        <TouchableOpacity
+          style={styles.item}
+          onPress={() => {
             setOpen(false);
             navigation.navigate("InConstruction");
-          }} activeOpacity={0.85}>
+          }}
+          activeOpacity={0.85}
+        >
           <Ionicons name="share-social-outline" size={20} color="#6B21A8" />
           <Text style={styles.itemText}>Comparte la app</Text>
         </TouchableOpacity>
@@ -466,6 +559,18 @@ export default function EventsScreen() {
           <Text style={styles.itemText}>Ajustes</Text>
         </TouchableOpacity>
 
+         <TouchableOpacity
+          style={styles.item}
+          onPress={() => {
+            setOpen(false);
+            navigation.navigate("QuienesSomos");
+          }}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="settings-outline" size={20} color="#6B21A8" />
+          <Text style={styles.itemText}>Quienes somos</Text>
+        </TouchableOpacity>
+
         {/* Cerrar sesión */}
         <TouchableOpacity
           style={styles.item}
@@ -477,36 +582,83 @@ export default function EventsScreen() {
         </TouchableOpacity>
       </Animated.View>
 
-            {/*  Modal de sesión expirada */}
-<Modal
-  visible={sessionExpired}
-  animationType="fade"
-  transparent
-  statusBarTranslucent
->
-  <View style={styles.expiredBackdrop}>
-    <View style={styles.expiredCard}>
-      <Text style={styles.expiredTitle}>Sesión expirada</Text>
-      <Text style={styles.expiredText}>
-        Tu sesión ha caducado. Por seguridad debes iniciar sesión nuevamente.
-      </Text>
+      {/* NUEVO: Modal de filtro */}
+      <Modal visible={filterVisible} transparent animationType="fade">
+        <Pressable style={styles.filterBackdrop} onPress={() => setFilterVisible(false)}>
+          <View />
+        </Pressable>
 
-      <View style={{ height: 10 }} />
+        <View style={[styles.filterCard, { marginTop: insets.top + 8 }]}>
+          <Text style={styles.filterTitle}>Filtrar</Text>
 
-      <TouchableOpacity
-        style={styles.expiredButton}
-        onPress={() => handleAuthExpired(true)}
-        activeOpacity={0.9}
-      >
-        <Text style={styles.expiredButtonText}>
-          Ir a iniciar sesión
-        </Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-</Modal>
+          <TouchableOpacity
+            style={styles.filterItem}
+            onPress={() => {
+              setFilterMode("all");
+              setFilterVisible(false);
+            }}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="apps-outline" size={18} color="#6B21A8" />
+            <Text style={styles.filterItemText}>Todos</Text>
+            {filterMode === "all" && (
+              <Ionicons name="checkmark" size={18} color="#10B981" />
+            )}
+          </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.filterItem}
+            onPress={() => {
+              setFilterMode("organizer");
+              setFilterVisible(false);
+            }}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="briefcase-outline" size={18} color="#6B21A8" />
+            <Text style={styles.filterItemText}>Organizados</Text>
+            {filterMode === "organizer" && (
+              <Ionicons name="checkmark" size={18} color="#10B981" />
+            )}
+          </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.filterItem}
+            onPress={() => {
+              setFilterMode("guest");
+              setFilterVisible(false);
+            }}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="people-outline" size={18} color="#6B21A8" />
+            <Text style={styles.filterItemText}>Invitado</Text>
+            {filterMode === "guest" && (
+              <Ionicons name="checkmark" size={18} color="#10B981" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      {/*  Modal de sesión expirada */}
+      <Modal visible={sessionExpired} animationType="fade" transparent statusBarTranslucent>
+        <View style={styles.expiredBackdrop}>
+          <View style={styles.expiredCard}>
+            <Text style={styles.expiredTitle}>Sesión expirada</Text>
+            <Text style={styles.expiredText}>
+              Tu sesión ha caducado. Por seguridad debes iniciar sesión nuevamente.
+            </Text>
+
+            <View style={{ height: 10 }} />
+
+            <TouchableOpacity
+              style={styles.expiredButton}
+              onPress={() => handleAuthExpired(true)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.expiredButtonText}>Ir a iniciar sesión</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -548,6 +700,29 @@ const styles = StyleSheet.create({
     marginTop: 2,
     color: "#111827",
   },
+
+  filterChipRow: {
+    paddingHorizontal: 16,
+    marginTop: 6,
+  },
+  filterChip: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "#F3E8FF",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#E9D5FF",
+  },
+  filterChipText: {
+    color: "#6B21A8",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+
   actionContainer: { paddingHorizontal: 16, paddingVertical: 8 },
   listContainer: { padding: 16, paddingBottom: 32 },
 
@@ -633,53 +808,91 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: "#fff", fontSize: 12, fontWeight: "800" },
 
+  filterBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "transparent",
+  },
+  filterCard: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    width: 220,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  filterTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#6B21A8",
+    marginBottom: 6,
+    paddingHorizontal: 2,
+  },
+  filterItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  filterItemText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#111827",
+    fontWeight: "600",
+  },
 
-
-
-
-expiredBackdrop: {
-  flex: 1,
-  backgroundColor: '#00000066',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 24,
-},
-expiredCard: {
-  width: '92%',
-  maxWidth: 420,
-  backgroundColor: '#FFFFFF',
-  borderRadius: 16,
-  padding: 18,
-  shadowColor: '#000',
-  shadowOpacity: 0.15,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 8 },
-  elevation: 6,
-},
-expiredTitle: {
-  fontSize: 18,
-  fontWeight: '800',
-  color: '#6B21A8',
-  marginBottom: 8,
-  textAlign: 'center',
-},
-expiredText: {
-  fontSize: 14.5,
-  color: '#374151',
-  textAlign: 'center',
-},
-expiredButton: {
-  marginTop: 12,
-  backgroundColor: '#6B21A8',
-  borderRadius: 10,
-  paddingVertical: 12,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-expiredButtonText: {
-  color: '#fff',
-  fontWeight: '800',
-  fontSize: 15,
-},
-
+  expiredBackdrop: {
+    flex: 1,
+    backgroundColor: "#00000066",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  expiredCard: {
+    width: "92%",
+    maxWidth: 420,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  expiredTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#6B21A8",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  expiredText: {
+    fontSize: 14.5,
+    color: "#374151",
+    textAlign: "center",
+  },
+  expiredButton: {
+    marginTop: 12,
+    backgroundColor: "#6B21A8",
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  expiredButtonText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 15,
+  },
 });

@@ -11,7 +11,7 @@ import {
   Platform,
   Image,
   Alert,
-  ActivityIndicator, // 👈 agregado
+  ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -397,7 +397,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  // 🎯 Estilos usados por ambos Dropdowns
   dropdown: {
     marginTop: 8,
     backgroundColor: '#fff',

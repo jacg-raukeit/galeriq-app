@@ -14,6 +14,7 @@ import {
   Platform,
   Keyboard,
   Modal,
+  Linking,
 } from "react-native";
 import { BackHandler } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -21,11 +22,11 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 // import * as AuthSession from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
 import { useNavigation } from "@react-navigation/native";
-import * as Device from 'expo-device';
+import * as Device from "expo-device";
 import { AuthContext } from "../context/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import * as Notifications from 'expo-notifications';
+import * as Notifications from "expo-notifications";
 
 import {
   GoogleSignin,
@@ -39,6 +40,8 @@ const { width, height } = Dimensions.get("window");
 const TOKEN_KEY = "galeriq_token";
 const USER_ID_KEY = "galeriq_user_id";
 const API_BASE = "http://143.198.138.35:8000";
+
+const TERMS_PDF_LOCAL = require("../assets/documents/terminos.pdf");
 
 const SLIDES = [
   {
@@ -58,9 +61,13 @@ const SLIDES = [
   },
 ];
 
-// Alturas base del panel
 const PANEL_HEIGHT = Math.max(360, height * 0.42);
 const EXTRA_EXPAND = Math.min(height * 0.24, 230);
+
+const SUPPORT_WHATSAPP = "+5217777884778";
+const SUPPORT_EMAIL = "soporte@galeriq.app";
+const SUPPORT_PHONE = "+527777884778";
+const SUPPORT_DEFAULT_MSG = "Hola, necesito ayuda con mi cuenta de Galeriq.";
 
 export default function LoginScreen() {
   const navigation = useNavigation();
@@ -70,8 +77,7 @@ export default function LoginScreen() {
   const [focusedInput, setFocusedInput] = useState(null);
   const handleFocus = (field) => setFocusedInput(field);
   const handleBlur = () => setFocusedInput(null);
-  
-  // 3. Función que devuelve el estilo dinámico
+
   const getInputStyle = (field) => [
     styles.input,
     focusedInput === field && styles.inputFocused,
@@ -82,6 +88,7 @@ export default function LoginScreen() {
   const [showEmailForm, setShowEmailForm] = useState(false);
 
   const [email, setEmail] = useState("");
+  thePasswordHack = "";
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [kbOpen, setKbOpen] = useState(false);
@@ -95,16 +102,44 @@ export default function LoginScreen() {
   const emailRef = useRef(null);
   const passRef = useRef(null);
 
+  const [supportOpen, setSupportOpen] = useState(false);
+  const supportAnim = useRef(new Animated.Value(0)).current; // 0 cerrado, 1 abierto
 
+  const openSupport = () => {
+    setSupportOpen(true);
+    Animated.timing(supportAnim, {
+      toValue: 1,
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
 
-  // 2. CONFIGURA GOOGLE SIGN-IN EN UN USEEFFECT
+  const closeSupport = () => {
+    Animated.timing(supportAnim, {
+      toValue: 0,
+      duration: 240,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => setSupportOpen(false));
+  };
+
+  const backdropOpacity = supportAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+  const sheetTranslateY = supportAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [60, 0],
+  });
+
   useEffect(() => {
     GoogleSignin.configure({
-      webClientId: '1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com', // Pega aquí el ID de cliente WEB que copiaste
-      offlineAccess: true, // Necesario si quieres obtener un serverAuthCode para tu backend
+      webClientId:
+        "1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com",
+      offlineAccess: true,
     });
   }, []);
-
 
   useEffect(() => {
     const sh = Keyboard.addListener("keyboardDidShow", () => setKbOpen(true));
@@ -167,7 +202,6 @@ export default function LoginScreen() {
 
   const slide = SLIDES[current];
 
-  // Aparición inicial del panel (nodo A: native)
   const panelOuterY = useRef(new Animated.Value(40)).current;
   const panelOuterOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -187,14 +221,13 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
-  // Expansión del panel (nodo B: height en JS)
   const panelExpand = useRef(new Animated.Value(0)).current; // 0..1
   useEffect(() => {
     Animated.timing(panelExpand, {
       toValue: showEmailForm ? 1 : 0,
       duration: 420,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: false, // height -> JS
+      useNativeDriver: false, 
     }).start();
   }, [showEmailForm]);
 
@@ -203,7 +236,6 @@ export default function LoginScreen() {
     outputRange: [PANEL_HEIGHT, PANEL_HEIGHT + EXTRA_EXPAND],
   });
 
-  // Helpers sesión
   const persistSession = async (token, userId) => {
     try {
       await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -219,39 +251,36 @@ export default function LoginScreen() {
     } catch {}
   };
 
-
-  // 3. CREA LA NUEVA FUNCIÓN DE LOGIN
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
       await GoogleSignin.hasPlayServices();
       const { idToken } = await GoogleSignin.signIn();
 
-      // ¡ÉXITO! Ahora envía el idToken a tu backend para validarlo
       if (idToken) {
-        // === Obtener token FCM (opcional pero recomendado) ===
         let fcmToken = null;
         if (Device.isDevice) {
-            try {
-                const { status } = await Notifications.getPermissionsAsync();
-                if (status === 'granted') {
-                    const tokenData = await Notifications.getDevicePushTokenAsync();
-                    fcmToken = tokenData.data;
-                }
-            } catch (e) {
-                console.log("No se pudo obtener el FCM token para Google Sign-In:", e);
+          try {
+            const { status } = await Notifications.getPermissionsAsync();
+            if (status === "granted") {
+              const tokenData = await Notifications.getDevicePushTokenAsync();
+              fcmToken = tokenData.data;
             }
-    }
+          } catch (e) {
+            console.log(
+              "No se pudo obtener el FCM token para Google Sign-In:",
+              e
+            );
+          }
+        }
 
-
-// Llama a tu endpoint de backend para verificar el token y crear la sesión
-        const res = await fetch(`${API_BASE}/auth/google-signin/`, { // <- Necesitarás un nuevo endpoint en tu backend
+        const res = await fetch(`${API_BASE}/auth/google-signin/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             token: idToken,
             fcm_token: fcmToken || "",
-            device_type: Platform.OS
+            device_type: Platform.OS,
           }),
         });
 
@@ -259,31 +288,26 @@ export default function LoginScreen() {
           throw new Error("La autenticación con el servidor falló.");
         }
 
-        const { access_token: apiToken, user_id: userId } = await res.json(); // Tu backend debe devolver el token de tu API y el user_id
+        const { access_token: apiToken, user_id: userId } = await res.json();
 
         setUser({ id: userId, token: apiToken });
-        
+
         if (rememberMe) {
           await persistSession(apiToken, userId);
         } else {
           await clearPersistedSession();
         }
-        
-        navigation.replace("Events");
 
+        navigation.replace("Events");
       }
     } catch (error) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        // El usuario canceló el flujo de inicio de sesión
         console.log("Login con Google cancelado");
       } else if (error.code === statusCodes.IN_PROGRESS) {
-        // La operación ya está en progreso
         Alert.alert("Espera", "El inicio de sesión ya está en proceso.");
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        // Play Services no está disponible o está desactualizado
         Alert.alert("Error", "Google Play Services no está disponible.");
       } else {
-        // Algún otro error
         console.error(error);
         Alert.alert("Error", "Ocurrió un error al iniciar sesión con Google.");
       }
@@ -291,8 +315,6 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
-
-
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password) {
@@ -405,13 +427,14 @@ export default function LoginScreen() {
     }
   };
 
-
-
-  // BackHandler
   useEffect(() => {
     const onBackPress = () => {
       if (kbOpen) {
         Keyboard.dismiss();
+        return true;
+      }
+      if (supportOpen) {
+        closeSupport();
         return true;
       }
       if (showEmailForm) {
@@ -426,7 +449,7 @@ export default function LoginScreen() {
     };
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();
-  }, [kbOpen, showEmailForm, forgotOpen]);
+  }, [kbOpen, showEmailForm, forgotOpen, supportOpen]);
 
   if (bootLoading) {
     return (
@@ -444,15 +467,72 @@ export default function LoginScreen() {
     );
   }
 
-  // Carrusel más bajo cuando el form está abierto
   const heroHeight = kbOpen
     ? Math.min(140, height * 0.18)
     : showEmailForm
     ? height * 0.19
     : height * 0.28;
 
-  // Padding inferior para que el scroll no quede tapado por el panel
   const bottomPad = PANEL_HEIGHT + (showEmailForm ? EXTRA_EXPAND : 0) + 40;
+
+  const openWhatsApp = async () => {
+    try {
+      const url = `whatsapp://send?phone=${SUPPORT_WHATSAPP}&text=${encodeURIComponent(
+        SUPPORT_DEFAULT_MSG
+      )}`;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        const wa = `https://wa.me/${SUPPORT_WHATSAPP.replace(/\D/g, "")}?text=${encodeURIComponent(
+          SUPPORT_DEFAULT_MSG
+        )}`;
+        await Linking.openURL(wa);
+      }
+      closeSupport();
+    } catch (e) {
+      Alert.alert(
+        "No se pudo abrir WhatsApp",
+        "Revisa que la app esté instalada."
+      );
+    }
+  };
+
+  const openEmail = async () => {
+    try {
+      const subject = "Soporte Galeriq";
+      const body = SUPPORT_DEFAULT_MSG;
+      const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+        subject
+      )}&body=${encodeURIComponent(body)}`;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) await Linking.openURL(url);
+      else
+        Alert.alert(
+          "No se pudo abrir el correo",
+          "Configura una app de correo por defecto."
+        );
+      closeSupport();
+    } catch {
+      Alert.alert("No se pudo abrir el correo", "Intenta de nuevo.");
+    }
+  };
+
+  const openPhone = async () => {
+    try {
+      const url = `tel:${SUPPORT_PHONE}`;
+      const supported = await Linking.canOpenURL(url);
+      if (supported) await Linking.openURL(url);
+      else
+        Alert.alert(
+          "No se pudo iniciar llamada",
+          "Revisa permisos o dispositivo."
+        );
+      closeSupport();
+    } catch {
+      Alert.alert("No se pudo iniciar llamada", "Intenta de nuevo.");
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: "#FFF" }}>
@@ -498,10 +578,7 @@ export default function LoginScreen() {
           </Animated.View>
           <View style={styles.dots}>
             {SLIDES.map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, i === current && styles.dotActive]}
-              />
+              <View key={i} style={[styles.dot, i === current && styles.dotActive]} />
             ))}
           </View>
         </View>
@@ -516,7 +593,6 @@ export default function LoginScreen() {
         )}
       </KeyboardAwareScrollView>
 
-      {/* ===== Panel en dos capas ===== */}
       {/* Nodo A: solo translateY/opacity (native) */}
       <Animated.View
         pointerEvents="box-none"
@@ -544,25 +620,20 @@ export default function LoginScreen() {
           {!showEmailForm ? (
             <>
               <TouchableOpacity
-        style={[
-          styles.button,
-          loading && styles.buttonDisabled,
-        ]}
-        onPress={handleGoogleSignIn} // 4. CAMBIA EL ONPRESS
-        disabled={loading}
-        activeOpacity={0.9}
-      >
-        {loading ? (
-          <ActivityIndicator color="#111827" />
-        ) : (
-          <>
-            <Ionicons name="logo-google" size={24} color="#DB4437" />
-            <Text style={styles.buttonTextGoogle}>
-              Continuar con Google
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleGoogleSignIn}
+                disabled={loading}
+                activeOpacity={0.9}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#111827" />
+                ) : (
+                  <>
+                    <Ionicons name="logo-google" size={24} color="#DB4437" />
+                    <Text style={styles.buttonTextGoogle}>Continuar con Google</Text>
+                  </>
+                )}
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.buttonEmail}
@@ -593,16 +664,12 @@ export default function LoginScreen() {
               <View
                 style={[
                   styles.passwordContainer,
-                  focusedInput === "password" &&
-                    styles.passwordContainerFocused,
+                  focusedInput === "password" && styles.passwordContainerFocused,
                 ]}
               >
                 <TextInput
                   ref={passRef}
-                  style={[
-                    styles.input,
-                    { flex: 1, marginBottom: 0, borderWidth: 0 },
-                  ]}
+                  style={[styles.input, { flex: 1, marginBottom: 0, borderWidth: 0 }]}
                   placeholder="Contraseña"
                   placeholderTextColor="#6B7280"
                   secureTextEntry={!showPassword}
@@ -640,11 +707,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.button,
-                  styles.loginBtn,
-                  loading && styles.buttonDisabled,
-                ]}
+                style={[styles.button, styles.loginBtn, loading && styles.buttonDisabled]}
                 onPress={handleEmailLogin}
                 disabled={loading}
                 activeOpacity={0.9}
@@ -652,9 +715,7 @@ export default function LoginScreen() {
                 {loading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={[styles.buttonText, { marginLeft: 0 }]}>
-                    Iniciar sesión
-                  </Text>
+                  <Text style={[styles.buttonText, { marginLeft: 0 }]}>Iniciar sesión</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -665,20 +726,14 @@ export default function LoginScreen() {
               <View style={styles.footer}>
                 {!showEmailForm ? (
                   <>
-                    <Text style={styles.footerText}>
-                      ¿No tienes una cuenta?{" "}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate("Register")}
-                    >
+                    <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
+                    <TouchableOpacity onPress={() => navigation.navigate("Register")}>
                       <Text style={styles.footerLink}>Regístrate</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
                   <>
-                    <Text style={styles.footerText}>
-                      ¿Olvidaste tu contraseña?{" "}
-                    </Text>
+                    <Text style={styles.footerText}>¿Olvidaste tu contraseña? </Text>
                     <TouchableOpacity onPress={() => setForgotOpen(true)}>
                       <Text style={styles.footerLink}>Recuperar</Text>
                     </TouchableOpacity>
@@ -687,7 +742,14 @@ export default function LoginScreen() {
               </View>
 
               <View style={styles.legalRow}>
-                <TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate("PdfViewer", {
+                      title: "Términos Y Condiciones",
+                      localRequire: TERMS_PDF_LOCAL,
+                    })
+                  }
+                >
                   <Text style={styles.legalLink}>Términos</Text>
                 </TouchableOpacity>
                 <Text style={styles.dotSep}>·</Text>
@@ -695,7 +757,7 @@ export default function LoginScreen() {
                   <Text style={styles.legalLink}>Privacidad</Text>
                 </TouchableOpacity>
                 <Text style={styles.dotSep}>·</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={openSupport}>
                   <Text style={styles.legalLink}>Soporte</Text>
                 </TouchableOpacity>
               </View>
@@ -715,8 +777,8 @@ export default function LoginScreen() {
           <View style={[styles.modalCard, { marginTop: insets.top + 40 }]}>
             <Text style={styles.modalTitle}>Recuperar contraseña</Text>
             <Text style={styles.modalHint}>
-              Escribe el correo asociado a tu cuenta y te enviaremos un enlace
-              para restablecerla.
+              Escribe el correo asociado a tu cuenta y te enviaremos un enlace para
+              restablecerla.
             </Text>
 
             <TextInput
@@ -740,11 +802,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.modalBtn,
-                  styles.primaryBtn,
-                  forgotSending && styles.buttonDisabled,
-                ]}
+                style={[styles.modalBtn, styles.primaryBtn, forgotSending && styles.buttonDisabled]}
                 onPress={handleForgotSubmit}
                 disabled={forgotSending}
               >
@@ -758,6 +816,66 @@ export default function LoginScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Soporte */}
+      {supportOpen && (
+        <Modal
+          visible={supportOpen}
+          transparent
+          animationType="none"
+          onRequestClose={closeSupport}
+        >
+          <Animated.View style={[styles.supportBackdrop, { opacity: backdropOpacity }]}>
+            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={closeSupport} />
+          </Animated.View>
+
+          <Animated.View
+            style={[styles.supportSheet, { transform: [{ translateY: sheetTranslateY }] }]}
+          >
+            <View style={styles.supportHandle} />
+            <Text style={styles.supportTitle}>¿Cómo deseas contactarnos?</Text>
+
+            <View style={styles.supportOptions}>
+              <TouchableOpacity style={styles.supportOption} onPress={openWhatsApp} activeOpacity={0.9}>
+                <View style={styles.supportIconWrap}>
+                  <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.supportOptTitle}>WhatsApp</Text>
+                  <Text style={styles.supportOptText}>Abrir chat con soporte</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.supportOption} onPress={openEmail} activeOpacity={0.9}>
+                <View style={styles.supportIconWrap}>
+                  <Ionicons name="mail-outline" size={24} color="#6B21A8" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.supportOptTitle}>Correo</Text>
+                  <Text style={styles.supportOptText}>{SUPPORT_EMAIL}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.supportOption} onPress={openPhone} activeOpacity={0.9}>
+                <View style={styles.supportIconWrap}>
+                  <Ionicons name="call-outline" size={24} color="#10B981" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.supportOptTitle}>Teléfono</Text>
+                  <Text style={styles.supportOptText}>{SUPPORT_PHONE}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.supportCloseBtn} onPress={closeSupport} activeOpacity={0.85}>
+              <Text style={styles.supportCloseTxt}>Cerrar</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -773,7 +891,6 @@ function Feature({ icon, text }) {
   );
 }
 
-/* ===== Estilos ===== */
 const styles = StyleSheet.create({
   topScroll: {
     alignItems: "center",
@@ -858,7 +975,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  /* Panel durazno en dos capas */
   peachPanelOuter: {
     position: "absolute",
     left: 0,
@@ -1021,5 +1137,85 @@ const styles = StyleSheet.create({
   passwordContainerFocused: {
     borderColor: "#6B21A8",
     borderWidth: 2,
+  },
+
+  supportBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  supportSheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingTop: 8,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    elevation: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -6 },
+  },
+  supportHandle: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#E5E7EB",
+    marginBottom: 10,
+  },
+  supportTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  supportOptions: {
+    marginTop: 4,
+  },
+  supportOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  supportIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  supportOptTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  supportOptText: {
+    fontSize: 12.5,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  supportCloseBtn: {
+    marginTop: 10,
+    alignSelf: "center",
+    backgroundColor: "#efeff4",
+    paddingHorizontal: 18,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  supportCloseTxt: {
+    color: "#111827",
+    fontWeight: "700",
   },
 });
