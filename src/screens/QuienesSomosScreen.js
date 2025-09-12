@@ -15,7 +15,9 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from "react-native-vector-icons/Ionicons";
+
 
 const { width } = Dimensions.get("window");
 
@@ -69,11 +71,13 @@ export default function QuienesSomosScreen({ navigation }) {
     ],
   });
 
+  const insets = useSafeAreaInsets();
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
       {/* Header */}
-      <View style={styles.header}>
+     <View style={[styles.header, { paddingTop: insets.top }]}>
         <Pressable
           onPress={() => navigation?.goBack?.()}
           hitSlop={12}
@@ -174,6 +178,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+   
   },
   headerTitle: {
     fontSize: 18,
@@ -185,6 +190,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     paddingBottom: 0,
+    marginTop: 20,
   },
   phoneShadowWrap: {
     width: PHONE_W + 16,
@@ -235,6 +241,7 @@ const styles = StyleSheet.create({
     color: COLORS.title,
     marginTop: 8,
     marginBottom: 12,
+    textAlign: "center",
   },
   cta: {
     alignItems: "center",
@@ -242,6 +249,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 18,
     borderRadius: 12,
+    marginBottom: 16,
   },
   ctaText: {
     color: "#fff",

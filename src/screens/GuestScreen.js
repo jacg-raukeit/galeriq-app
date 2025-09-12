@@ -18,7 +18,6 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Swipeable } from 'react-native-gesture-handler';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-// Se importan los hooks desde la librería de navegación
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 
@@ -27,6 +26,31 @@ const API_URL = 'http://143.198.138.35:8000';
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+/* === Helpers para avatar tipo Google === */
+const AVATAR_COLORS = [
+  '#F44336', '#E91E63', '#9C27B0', '#673AB7',
+  '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4',
+  '#009688', '#4CAF50', '#8BC34A', '#CDDC39',
+  '#FFC107', '#FF9800', '#795548', '#607D8B',
+];
+
+const hashString = (str = '') => {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h << 5) - h + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+};
+
+const pickColor = (key = '') => AVATAR_COLORS[hashString(key) % AVATAR_COLORS.length];
+
+const getInitial = (name = '', email = '') => {
+  const src = (name || email || '').trim();
+  return src ? src[0].toUpperCase() : '?';
+};
+/* ======================================= */
 
 const getStatusIcon = (status) => {
   switch (status) {
@@ -59,8 +83,23 @@ const adaptGuest = (g) => ({
   avatar: g.avatar_url ?? g.avatar ?? '',
 });
 
-/** ===== Fila con Swipe (usa hooks aquí, no en renderItem) ===== */
 const ACTION_WIDTH = 96;
+
+/* AvatarLeft: muestra imagen si hay URL, si no la inicial con color */
+const AvatarLeft = ({ uri, name, email }) => {
+  if (uri) {
+    return (
+      <Image source={{ uri }} style={styles.avatar} />
+    );
+  }
+  const bg = pickColor(name || email);
+  const letter = getInitial(name, email);
+  return (
+    <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: bg }]}>
+      <Text style={styles.avatarLetter}>{letter}</Text>
+    </View>
+  );
+};
 
 const GuestRow = memo(function GuestRow({ item, onToggleStatus, onRequestDelete }) {
   const swipeRef = useRef(null);
@@ -105,10 +144,7 @@ const GuestRow = memo(function GuestRow({ item, onToggleStatus, onRequestDelete 
           title={item.nombre}
           description={item.alias || item.correo || item.telefono}
           left={() => (
-            <Image
-              source={item.avatar ? { uri: item.avatar } : require('../assets/images/google.png')}
-              style={styles.avatar}
-            />
+            <AvatarLeft uri={item.avatar} name={item.nombre} email={item.correo} />
           )}
           right={() => (
             <Pressable onPress={() => onToggleStatus(item)}>
@@ -375,7 +411,12 @@ export default function GuestScreen({ route }) {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#fff' },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, marginTop: 8, color: '#254236' },
+
+  /* Avatar */
   avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 8 },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center' },
+  avatarLetter: { color: '#fff', fontWeight: '700', fontSize: 18 },
+
   statusBar: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, gap: 8 },
   statusBox: { flex: 1, padding: 8, borderRadius: 8 },
   statusText: { color: 'white', fontWeight: 'bold', textAlign: 'center' },
@@ -423,4 +464,3 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
 });
-

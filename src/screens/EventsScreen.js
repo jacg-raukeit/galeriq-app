@@ -290,26 +290,34 @@ export default function EventsScreen() {
   return (
     <View style={styles.screen}>
       {/* HEADER */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity
-          style={styles.menuBtn}
-          onPress={() => setOpen(true)}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="menu-outline" size={24} color="#111827" />
-        </TouchableOpacity>
+     {/* HEADER */}
+<View style={[styles.header, { paddingTop: insets.top }]}>
+  <View style={styles.headerSide}>
+    <TouchableOpacity
+      style={styles.menuBtn}
+      onPress={() => setOpen(true)}
+      activeOpacity={0.85}
+    >
+      <Ionicons name="menu-outline" size={24} color="#111827" />
+    </TouchableOpacity>
+  </View>
 
-        <Text style={styles.title}>Galeriq</Text>
+  <View style={styles.headerCenter}>
+    <Text style={styles.title}>Galeriq</Text>
+  </View>
 
-        {/* NUEVO: Botón de filtro */}
-        <TouchableOpacity
-          style={styles.menuBtn}
-          onPress={() => setFilterVisible(true)}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="funnel-outline" size={20} color="#111827" />
-        </TouchableOpacity>
-      </View>
+  <View style={styles.headerSide}>
+    <TouchableOpacity
+      style={styles.menuBtn2}
+      onPress={() => setFilterVisible(true)}
+      activeOpacity={0.85}
+    >
+      {/* Usa el mismo tamaño que el de menú para que no “salte” */}
+      <Ionicons name="funnel-outline" size={24} color="#111827" style={styles.iconNudge} />
+    </TouchableOpacity>
+  </View>
+</View>
+
 
       <Text style={styles.titleSection}>Mis Eventos</Text>
 
@@ -665,33 +673,63 @@ export default function EventsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#F9FAFB", paddingTop: 6 },
-  header: {
-    height: 70,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  menuBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
+header: {
+  height: 70,
+  paddingHorizontal: 12,
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+headerSide: {
+  width: 48,
+  alignItems: "center",
+  justifyContent: "center",
+},
+headerCenter: {
+  flex: 1,
+  alignItems: "center",
+  justifyContent: "center",
+},
+ menuBtn: {
+  width: 40,
+  height: 40,
+  borderRadius: 20,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#FFFFFF",
+  shadowColor: "#000",
+  shadowOpacity: 0.06,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 2,
+},
+
+menuBtn2: {
+  width: 40,
+  height: 40,
+  borderRadius: 20,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#FFFFFF",
+  shadowColor: "#000",
+  shadowOpacity: 0.06,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 2,
+  transform: [{ translateY: 6 }],
+},
   title: {
-    fontFamily: "Montserrat-Regular",
-    fontSize: 22,
-    textAlign: "center",
-    fontWeight: "800",
-    color: "#111827",
-  },
+  fontFamily: "Montserrat-Regular",
+  fontSize: 22,
+  fontWeight: "800",
+  color: "#111827",
+  textAlign: "center",
+  textAlignVertical: "center",
+  includeFontPadding: false,  // 👈 Android: quita padding extra del texto
+},
+iconNudge: {
+  transform: [{ translateY: 1 }], // 👈 baja 1px (sube/baja a 2 si aún lo ves desfasado)
+},
   titleSection: {
     fontFamily: "Montserrat-Regular",
     fontSize: 28,
