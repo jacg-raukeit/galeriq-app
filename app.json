@@ -42,6 +42,7 @@
         "expo-build-properties",
         {
           "android": {
+            "minSdkVersion": 24,
             "materialVersion": "1.12.0"
           }
         }
