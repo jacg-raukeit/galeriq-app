@@ -18,6 +18,9 @@
       },
       "env": {
         "EXPO_USE_COMMUNITY_AUTOLINKING": "1"
+      },
+      "cache":{
+        "key": "cache-v1"
       }
 
     },
