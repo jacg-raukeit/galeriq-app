@@ -42,7 +42,7 @@
         "expo-build-properties",
         {
           "android": {
-            "materialVersion": "1.9.0"
+            "materialVersion": "1.12.0"
           }
         }
       ],
