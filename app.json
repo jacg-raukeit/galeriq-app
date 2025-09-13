@@ -38,6 +38,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "materialVersion": "1.9.0"
+          }
+        }
+      ],
       "expo-web-browser",
       "@react-native-google-signin/google-signin",
       "expo-sqlite",
