@@ -25,7 +25,6 @@
       },
       "edgeToEdgeEnabled": false,
       "package": "galeriq.com",
-      "usesCleartextTraffic": true,
       "googleServicesFile": "./google-services.json"
     },
     "useNextNotificationsApi": true,
@@ -43,7 +42,8 @@
         {
           "android": {
             "minSdkVersion": 24,
-            "materialVersion": "1.12.0"
+            "materialVersion": "1.12.0",
+            "usesCleartextTraffic": true
           }
         }
       ],
