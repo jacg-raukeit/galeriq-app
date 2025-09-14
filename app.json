@@ -18,12 +18,12 @@
       "bundleIdentifier": "galeriq.com"
     },
     "android": {
+      "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "galeriq.com",
       "googleServicesFile": "./google-services.json"
     },
@@ -37,6 +37,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "react-native-edge-to-edge",
+        {
+          "android": {
+            "parentTheme": "Default"
+          }
+        }
+      ],
       [
         "expo-build-properties",
         {
