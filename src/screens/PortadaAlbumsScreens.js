@@ -443,7 +443,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
 
         {hasTimes && (
           <View style={styles.timeRow}>
-            <Ionicons name="time-outline" size={12} color="#555" style={{ marginRight: 4 }} />
+            <Ionicons name="time-outline" size={12} color="#555" style={{ marginRight: 3 }} />
             <Text style={styles.timeText} numberOfLines={1}>
               {item.startTimeLabel} — {item.endTimeLabel}
             </Text>
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 999,
   },
-  timeText: { fontSize: 11, color: '#555' },
+  timeText: { fontSize: 8, color: '#555' },
 
   cardSubtitle: { marginTop: 2, fontSize: 12, color: '#666' },
 

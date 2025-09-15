@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useContext,
   useRef,
+  useMemo,
 } from "react";
 import {
   View,
@@ -27,6 +28,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../context/AuthContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const API_URL = "http://143.198.138.35:8000";
 
@@ -44,24 +46,17 @@ const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpaci
 
 export default function EventDetailScreen() {
   const navigation = useNavigation();
-  const { params } = useRoute();
+  const insets = useSafeAreaInsets();
+  const route = useRoute();
+  const initialEvent = route?.params?.event || null;
+
   const { user } = useContext(AuthContext);
+  const bearer = useMemo(() => user?.token || user?.access_token || "", [user]);
 
-  const routedEvent = params?.event || null;
-  const routedEventId = params?.eventId || routedEvent?.event_id;
-
-  const bearer = user?.token || user?.access_token || "";
-
+  // ==== Estados ====
+  const [loading, setLoading] = useState(true);
   const [eventData, setEventData] = useState(null);
-  const [loadingEvent, setLoadingEvent] = useState(true);
 
-  const [roleId, setRoleId] = useState(null);
-  const [roleLabel, setRoleLabel] = useState("");
-  const isOwner = roleId === 1;
-  const isGuest = roleId === 2;
-
-  const [updatingEvent, setUpdatingEvent] = useState(false);
-  const [editVisible, setEditVisible] = useState(false);
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -69,13 +64,180 @@ export default function EventDetailScreen() {
   const [eventType, setEventType] = useState("");
   const [eventDescription, setEventDescription] = useState("");
   const [coverUri, setCoverUri] = useState(null);
+
   const [typePickerVisible, setTypePickerVisible] = useState(false);
   const [isOtherType, setIsOtherType] = useState(false);
 
+  const [updatingEvent, setUpdatingEvent] = useState(false);
+  const [editVisible, setEditVisible] = useState(false);
+
+  // ==== OWNER modal ====
+  const [ownerVisible, setOwnerVisible] = useState(false);
+  const [ownerTab, setOwnerTab] = useState("add"); // "add" | "remove"
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [removeEmail, setRemoveEmail] = useState("");
+  const [assigningOwner, setAssigningOwner] = useState(false);
+  const [removingOwner, setRemovingOwner] = useState(false);
+
+  // ==== Submenú ====
   const [activeTab, setActiveTab] = useState(null);
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const submenuAnim = useRef(new Animated.Value(0)).current;
 
+  // ==== Rol ====
+  const [role, setRole] = useState(null);         // 1 owner, 2 invitado
+  const [roleLoading, setRoleLoading] = useState(true);
+  const [roleLabel, setRoleLabel] = useState("");
+
+  const isOwner = role === 1;
+  const isGuest = role === 2;
+
+  // Helpers rol
+  const toRoleNumber = (data) => {
+    if (data == null) return null;
+    if (typeof data === "number") return data;
+    if (typeof data === "string") {
+      const n = parseInt(data, 10);
+      return Number.isFinite(n) ? n : null;
+    }
+    if (typeof data === "object") {
+      if (data.role_id != null) return parseInt(String(data.role_id), 10);
+      if (data.role != null) return parseInt(String(data.role), 10);
+    }
+    return null;
+  };
+
+// Reemplaza tu función toRoleLabel por esta:
+const toRoleLabel = (raw) => {
+  // Si viene objeto con role_id / is_admin, resolvemos explícito
+  if (raw && typeof raw === "object") {
+    const roleId = raw.role_id != null ? parseInt(String(raw.role_id), 10) : null;
+    const isAdmin = !!raw.is_admin;
+
+    if (roleId === 1) {
+      return isAdmin ? "Administrador" : "Organizador";
+    }
+    if (roleId === 2) {
+      return "Invitado";
+    }
+
+    // Fallbacks si llegaran otros formatos
+    if (raw.type) return String(raw.type);
+    if (raw.name) return String(raw.name);
+    if (raw.label) return String(raw.label);
+  }
+
+  // Si vino como número o string numérica
+  const n = (typeof raw === "number")
+    ? raw
+    : (typeof raw === "string" ? parseInt(raw, 10) : null);
+  if (n === 1) return "Organizador";
+  if (n === 2) return "Invitado";
+
+  // Último recurso
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  return "—";
+};
+
+
+  // ====== Cargar evento por ID (o usar el pasado por params) ======
+  const targetEventId =
+    initialEvent?.event_id ??
+    route?.params?.eventId ??
+    route?.params?.id ??
+    null;
+
+  useEffect(() => {
+    let mounted = true;
+
+    const seedStateFromEvent = (ev) => {
+      setEventData(ev);
+      setEventName(ev.event_name || "");
+      setEventDate(ev.event_date ? new Date(ev.event_date) : new Date());
+      setEventAddress(ev.event_address || "");
+      setEventType(ev.event_type || "");
+      setEventDescription(ev.event_description || "");
+      setCoverUri(ev.event_cover || null);
+
+      const inList = EVENT_TYPES.includes(ev.event_type);
+      setIsOtherType(!inList || ev.event_type === "Otro");
+
+      // ⬇️ si ya viene el rol en el objeto, úsalo
+      if (ev?.role != null) {
+        const rNum = toRoleNumber(ev.role);
+        const rLbl = toRoleLabel(ev.role);
+        setRole(rNum);
+        setRoleLabel(rLbl);
+        setRoleLoading(false);
+      }
+    };
+
+    const fetchEventById = async () => {
+      if (!targetEventId) {
+        if (initialEvent?.event_id) {
+          seedStateFromEvent(initialEvent);
+          setLoading(false);
+        } else {
+          setLoading(false);
+          Alert.alert("Evento", "No se encontró el ID del evento.");
+        }
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setRoleLoading(true);
+
+        const res = await fetch(`${API_URL}/events/${encodeURIComponent(targetEventId)}`, {
+          method: "GET",
+          headers: { ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+        });
+
+        const raw = await res.text();
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            Alert.alert("Sesión", "Tu sesión expiró. Inicia sesión nuevamente.");
+            navigation.goBack();
+            return;
+          }
+          if (res.status === 404) {
+            Alert.alert("Evento", "Evento no encontrado.");
+            navigation.goBack();
+            return;
+          }
+          throw new Error(raw || `HTTP ${res.status}`);
+        }
+
+        let data;
+        try { data = JSON.parse(raw); } catch { data = raw; }
+
+        const roleFromApi = data?.role;
+        const roleNumber = toRoleNumber(roleFromApi);
+        const label = toRoleLabel(roleFromApi);
+
+        if (!mounted) return;
+
+        seedStateFromEvent(data);
+        setRole(roleNumber);
+        setRoleLabel(label);
+      } catch (e) {
+        if (mounted) {
+          console.error("Error cargando evento por ID:", e?.message || e);
+          Alert.alert("Error", "No fue posible cargar el evento.");
+        }
+      } finally {
+        if (mounted) {
+          setRoleLoading(false);
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchEventById();
+    return () => { mounted = false; };
+  }, [targetEventId, bearer]);
+
+  // Animaciones submenú
   const animateSubmenuIn = () => {
     Animated.timing(submenuAnim, {
       toValue: 1,
@@ -95,92 +257,24 @@ export default function EventDetailScreen() {
     });
   };
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      if (!routedEventId) {
-        setLoadingEvent(false);
-        return;
-      }
-      try {
-        setLoadingEvent(true);
-        const res = await fetch(`${API_URL}/events/${encodeURIComponent(routedEventId)}`, {
-          headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
-        });
-        const raw = await res.text();
-        if (!res.ok) {
-          try {
-            const j = JSON.parse(raw);
-            throw new Error(j?.detail || raw || `HTTP ${res.status}`);
-          } catch {
-            throw new Error(raw || `HTTP ${res.status}`);
-          }
-        }
-        let data;
-        try { data = JSON.parse(raw); } catch { data = raw; }
+  // Pickers
+  const onChangeDate = (_, selectedDate) => {
+    if (Platform.OS === "ios") setShowDatePicker(false);
+    if (selectedDate) setEventDate(selectedDate);
+  };
 
-        if (!data?.event_id) throw new Error("Event not found");
-
-        if (!mounted) return;
-
-        setEventData(data);
-
-        setEventName(data.event_name || "");
-        const d = new Date(String(data.event_date).replace(" ", "T"));
-        setEventDate(isNaN(d) ? new Date() : d);
-        setEventAddress(data.event_address || "");
-        setEventType(data.event_type || "");
-        setEventDescription(data.event_description || "");
-        setCoverUri(data.event_cover || null);
-
-        const inList = EVENT_TYPES.includes(data.event_type);
-        setIsOtherType(!inList || data.event_type === "Otro");
-
-        const rId = data?.role?.role_id != null ? Number(data.role.role_id) : null;
-        setRoleId(rId);
-        setRoleLabel(
-          (data?.role?.type && String(data.role.type)) ||
-          (rId === 1 ? "Organizador" : rId === 2 ? "Invitado" : "")
-        );
-      } catch (err) {
-        console.log("Error loading event by id:", err?.message || err);
-        Alert.alert("Error", "No fue posible cargar el evento.");
-      } finally {
-        if (mounted) setLoadingEvent(false);
-      }
-    };
-    load();
-    return () => { mounted = false; };
-  }, [routedEventId, bearer]);
-
-  useEffect(() => {
-    if (!routedEvent) return;
-    setEventData((prev) => prev ?? routedEvent);
-    setEventName((prev) => prev || routedEvent.event_name || "");
-    if (routedEvent.event_date && !eventDate) {
-      const d = new Date(String(routedEvent.event_date).replace(" ", "T"));
-      setEventDate(isNaN(d) ? new Date() : d);
+  const openDateTimePicker = () => {
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: eventDate,
+        onChange: onChangeDate,
+        mode: "datetime",
+        is24Hour: true,
+      });
+    } else {
+      setShowDatePicker(true);
     }
-    setEventAddress((prev) => prev || routedEvent.event_address || "");
-    setEventType((prev) => prev || routedEvent.event_type || "");
-    setEventDescription((prev) => prev || routedEvent.event_description || "");
-    setCoverUri((prev) => prev || routedEvent.event_cover || null);
-
-    const inList = EVENT_TYPES.includes(routedEvent.event_type);
-    setIsOtherType(!inList || routedEvent.event_type === "Otro");
-
-    const rId = routedEvent?.role?.role_id != null ? Number(routedEvent.role.role_id) : null;
-    if (rId != null) setRoleId((old) => old ?? rId);
-    const rLabel = routedEvent?.role?.type;
-    if (rLabel) setRoleLabel((old) => old || String(rLabel));
-  }, [routedEvent]);
-
-  useEffect(() => {
-    if (editVisible) {
-      const inList = EVENT_TYPES.includes(eventType);
-      setIsOtherType(!inList || eventType === "Otro");
-    }
-  }, [editVisible, eventType]);
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -211,31 +305,15 @@ export default function EventDetailScreen() {
     if (!result.canceled) setCoverUri(result.assets[0].uri);
   };
 
-  const onChangeDate = (_, selectedDate) => {
-    if (Platform.OS === "ios") setShowDatePicker(false);
-    if (selectedDate) setEventDate(selectedDate);
-  };
-
-  const openDateTimePicker = () => {
-    if (Platform.OS === "android") {
-      DateTimePickerAndroid.open({
-        value: eventDate,
-        onChange: onChangeDate,
-        mode: "datetime",
-        is24Hour: true,
-      });
-    } else {
-      setShowDatePicker(true);
-    }
-  };
-
+  // Update evento (usa eventData.event_id)
   const handleUpdate = async () => {
     if (updatingEvent) return;
-    if (!eventData?.event_id) return;
+
     if (isOtherType && !eventType.trim()) {
       Alert.alert("Tipo de evento", 'Escribe el tipo de evento cuando selecciones "Otro".');
       return;
     }
+
     try {
       setUpdatingEvent(true);
       const form = new FormData();
@@ -270,8 +348,17 @@ export default function EventDetailScreen() {
         updated.event_cover = coverData.event_cover;
       }
 
-      updated.role = eventData.role;
+      // Resembrar estado
       setEventData(updated);
+      setEventName(updated.event_name || "");
+      setEventDate(updated.event_date ? new Date(updated.event_date) : new Date());
+      setEventAddress(updated.event_address || "");
+      setEventType(updated.event_type || "");
+      setEventDescription(updated.event_description || "");
+      setCoverUri(updated.event_cover || null);
+      const inList = EVENT_TYPES.includes(updated.event_type);
+      setIsOtherType(!inList || updated.event_type === "Otro");
+
       setEditVisible(false);
     } catch (err) {
       console.error("Error al actualizar evento:", err);
@@ -281,25 +368,143 @@ export default function EventDetailScreen() {
     }
   };
 
-  if (!routedEventId) {
-    return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>Evento no encontrado.</Text>
-      </View>
-    );
-  }
+  // Owners
+  const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email.trim());
 
-  const prettyDate = eventData?.event_date
-    ? new Date(String(eventData.event_date).replace(" ", "T")).toLocaleDateString("es-ES", {
-        day: "2-digit", month: "long", year: "numeric",
-      })
-    : "";
-  const prettyTime = eventData?.event_date
-    ? new Date(String(eventData.event_date).replace(" ", "T")).toLocaleTimeString("es-ES", {
-        hour: "2-digit", minute: "2-digit",
-      })
-    : "";
+  const handleAssignOwnerByEmail = async () => {
+    if (assigningOwner) return;
+    const email = ownerEmail.trim();
+    if (!isValidEmail(email)) {
+      Alert.alert("Correo inválido", "Ingresa un correo electrónico válido.");
+      return;
+    }
+    if (!eventData?.event_id) {
+      Alert.alert("Error", "No se encontró el ID del evento.");
+      return;
+    }
 
+    try {
+      setAssigningOwner(true);
+      const form = new FormData();
+      form.append("email", email);
+      form.append("event_id", String(eventData.event_id));
+
+      const res = await fetch(`${API_URL}/user/add-owner`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${user.token}` },
+        body: form,
+      });
+
+      const raw = await res.text();
+      if (!res.ok) {
+        let detail = "No se pudo asignar el owner.";
+        try {
+          const data = JSON.parse(raw);
+          if (data?.detail) detail = data.detail;
+        } catch {}
+        if (res.status === 404) {
+          Alert.alert("No encontrado", "No se encontró el usuario. Verifica el correo e inténtalo de nuevo.");
+        } else {
+          Alert.alert("Aviso", String(detail));
+        }
+        return;
+      }
+
+      Alert.alert("Listo", "Owner asignado");
+      setOwnerEmail("");
+      setOwnerVisible(false);
+    } catch (e) {
+      console.error("Error asignando owner:", e);
+      Alert.alert("Error", "No se pudo asignar el usuario como owner.");
+    } finally {
+      setAssigningOwner(false);
+    }
+  };
+
+  // Resolver user_id por email (usando endpoints disponibles)
+  const resolveUserIdByEmail = async (email) => {
+    const headers = { Authorization: `Bearer ${user.token}` };
+
+    try {
+      const r = await fetch(
+        `${API_URL}/user/owners?event_id=${encodeURIComponent(eventData.event_id)}`,
+        { headers }
+      );
+      if (r.ok) {
+        const owners = await r.json();
+        const hit = owners?.find?.((o) => String(o?.email).toLowerCase() === email.toLowerCase());
+        if (hit?.user_id != null) return Number(hit.user_id);
+      }
+    } catch (e) {
+      console.log("owners lookup failed:", e?.message || e);
+    }
+
+    try {
+      const r2 = await fetch(`${API_URL}/user/all`, { headers });
+      if (r2.ok) {
+        const users = await r2.json();
+        const hit = users?.find?.((u) => String(u?.email).toLowerCase() === email.toLowerCase());
+        if (hit?.user_id != null) return Number(hit.user_id);
+      }
+    } catch (e) {
+      console.log("all users lookup failed:", e?.message || e);
+    }
+
+    return null;
+  };
+
+  const handleRemoveOwnerByEmail = async () => {
+    if (removingOwner) return;
+    const email = removeEmail.trim();
+    if (!isValidEmail(email)) {
+      Alert.alert("Correo inválido", "Ingresa un correo electrónico válido.");
+      return;
+    }
+    if (!eventData?.event_id) {
+      Alert.alert("Error", "No se encontró el ID del evento.");
+      return;
+    }
+
+    try {
+      setRemovingOwner(true);
+
+      const uid = await resolveUserIdByEmail(email);
+      if (!uid) {
+        Alert.alert("No encontrado", "No se pudo encontrar el usuario por ese correo.");
+        return;
+      }
+
+      const url = `${API_URL}/user/owner?user_id=${encodeURIComponent(uid)}&event_id=${encodeURIComponent(
+        eventData.event_id
+      )}`;
+
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      const raw = await res.text();
+      if (!res.ok) {
+        let msg = "No se pudo eliminar el owner.";
+        try {
+          const data = JSON.parse(raw);
+          if (data?.detail) msg = data.detail;
+        } catch {}
+        Alert.alert("Aviso", msg);
+        return;
+      }
+
+      Alert.alert("Listo", "Owner eliminado exitosamente.");
+      setRemoveEmail("");
+      setOwnerVisible(false);
+    } catch (e) {
+      console.error("Error eliminando owner:", e);
+      Alert.alert("Error", "No se pudo eliminar el owner.");
+    } finally {
+      setRemovingOwner(false);
+    }
+  };
+
+  // Navegación de pestañas
   const goMyEvents = () => {
     setActiveTab(0);
     setSubmenuOpen(false);
@@ -318,48 +523,64 @@ export default function EventDetailScreen() {
   const goAgenda = () => {
     setActiveTab(2);
     setSubmenuOpen(false);
-    navigation.navigate("Agenda", { eventId: routedEventId, eventDate: eventData?.event_date });
+    navigation.navigate("Agenda", { eventId: eventData.event_id, eventDate: eventData.event_date });
   };
   const goPlanning = () => {
     setActiveTab(2);
     setSubmenuOpen(false);
-    navigation.navigate("PlanningHome", { eventId: routedEventId });
+    navigation.navigate("PlanningHome", { eventId: eventData.event_id });
   };
   const goExpenses = () => {
     setActiveTab(2);
     setSubmenuOpen(false);
-    navigation.navigate("BudgetControl", { eventId: routedEventId });
+    navigation.navigate("BudgetControl", { eventId: eventData.event_id });
   };
   const goGuests = () => {
     setActiveTab(3);
     setSubmenuOpen(false);
-    navigation.navigate("GuestList", { eventId: routedEventId });
+    navigation.navigate("GuestList", { eventId: eventData.event_id });
   };
   const goAlbums = () => {
     setActiveTab(4);
     setSubmenuOpen(false);
-    navigation.navigate("PortadaAlbums", { eventId: routedEventId });
+    navigation.navigate("PortadaAlbums", { eventId: eventData.event_id });
   };
   const goInvitations = () => {
     setActiveTab(5);
     setSubmenuOpen(false);
-    navigation.navigate("InvitationsHome", { eventId: routedEventId });
+    navigation.navigate("InvitationsHome", { eventId: eventData.event_id });
   };
   const openOwner = () => {
     if (!isOwner) return;
     setActiveTab(6);
     setSubmenuOpen(false);
-    setEditVisible(false);
+    setOwnerTab("add");
+    setOwnerVisible(true);
   };
 
-  if (loadingEvent && !eventData) {
+  if (loading) {
     return (
-      <View style={styles.empty}>
-        <ActivityIndicator />
-        <Text style={[styles.emptyText, { marginTop: 8 }]}>Cargando evento…</Text>
+      <View style={[styles.empty, { paddingTop: 40 }]}>
+        <ActivityIndicator size="large" color="#6B21A8" />
+        <Text style={{ marginTop: 8, color: "#6B7280" }}>Cargando evento…</Text>
       </View>
     );
   }
+
+  if (!eventData) {
+    return (
+      <View style={styles.empty}>
+        <Text style={styles.emptyText}>Evento no encontrado.</Text>
+      </View>
+    );
+  }
+
+  const prettyDate = new Date(eventData.event_date).toLocaleDateString("es-ES", {
+    day: "2-digit", month: "long", year: "numeric",
+  });
+  const prettyTime = new Date(eventData.event_date).toLocaleTimeString("es-ES", {
+    hour: "2-digit", minute: "2-digit",
+  });
 
   return (
     <View style={styles.root}>
@@ -370,9 +591,7 @@ export default function EventDetailScreen() {
             <Ionicons name="chevron-back" size={24} color="#111827" />
           </TouchableOpacity>
 
-          <Text numberOfLines={1} style={styles.headerTitle}>
-            {eventData?.event_name || "Evento"}
-          </Text>
+          <Text numberOfLines={1} style={styles.headerTitle}>{eventData.event_name}</Text>
 
           {isOwner ? (
             <TouchableOpacity onPress={() => setEditVisible(true)} style={styles.headerIcon}>
@@ -389,20 +608,20 @@ export default function EventDetailScreen() {
         {/* HERO */}
         <View style={styles.heroWrapper}>
           <ImageBackground
-            source={eventData?.event_cover ? { uri: eventData.event_cover } : null}
+            source={eventData.event_cover ? { uri: eventData.event_cover } : null}
             style={styles.hero}
             imageStyle={styles.heroImg}
           >
             <View style={styles.heroOverlay} />
             <View style={styles.heroContent}>
               <View style={styles.heroChips}>
-                {!!eventData?.event_type && (
+                {!!eventData.event_type && (
                   <View style={[styles.chip, { backgroundColor: "#6F4C8C" }]}>
                     <Ionicons name="pricetag-outline" size={14} color="white" />
                     <Text style={[styles.chipText, { color: "white" }]}>{eventData.event_type}</Text>
                   </View>
                 )}
-                {!!eventData?.event_status && (
+                {!!eventData.event_status && (
                   <View style={[styles.chip, { backgroundColor: "#254236" }]}>
                     <Ionicons name="ellipse-outline" size={12} color="white" />
                     <Text style={[styles.chipText, { color: "white" }]}>{eventData.event_status}</Text>
@@ -410,9 +629,7 @@ export default function EventDetailScreen() {
                 )}
               </View>
 
-              <Text style={styles.heroTitle} numberOfLines={2}>
-                {eventData?.event_name}
-              </Text>
+              <Text style={styles.heroTitle} numberOfLines={2}>{eventData.event_name}</Text>
 
               <View style={styles.heroMetaRow}>
                 <View style={styles.metaItem}>
@@ -426,7 +643,7 @@ export default function EventDetailScreen() {
                 </View>
               </View>
 
-              {!!eventData?.event_address && (
+              {!!eventData.event_address && (
                 <View style={[styles.metaItem, { marginTop: 6 }]}>
                   <Ionicons name="location-outline" size={16} color="#F9FAFB" />
                   <Text style={styles.metaText} numberOfLines={1}>{eventData.event_address}</Text>
@@ -439,24 +656,20 @@ export default function EventDetailScreen() {
         {/* INFO */}
         <View style={styles.sectionCard}>
           <SectionTitle icon="document-text-outline" title="Descripción" />
-          <Text style={styles.sectionText}>
-            {eventData?.event_description?.trim() || "Sin descripción"}
-          </Text>
+          <Text style={styles.sectionText}>{eventData.event_description?.trim() || "Sin descripción"}</Text>
         </View>
 
         <View style={styles.sectionCard}>
           <SectionTitle icon="person-circle-outline" title="Tu rol en el evento es" />
-          <Text style={styles.gridValue}>{roleLabel || "—"}</Text>
+          <Text style={styles.gridValue}>{roleLoading ? "Cargando…" : roleLabel || "—"}</Text>
         </View>
 
-        {isOwner && (
+        {isOwner && !roleLoading && (
           <View style={styles.grid}>
             <View style={styles.gridCard}>
               <SectionTitle icon="alarm-outline" title="Creado" />
               <Text style={styles.gridValue}>
-                {eventData?.created_at
-                  ? new Date(eventData.created_at).toLocaleString("es-ES")
-                  : "—"}
+                {new Date(eventData.created_at).toLocaleString("es-ES")}
               </Text>
             </View>
           </View>
@@ -464,7 +677,7 @@ export default function EventDetailScreen() {
 
         <View style={styles.sectionCard}>
           <SectionTitle icon="map-outline" title="Dirección" />
-          <Text style={styles.sectionText}>{eventData?.event_address || "Sin dirección"}</Text>
+          <Text style={styles.sectionText}>{eventData.event_address || "Sin dirección"}</Text>
         </View>
       </ScrollView>
 
@@ -507,7 +720,7 @@ export default function EventDetailScreen() {
       {/* TAB BAR según rol */}
       <SafeAreaView style={styles.tabSafeArea}>
         <View style={styles.tabBar}>
-          {loadingEvent ? (
+          {roleLoading ? (
             <>
               <View style={styles.tabSkel} />
               <View style={styles.tabSkel} />
@@ -543,7 +756,7 @@ export default function EventDetailScreen() {
             <View style={{ width: 24 }} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalContainer}>
+          <ScrollView contentContainerStyle={[styles.modalContainer, { paddingTop: insets.top }]}>
             <View style={styles.coverPicker}>
               {coverUri ? (
                 <Image source={{ uri: coverUri }} style={styles.coverPreview} />
@@ -688,6 +901,109 @@ export default function EventDetailScreen() {
           })}
         </View>
       </Modal>
+
+      {/* MODAL OWNER (agregar / eliminar) */}
+      {isOwner && (
+        <Modal visible={ownerVisible} animationType="slide" onRequestClose={() => setOwnerVisible(false)}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setOwnerVisible(false)}>
+              <Ionicons name="close" size={24} color="#111827" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Gestionar owner</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          <View style={[styles.modalContainer, { paddingTop: insets.top }]} >
+            {/* Tabs */}
+            <View style={styles.ownerTabs}>
+              <TouchableOpacity
+                style={[styles.ownerTabBtn, ownerTab === "add" && styles.ownerTabBtnActive]}
+                onPress={() => setOwnerTab("add")}
+                activeOpacity={0.9}
+              >
+                <Text style={[styles.ownerTabText, ownerTab === "add" && styles.ownerTabTextActive]}>
+                  Agregar owner
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.ownerTabBtn, ownerTab === "remove" && styles.ownerTabBtnActive]}
+                onPress={() => setOwnerTab("remove")}
+                activeOpacity={0.9}
+              >
+                <Text style={[styles.ownerTabText, ownerTab === "remove" && styles.ownerTabTextActive]}>
+                  Eliminar owner
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {ownerTab === "add" ? (
+              <>
+                <Field label="Correo del usuario">
+                  <TextInput
+                    style={styles.input}
+                    placeholder="correo@ejemplo.com"
+                    value={ownerEmail}
+                    onChangeText={setOwnerEmail}
+                    placeholderTextColor="#6B7280"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </Field>
+
+                <TouchableOpacity
+                  style={[
+                    styles.saveButton,
+                    { opacity: isValidEmail(ownerEmail) && !assigningOwner ? 1 : 0.6, marginTop: 8 },
+                  ]}
+                  disabled={!isValidEmail(ownerEmail) || assigningOwner}
+                  onPress={handleAssignOwnerByEmail}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !isValidEmail(ownerEmail) || assigningOwner, busy: assigningOwner }}
+                >
+                  {assigningOwner ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Text style={styles.saveText}>Asignar como owner</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Field label="Correo del owner a eliminar">
+                  <TextInput
+                    style={styles.input}
+                    placeholder="correo@ejemplo.com"
+                    value={removeEmail}
+                    onChangeText={setRemoveEmail}
+                    placeholderTextColor="#6B7280"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </Field>
+
+                <TouchableOpacity
+                  style={[
+                    styles.removeButton,
+                    { opacity: isValidEmail(removeEmail) && !removingOwner ? 1 : 0.6, marginTop: 8 },
+                  ]}
+                  disabled={!isValidEmail(removeEmail) || removingOwner}
+                  onPress={handleRemoveOwnerByEmail}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !isValidEmail(removeEmail) || removingOwner, busy: removingOwner }}
+                >
+                  {removingOwner ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Text style={styles.removeText}>Eliminar owner</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -856,6 +1172,7 @@ const styles = StyleSheet.create({
   pickerText: { fontSize: 15, color: "#111827" },
   pickerTextSelected: { color: "#6B21A8", fontWeight: "800" },
 
+  // Tabs del modal de Owner
   ownerTabs: {
     flexDirection: "row",
     backgroundColor: "#F3F4F6",

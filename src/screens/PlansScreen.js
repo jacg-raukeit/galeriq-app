@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 18,
+    paddingBottom: 30,
     borderWidth: 1,
     borderColor: "#EDEBFF",
   },
@@ -484,11 +484,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    height: 64,
+    height: 84,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     backgroundColor: "white",
+    
     
   },
   dot: {
