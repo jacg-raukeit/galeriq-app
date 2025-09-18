@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useState, useEffect, useContext } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ImageBackground, Image,
   Dimensions, ScrollView, Alert, TextInput, InteractionManager, ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
@@ -18,7 +19,6 @@ const API_URL = 'http://143.198.138.35:8000';
 import { EventsContext } from '../../context/EventsContext';
 import { AuthContext } from '../../context/AuthContext';
 
-
 const FONT_OPTIONS = [
   { key: 'System',     label: 'System',           family: undefined },
   { key: 'Montserrat', label: 'Montserrat',       family: 'Montserrat_700Bold' },
@@ -30,32 +30,60 @@ const FONT_OPTIONS = [
 ];
 const getFontFamily = (key) => FONT_OPTIONS.find(f => f.key === key)?.family;
 
-
 const STICKER_CATEGORIES = {
   Flowers: [
     require('../../assets/stickers/flowers/flowers1.png'),
     require('../../assets/stickers/flowers/flowers2.png'),
     require('../../assets/stickers/flowers/flowers3.png'),
+    require('../../assets/stickers/flowers/flower5.png'),
+    require('../../assets/stickers/flowers/flower6.png'),
+    require('../../assets/stickers/flowers/flower7.png'),
+    require('../../assets/stickers/flowers/flower8.png'),
+    require('../../assets/stickers/flowers/flower9.png'),
+    require('../../assets/stickers/flowers/flower10.png'),
+    require('../../assets/stickers/flowers/flower11.png'),
+    require('../../assets/stickers/flowers/flower12.png'),
+    require('../../assets/stickers/flowers/flower13.png'),
+    require('../../assets/stickers/flowers/flower14.png'),
+    require('../../assets/stickers/flowers/flower15.png'),
+    require('../../assets/stickers/flowers/flower16.png'),
   ],
   Balloons: [
     require('../../assets/stickers/balloons/ballon1.png'),
     require('../../assets/stickers/balloons/ballon2.png'),
+    require('../../assets/stickers/balloons/ballon6.png'),
+    require('../../assets/stickers/balloons/ballon7.png'),
+    require('../../assets/stickers/balloons/ballon8.png'),
+    require('../../assets/stickers/balloons/ballon9.png'),
+    require('../../assets/stickers/balloons/ballon10.png'),
+    require('../../assets/stickers/balloons/ballon11.png'),
+    require('../../assets/stickers/balloons/ballon12.png'),
+    require('../../assets/stickers/balloons/ballon14.png'),
+    require('../../assets/stickers/balloons/ballon15.png'),
   ],
   Borders: [
     require('../../assets/stickers/borders/border1.png'),
     require('../../assets/stickers/borders/border2.png'),
+    require('../../assets/stickers/borders/border3.png'),
+    require('../../assets/stickers/borders/border4.png'),
+    require('../../assets/stickers/borders/border5.png'),
+    require('../../assets/stickers/borders/border6.png'),
+    require('../../assets/stickers/borders/border7.png'),
   ],
   Cake: [
     require('../../assets/stickers/cake/cake1.png'),
+    require('../../assets/stickers/cake/cake6.png'),
+    require('../../assets/stickers/cake/cake7.png'),
+    require('../../assets/stickers/cake/cake8.png'),
   ],
- 
 };
 
 const { width } = Dimensions.get('window');
 const CANVAS_W = width - 32;
 const CANVAS_H = CANVAS_W * 1.4;
 
-const clamp = (n, min = 0, max = 255) => Math.max(min, Math.min(max, Math.round(n)));
+// util colores
+const clamp255 = (n, min = 0, max = 255) => Math.max(min, Math.min(max, Math.round(n)));
 const hexToRgb = (hex) => {
   if (!hex) return { r: 17, g: 24, b: 39 };
   let h = (hex || '').replace('#', '').trim();
@@ -64,10 +92,10 @@ const hexToRgb = (hex) => {
   const n = parseInt(h, 16);
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 };
-const rgbToHex = ({ r, g, b }) => '#' + [r, g, b].map(v => clamp(v).toString(16).padStart(2, '0')).join('').toUpperCase();
+const rgbToHex = ({ r, g, b }) => '#' + [r, g, b].map(v => clamp255(v).toString(16).padStart(2, '0')).join('').toUpperCase();
 const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : '');
 
-/* -------------------- Picker de color inline -------------------- */
+// ====== Picker de color inline ======
 function InlineColorPicker({ value, onChange, onClose }) {
   const [hex, setHex] = useState(value || '#111827');
   const [rgb, setRgb] = useState(hexToRgb(value));
@@ -100,12 +128,12 @@ function InlineColorPicker({ value, onChange, onClose }) {
   };
 
   const handleSlideChange = (k, v) => {
-    const next = { ...rgb, [k]: clamp(v, 0, 255) };
+    const next = { ...rgb, [k]: clamp255(v, 0, 255) };
     setRgb(next);
     setHex(rgbToHex(next));
   };
   const handleSlideComplete = (k, v) => {
-    const next = { ...rgb, [k]: clamp(v, 0, 255) };
+    const next = { ...rgb, [k]: clamp255(v, 0, 255) };
     commitToParent(rgbToHex(next));
   };
 
@@ -153,7 +181,7 @@ function InlineColorPicker({ value, onChange, onClose }) {
   );
 }
 
-/* -------------------- Texto arrastrable -------------------- */
+// ====== Texto arrastrable ======
 function DraggableText({
   id, text, color, size, weight, align, font, x, y,
   onSelect, selected, onDragEnd, clampW, clampH, hideSelection,
@@ -200,7 +228,7 @@ function DraggableText({
   );
 }
 
-/* -------------------- Sticker arrastrable (drag + pinch + rotate) -------------------- */
+// ====== Sticker arrastrable ======
 function DraggableSticker({
   id, uri, x, y, scale = 1, rotate = 0, base = 160, locked = false,
   gesturesEnabled = true,
@@ -243,14 +271,14 @@ function DraggableSticker({
   const composed = Gesture.Simultaneous(pan, pinch, rotation);
 
   const aStyle = useAnimatedStyle(() => ({
-  position: 'absolute',
-  transform: [
-    { translateX: xSV.value },
-    { translateY: ySV.value },
-    { scale: sSV.value },
-    { rotate: `${rSV.value * Math.PI / 180}rad` }, 
-  ],
-}));
+    position: 'absolute',
+    transform: [
+      { translateX: xSV.value },
+      { translateY: ySV.value },
+      { scale: sSV.value },
+      { rotate: `${rSV.value * Math.PI / 180}rad` },
+    ],
+  }));
 
   return (
     <GestureDetector gesture={composed}>
@@ -275,7 +303,7 @@ function DraggableSticker({
   );
 }
 
-/* -------------------- Sliders -------------------- */
+// ====== Sliders ======
 function SizeSlider({ value, onChange, min = 10, max = 64 }) {
   return (
     <View style={{ width: '100%', paddingVertical: 8 }}>
@@ -300,7 +328,6 @@ function LiveSlider({ title, value, min, max, step = 1, format = (v) => v.toFixe
   const pendingRef = useRef(null);
 
   useEffect(() => { if (!slidingRef.current) setLocal(value ?? 0); }, [value]);
-
   useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
 
   const tick = () => {
@@ -333,8 +360,8 @@ function LiveSlider({ title, value, min, max, step = 1, format = (v) => v.toFixe
           if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
           pendingRef.current = null;
           setLocal(v);
-          onLive?.(v);    
-          onCommit?.(v);   // commit final
+          onLive?.(v);
+          onCommit?.(v);
         }}
       />
     </View>
@@ -406,6 +433,69 @@ export default function InviteEditorScreen() {
 
   const [panel, setPanel] = useState('edit');
   const [isAdjusting, setIsAdjusting] = useState(false);
+
+  // === PREVISUALIZACIÓN ===
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewUri, setPreviewUri] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  // zoom/pan en previsualización
+  const PREV_W = width - 32;
+  const PREV_H = PREV_W * 1.4;
+  const pScale = useSharedValue(1);
+  const pStartScale = useSharedValue(1);
+  const pTX = useSharedValue(0);
+  const pTY = useSharedValue(0);
+  const pStartX = useSharedValue(0);
+  const pStartY = useSharedValue(0);
+
+  const resetPreviewTransform = () => {
+    pScale.value = 1; pTX.value = 0; pTY.value = 0;
+  };
+
+  useEffect(() => {
+    if (previewVisible) resetPreviewTransform();
+  }, [previewVisible]);
+
+  const pinchPreview = Gesture.Pinch()
+    .onBegin(() => { pStartScale.value = pScale.value; })
+    .onUpdate((e) => {
+      const next = Math.max(1, Math.min(4, pStartScale.value * e.scale));
+      pScale.value = next;
+      // al hacer pinch, si la escala baja, recentrar si supera límites
+      const maxX = (PREV_W * (next - 1)) / 2;
+      const maxY = (PREV_H * (next - 1)) / 2;
+      pTX.value = Math.max(-maxX, Math.min(maxX, pTX.value));
+      pTY.value = Math.max(-maxY, Math.min(maxY, pTY.value));
+    });
+
+  const panPreview = Gesture.Pan()
+    .onBegin(() => { pStartX.value = pTX.value; pStartY.value = pTY.value; })
+    .onUpdate((e) => {
+      const maxX = (PREV_W * (pScale.value - 1)) / 2;
+      const maxY = (PREV_H * (pScale.value - 1)) / 2;
+      const nx = pStartX.value + e.translationX;
+      const ny = pStartY.value + e.translationY;
+      pTX.value = Math.max(-maxX, Math.min(maxX, nx));
+      pTY.value = Math.max(-maxY, Math.min(maxY, ny));
+    });
+
+  const doubleTapReset = Gesture.Tap().numberOfTaps(2).onEnd(() => {
+    resetPreviewTransform();
+  });
+
+  const previewGestures = Gesture.Simultaneous(doubleTapReset, pinchPreview, panPreview);
+
+  const previewAStyle = useAnimatedStyle(() => ({
+    width: PREV_W,
+    height: PREV_H,
+    borderRadius: 16,
+    transform: [
+      { translateX: pTX.value },
+      { translateY: pTY.value },
+      { scale: pScale.value },
+    ],
+  }));
 
   /* ---------- Helpers de capas ---------- */
   const patchLayer = (id, patch) => setLayers(prev => prev.map(l => (l.id === id ? { ...l, ...patch } : l)));
@@ -502,7 +592,34 @@ export default function InviteEditorScreen() {
     return uri;
   };
 
-  const uploadInvitation = async () => {
+  // Previsualizar
+  const openPreview = async () => {
+    try {
+      setPreviewLoading(true);
+      const uri = await captureWithoutSelection();
+      setPreviewUri(uri);
+      setPreviewVisible(true);
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo generar la previsualización.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // Confirmación antes de guardar (nota de no-edición)
+  const confirmAndUpload = (forcedUri) => {
+    Alert.alert(
+      'Confirmar guardado',
+      'Al guardar, esta invitación quedará fija y no se podrá editar. Para cualquier cambio tendrás que crear una nueva invitación.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Guardar', style: 'destructive', onPress: () => uploadInvitation(forcedUri) },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const uploadInvitation = async (forcedUri) => {
     const eid = activeEventId != null ? Number(activeEventId) : null;
     if (!eid) {
       Alert.alert('Evento requerido','No se pudo determinar el ID del evento desde la navegación.\nAbre el editor con: navigate("InviteEditor", { eventId, event, template })');
@@ -510,7 +627,7 @@ export default function InviteEditorScreen() {
     }
     try {
       setIsUploading(true);
-      const uri = await captureWithoutSelection();
+      const uri = forcedUri ?? await captureWithoutSelection();
 
       const form = new FormData();
       form.append('invitation_photo', { uri, name: `invitation_${eid}.jpg`, type: 'image/jpeg' });
@@ -530,6 +647,7 @@ export default function InviteEditorScreen() {
 
       Alert.alert('¡Listo!','La invitación se guardó con éxito en la nube.',[
         { text: 'OK', onPress: () => {
+          setPreviewVisible(false);
           navigation.reset({
             index: 1,
             routes: [
@@ -546,9 +664,9 @@ export default function InviteEditorScreen() {
     }
   };
 
-  const shareImage = async () => {
+  const shareImage = async (forcedUri) => {
     try {
-      const uri = await captureWithoutSelection();
+      const uri = forcedUri ?? await captureWithoutSelection();
       await Sharing.shareAsync(uri);
     } catch (e) { Alert.alert('Error', 'No se pudo compartir la imagen.'); }
   };
@@ -565,8 +683,24 @@ export default function InviteEditorScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={22} color="#111827" />
         </TouchableOpacity>
+
         <Text style={styles.brand}>Editor</Text>
-        <View style={{ width: 40 }} />
+
+        {/* Previsualizar */}
+        <TouchableOpacity
+          onPress={openPreview}
+          disabled={previewLoading}
+          style={[styles.previewBtn, previewLoading && { opacity: 0.6 }]}
+        >
+          {previewLoading ? (
+            <ActivityIndicator size="small" color="#6B21A8" />
+          ) : (
+            <>
+              <Ionicons name="eye-outline" size={16} color="#6B21A8" />
+              <Text style={styles.previewBtnText}>Previsualizar</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
@@ -717,7 +851,7 @@ export default function InviteEditorScreen() {
           </View>
         )}
 
-        {/* Panel de tamaño con vista previa en vivo */}
+        {/* Panel size */}
         {panel === 'size' && (
           <View style={styles.panel}>
             {selected?.kind === 'text' && (
@@ -753,19 +887,19 @@ export default function InviteEditorScreen() {
                   onCommit={() => setIsAdjusting(false)}
                 />
                 <LiveSlider
-  title="Rotación"
-  value={selected.rotate ?? 0}
-  min={0}
-  max={360}
-  step={1}
-  format={(v) => `${Math.round(v)}°`}
-  onStart={() => setIsAdjusting(true)}
-  onLive={(v) => changeSelected({ rotate: Math.round(v) })}
-  onCommit={(v) => {
-    changeSelected({ rotate: Math.round(v) });
-    setIsAdjusting(false);
-  }}
-/>
+                  title="Rotación"
+                  value={selected.rotate ?? 0}
+                  min={0}
+                  max={360}
+                  step={1}
+                  format={(v) => `${Math.round(v)}°`}
+                  onStart={() => setIsAdjusting(true)}
+                  onLive={(v) => changeSelected({ rotate: Math.round(v) })}
+                  onCommit={(v) => {
+                    changeSelected({ rotate: Math.round(v) });
+                    setIsAdjusting(false);
+                  }}
+                />
               </>
             )}
 
@@ -805,7 +939,7 @@ export default function InviteEditorScreen() {
         <View style={styles.bottomRow}>
           <TouchableOpacity
             style={[styles.bottomBtn, { backgroundColor: '#111827', opacity: isUploading ? 0.7 : 1 }]}
-            onPress={uploadInvitation}
+            onPress={() => confirmAndUpload()}
             disabled={isUploading}
           >
             {isUploading ? (
@@ -817,12 +951,74 @@ export default function InviteEditorScreen() {
               </>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: '#6B21A8' }]} onPress={shareImage}>
+          <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: '#6B21A8' }]} onPress={() => shareImage()}>
             <Ionicons name="share-social-outline" size={18} color="#fff" />
             <Text style={styles.bottomBtnText}>Compartir</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* MODAL DE PREVISUALIZACIÓN */}
+      <Modal
+        visible={previewVisible}
+        animationType="slide"
+        onRequestClose={() => setPreviewVisible(false)}
+      >
+        <View style={{ flex:1, backgroundColor:'#000' }}>
+          {/* Header modal */}
+          <View style={[styles.header, { marginTop: 36 }]}>
+            <TouchableOpacity onPress={() => setPreviewVisible(false)} style={styles.backBtn}>
+              <Ionicons name="close" size={20} color="#111827" />
+            </TouchableOpacity>
+            <Text style={[styles.brand, { color:'#fff' }]}>Previsualización</Text>
+            <View style={{ width: 40 }} />
+          </View>
+
+          {/* Área imagen con zoom/pan */}
+          <View style={{ flex:1, alignItems:'center', justifyContent:'center', padding:16 }}>
+            {!previewUri ? (
+              <ActivityIndicator size="large" color="#fff" />
+            ) : (
+              <GestureDetector gesture={previewGestures}>
+                <Animated.Image
+                  source={{ uri: previewUri }}
+                  style={previewAStyle}
+                  resizeMode="contain"
+                />
+              </GestureDetector>
+            )}
+          </View>
+
+          {/* Nota y acciones */}
+          <Text style={{ color:'#9CA3AF', textAlign:'center', marginHorizontal:16, marginBottom:8 }}>
+            Nota: al guardar no podrás editar esta invitación. Para cambios, crea una nueva.
+          </Text>
+          <View style={{ flexDirection:'row', gap:12, paddingHorizontal:16, paddingBottom:24 }}>
+            <TouchableOpacity
+              style={[styles.bottomBtn, { backgroundColor:'#111827', flex:1, opacity: isUploading ? 0.7 : 1 }]}
+              onPress={() => confirmAndUpload(previewUri)}
+              disabled={isUploading || !previewUri}
+            >
+              {isUploading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
+                  <Text style={styles.bottomBtnText}>Guardar</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.bottomBtn, { backgroundColor:'#6B21A8', flex:1 }]}
+              onPress={() => shareImage(previewUri)}
+              disabled={!previewUri}
+            >
+              <Ionicons name="share-social-outline" size={18} color="#fff" />
+              <Text style={styles.bottomBtnText}>Compartir</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -891,6 +1087,17 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   brand: { fontSize: 20, fontWeight: '800', color: '#111827' },
 
+  previewBtn: {
+    height: 40,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  previewBtnText: { color: '#6B21A8', fontWeight: '800', fontSize: 11 },
+
   canvasWrap: { padding: 16, alignItems: 'center' },
 
   toolbar: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, width: '100%' },
@@ -919,4 +1126,5 @@ const styles = StyleSheet.create({
   bottomBtnText: { color: '#fff', fontWeight: '800' },
 
   modalBtn: { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  modalBtnText: { color: '#fff', fontWeight: '800' },
 });

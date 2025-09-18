@@ -1,4 +1,5 @@
-import React from 'react';
+// components/EventCard.js
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,9 +29,21 @@ const STATUS_STYLES = {
   'default':  { backgroundColor: '#F3F4F6', textColor: '#374151' },
 };
 
+// Meses abreviados en español (3 letras)
+const MESES_ES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+
+// Fecha → { day: '23', mon: 'AUG' }
+function toDayMon(dateLike) {
+  const d = new Date(dateLike);
+  if (isNaN(d)) return { day: '--', mon: '---' };
+  const day = String(d.getDate()).padStart(2, '0');
+  const mon = MESES_ES[d.getMonth()];
+  return { day, mon };
+}
+
 export default function EventCard({
   title,
-  date,
+  date,             // 👈 pásame la fecha cruda (string/Date)
   imageUri,
   status = 'Activo',
   archived = false,
@@ -42,37 +55,49 @@ export default function EventCard({
 
   const source = typeof imageUri === 'string' ? { uri: imageUri } : imageUri;
 
+  const { day, mon } = useMemo(() => toDayMon(date), [date]);
+
   return (
     <View style={styles.card}>
-      <Image source={source} style={styles.image} />
+      {/* Imagen */}
+      <View>
+        <Image source={source} style={styles.image} />
 
-      <View style={styles.info}>
-        <Text style={styles.title}>{title}</Text>
-
-        <View style={styles.footer}>
-          <Text style={styles.date}>{date}</Text>
-
-          <View style={[styles.badge, { backgroundColor }]}>
-            <Text style={[styles.badgeText, { color: textColor }]}>
-              {status}
-            </Text>
-          </View>
+        {/* Badge de FECHA arriba-izquierda */}
+        <View style={styles.dateBadge}>
+          <Text style={styles.dateDay}>{day}</Text>
+          <Text style={styles.dateMon}>{mon}</Text>
         </View>
+
+        {/* Botón archivar arriba-derecha */}
+        <TouchableOpacity
+          style={styles.archiveButton}
+          onPress={() => onToggleArchive?.()}
+          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={archived ? "Desarchivar evento" : "Archivar evento"}
+        >
+          <Ionicons
+            name={archived ? 'archive' : 'archive-outline'}
+            size={24}
+            color="#6B21A8"
+          />
+        </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={styles.archiveButton}
-        onPress={() => onToggleArchive?.()}
-        hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-        accessibilityRole="button"
-        accessibilityLabel={archived ? "Desarchivar evento" : "Archivar evento"}
-      >
-        <Ionicons
-          name={archived ? 'archive' : 'archive-outline'}
-          size={24}
-          color="#6B21A8"
-        />
-      </TouchableOpacity>
+      {/* Info */}
+      <View style={styles.info}>
+        {/* Título + Estado en la misma fila */}
+        <View style={styles.headerRow}>
+          <Text style={styles.title} numberOfLines={1}>{title}</Text>
+
+          <View style={[styles.badge, { backgroundColor }]}>
+            <Text style={[styles.badgeText, { color: textColor }]}>{status}</Text>
+          </View>
+        </View>
+
+        {/* (Opcional) podrías agregar aquí otra fila con metadata si la necesitas) */}
+      </View>
     </View>
   );
 }
@@ -94,33 +119,64 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 140,
   },
+
+  // Pastilla de fecha
+  dateBadge: {
+    position: 'absolute',
+    left: 10,
+    top: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    width: 56,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  dateDay: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1F2937',
+    lineHeight: 20,
+  },
+  dateMon: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6B21A8',
+    marginTop: 2,
+  },
+
   info: {
     padding: 12,
   },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  footer: {
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
+    justifyContent: 'space-between',
   },
-  date: {
-    fontSize: 14,
-    color: '#4B5563',
+  title: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginRight: 8,
   },
+
   badge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '700',
   },
+
   archiveButton: {
     position: 'absolute',
     top: 8,

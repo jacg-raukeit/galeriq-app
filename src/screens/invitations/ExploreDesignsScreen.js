@@ -40,6 +40,37 @@ const TEMPLATES = [
     src: require("../../assets/images/modern7.jpeg"),
   },
   {
+    id: "m5",
+    cat: "Moderno",
+    src: require("../../assets/images/modern8.jpeg"),
+  },
+  {
+    id: "m6",
+    cat: "Moderno",
+    src: require("../../assets/images/modern9.jpeg"),
+  },
+  {
+    id: "m7",
+    cat: "Moderno",
+    src: require("../../assets/images/modern10.jpeg"),
+  },
+  {
+    id: "m8",
+    cat: "Moderno",
+    src: require("../../assets/images/modern11.jpeg"),
+  },
+  {
+    id: "m9",
+    cat: "Moderno",
+    src: require("../../assets/images/modern12.jpeg"),
+  },
+  {
+    id: "m10",
+    cat: "Moderno",
+    src: require("../../assets/images/modern13.jpeg"),
+  },
+ 
+  {
     id: "mn1",
     cat: "Minimalista",
     src: require("../../assets/images/minimal1.jpeg"),
@@ -54,6 +85,55 @@ const TEMPLATES = [
     cat: "Minimalista",
     src: require("../../assets/images/minimal3.jpeg"),
   },
+
+  {
+    id: "mn4",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal4.jpeg"),
+  },
+  {
+    id: "mn5",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal5.jpeg"),
+  },
+  {
+    id: "mn6",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal6.jpeg"),
+  },
+  {
+    id: "mn7",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal7.jpeg"),
+  },
+  {
+    id: "mn8",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal8.jpeg"),
+  },
+  {
+    id: "mn9",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal9.jpeg"),
+  },
+  {    id: "mn10",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal10.jpeg"),
+  },
+  {id: "mn11",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal11.jpeg"),
+  },
+  {id: "mn12",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal12.jpeg"),
+  },
+  {
+    id: "mn13",
+    cat: "Minimalista",
+    src: require("../../assets/images/minimal13.jpeg"),
+  },
+
   {
     id: "b1",
     cat: "Natural",
@@ -74,6 +154,44 @@ const TEMPLATES = [
     cat: "Natural",
     src: require("../../assets/images/natural4.jpeg"),
   },
+
+  {
+    id: "b5",
+    cat: "Natural",
+    src: require("../../assets/images/natural5.jpeg"),
+  },
+  {
+    id: "b6",
+    cat: "Natural",
+    src: require("../../assets/images/natural6.jpeg"),
+  },
+  {
+    id: "b7",
+    cat: "Natural",
+    src: require("../../assets/images/natural7.jpeg"),
+  },
+  {
+    id: "b8",
+    cat: "Natural",
+    src: require("../../assets/images/natural8.jpeg"),
+  },
+  {
+    id: "b9",
+    cat: "Natural",
+    src: require("../../assets/images/natural9.jpeg"),
+  },
+  {
+    id: "b10",
+    cat: "Natural",
+    src: require("../../assets/images/natural10.jpeg"),
+  },
+
+
+
+
+
+
+
   {
     id: "t1",
     cat: "Tradicional",
@@ -93,6 +211,32 @@ const TEMPLATES = [
     id: "t4",
     cat: "Tradicional",
     src: require("../../assets/images/trad4.jpeg"),
+  },
+
+  {
+    id: "t5",
+    cat: "Tradicional",
+    src: require("../../assets/images/trad5.jpeg"),
+  },
+  {
+    id: "t6",
+    cat: "Tradicional",
+    src: require("../../assets/images/trad6.jpeg"),
+  },
+  {
+    id: "t7",
+    cat: "Tradicional",
+    src: require("../../assets/images/trad7.jpeg"),
+  },
+  {
+    id: "t8",
+    cat: "Tradicional",
+    src: require("../../assets/images/trad8.jpeg"),
+  },
+  {
+    id: "t9",
+    cat: "Tradicional",
+    src: require("../../assets/images/trad9.jpeg"),
   },
 ];
 

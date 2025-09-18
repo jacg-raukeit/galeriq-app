@@ -27,7 +27,10 @@ export default function ExpensesScreen({ route }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
+
+      
       .then((data) => {
+        console.log('DATOS RECIBIDOS DEL API:', JSON.stringify(data, null, 2));
         setCategories(
           data.map((c, index) => ({
             id: index,
@@ -44,6 +47,22 @@ export default function ExpensesScreen({ route }) {
   const RADIUS = 60;
   const CIRCUM = 2 * Math.PI * RADIUS;
   const fillPercent = 0; 
+
+  const formatCurrency = (value) => {
+  // Asegúrate de que el valor es un número antes de formatearlo.
+  console.log('Formateando valor:', value, 'Tipo:', typeof value);
+  if (typeof value !== 'number') {
+    return '$0'; // O lo que prefieras mostrar por defecto
+  }
+
+   // 2. Convertir a string
+  const stringValue = value.toString();
+
+  // 3. Usar una expresión regular para insertar comas
+  const formattedValue = stringValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  return `$${formattedValue}`;
+};
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
@@ -74,7 +93,7 @@ export default function ExpensesScreen({ route }) {
           />
         </Svg>
         <View style={styles.centerLabel}>
-          <Text style={styles.amountText}>${totalSpent.toLocaleString()}</Text>
+         <Text style={styles.amountText}>{formatCurrency(totalSpent)}</Text>
           <Text style={styles.subText}>Gasto real</Text>
         </View>
       </View>
@@ -101,7 +120,7 @@ export default function ExpensesScreen({ route }) {
         >
           <View style={styles.rowHeader}>
             <Text style={styles.catName}>{cat.name}</Text>
-            <Text style={styles.catSpent}>${cat.spent?.toLocaleString()}</Text>
+            <Text style={styles.catSpent}>{formatCurrency(cat.spent)}</Text>
           </View>
           <Ionicons
             name="chevron-forward"

@@ -1,4 +1,3 @@
-// src/screens/EventDetailScreen.js
 import React, {
   useState,
   useEffect,
@@ -22,6 +21,7 @@ import {
   SafeAreaView,
   Animated,
   Easing,
+  Dimensions,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -29,6 +29,8 @@ import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/d
 import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../context/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 
 const API_URL = "http://143.198.138.35:8000";
 
@@ -43,6 +45,8 @@ const EVENT_TYPES = [
 ];
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
+const HERO_H = Math.max(280, SCREEN_H * 0.5); // ~mitad de pantalla, mínimo 280
 
 export default function EventDetailScreen() {
   const navigation = useNavigation();
@@ -107,40 +111,24 @@ export default function EventDetailScreen() {
     return null;
   };
 
-// Reemplaza tu función toRoleLabel por esta:
-const toRoleLabel = (raw) => {
-  // Si viene objeto con role_id / is_admin, resolvemos explícito
-  if (raw && typeof raw === "object") {
-    const roleId = raw.role_id != null ? parseInt(String(raw.role_id), 10) : null;
-    const isAdmin = !!raw.is_admin;
-
-    if (roleId === 1) {
-      return isAdmin ? "Administrador" : "Organizador";
+  const toRoleLabel = (raw) => {
+    if (raw && typeof raw === "object") {
+      const roleId = raw.role_id != null ? parseInt(String(raw.role_id), 10) : null;
+      const isAdmin = !!raw.is_admin;
+      if (roleId === 1) return isAdmin ? "Administrador" : "Organizador";
+      if (roleId === 2) return "Invitado";
+      if (raw.type) return String(raw.type);
+      if (raw.name) return String(raw.name);
+      if (raw.label) return String(raw.label);
     }
-    if (roleId === 2) {
-      return "Invitado";
-    }
+    const n = (typeof raw === "number") ? raw : (typeof raw === "string" ? parseInt(raw, 10) : null);
+    if (n === 1) return "Organizador";
+    if (n === 2) return "Invitado";
+    if (typeof raw === "string" && raw.trim()) return raw.trim();
+    return "—";
+  };
 
-    // Fallbacks si llegaran otros formatos
-    if (raw.type) return String(raw.type);
-    if (raw.name) return String(raw.name);
-    if (raw.label) return String(raw.label);
-  }
-
-  // Si vino como número o string numérica
-  const n = (typeof raw === "number")
-    ? raw
-    : (typeof raw === "string" ? parseInt(raw, 10) : null);
-  if (n === 1) return "Organizador";
-  if (n === 2) return "Invitado";
-
-  // Último recurso
-  if (typeof raw === "string" && raw.trim()) return raw.trim();
-  return "—";
-};
-
-
-  // ====== Cargar evento por ID (o usar el pasado por params) ======
+  // ====== Cargar evento por ID ======
   const targetEventId =
     initialEvent?.event_id ??
     route?.params?.eventId ??
@@ -162,7 +150,6 @@ const toRoleLabel = (raw) => {
       const inList = EVENT_TYPES.includes(ev.event_type);
       setIsOtherType(!inList || ev.event_type === "Otro");
 
-      // ⬇️ si ya viene el rol en el objeto, úsalo
       if (ev?.role != null) {
         const rNum = toRoleNumber(ev.role);
         const rLbl = toRoleLabel(ev.role);
@@ -421,7 +408,7 @@ const toRoleLabel = (raw) => {
     }
   };
 
-  // Resolver user_id por email (usando endpoints disponibles)
+  // Resolver user_id por email
   const resolveUserIdByEmail = async (email) => {
     const headers = { Authorization: `Bearer ${user.token}` };
 
@@ -584,100 +571,80 @@ const toRoleLabel = (raw) => {
 
   return (
     <View style={styles.root}>
-      {/* HEADER */}
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerIcon}>
-            <Ionicons name="chevron-back" size={24} color="#111827" />
-          </TouchableOpacity>
+      {/* ====== HERO pegado arriba ====== */}
+      <View style={{ width: SCREEN_W, height: HERO_H }}>
+        <ImageBackground
+          source={eventData.event_cover ? { uri: eventData.event_cover } : null}
+          style={StyleSheet.absoluteFill}
+          imageStyle={{ resizeMode: "cover" }}
+        >
+          {/* degradado inferior para legibilidad */}
+          <LinearGradient
+            colors={["rgba(0,0,0,0.0)", "rgba(0,0,0,0.55)"]}
+            style={StyleSheet.absoluteFill}
+          />
+        </ImageBackground>
 
-          <Text numberOfLines={1} style={styles.headerTitle}>{eventData.event_name}</Text>
+        {/* Botones flotantes con blur */}
+        <View style={[styles.topActions, { paddingTop: insets.top + 6 }]}>
+          <BlurView intensity={30} tint="dark" style={styles.blurIconWrap}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconHit}>
+              <Ionicons name="chevron-back" size={22} color="#fff" />
+            </TouchableOpacity>
+          </BlurView>
 
           {isOwner ? (
-            <TouchableOpacity onPress={() => setEditVisible(true)} style={styles.headerIcon}>
-              <Ionicons name="pencil" size={22} color="#6F4C8C" />
-            </TouchableOpacity>
-          ) : (
-            <View style={{ width: 40 }} />
+            <BlurView intensity={30} tint="dark" style={styles.blurIconWrap}>
+              <TouchableOpacity onPress={() => setEditVisible(true)} style={styles.iconHit}>
+                <Ionicons name="pencil" size={20} color="#fff" />
+              </TouchableOpacity>
+            </BlurView>
+          ) : <View style={{ width: 44 }} /> }
+        </View>
+
+        {/* Contenido (título + meta) anclado abajo */}
+        <View style={styles.heroBottom}>
+          <Text style={styles.heroTitle} numberOfLines={2}>{eventData.event_name}</Text>
+
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <Ionicons name="calendar-outline" size={16} color="#F9FAFB" />
+              <Text style={styles.metaText}>{prettyDate}</Text>
+            </View>
+            <View style={styles.dot} />
+            <View style={styles.metaItem}>
+              <Ionicons name="time-outline" size={16} color="#F9FAFB" />
+              <Text style={styles.metaText}>{prettyTime}</Text>
+            </View>
+          </View>
+
+          {!!eventData.event_address && (
+            <View style={[styles.metaItem, { marginTop: 6 }]}>
+              <Ionicons name="location-outline" size={16} color="#F9FAFB" />
+              <Text style={styles.metaText} numberOfLines={1}>{eventData.event_address}</Text>
+            </View>
           )}
         </View>
-      </SafeAreaView>
 
-      {/* CONTENIDO */}
+        {/* Pill de tipo de evento (como rating) */}
+        {!!eventData.event_type && (
+          <BlurView intensity={30} tint="dark" style={styles.typePill}>
+            <Ionicons name="pricetag-outline" size={14} color="#fff" />
+            <Text style={styles.typePillText}>{eventData.event_type}</Text>
+          </BlurView>
+        )}
+      </View>
+
+      {/* ====== CONTENIDO ====== */}
       <ScrollView bounces contentContainerStyle={{ paddingBottom: 150 }}>
-        {/* HERO */}
-        <View style={styles.heroWrapper}>
-          <ImageBackground
-            source={eventData.event_cover ? { uri: eventData.event_cover } : null}
-            style={styles.hero}
-            imageStyle={styles.heroImg}
-          >
-            <View style={styles.heroOverlay} />
-            <View style={styles.heroContent}>
-              <View style={styles.heroChips}>
-                {!!eventData.event_type && (
-                  <View style={[styles.chip, { backgroundColor: "#6F4C8C" }]}>
-                    <Ionicons name="pricetag-outline" size={14} color="white" />
-                    <Text style={[styles.chipText, { color: "white" }]}>{eventData.event_type}</Text>
-                  </View>
-                )}
-                {!!eventData.event_status && (
-                  <View style={[styles.chip, { backgroundColor: "#254236" }]}>
-                    <Ionicons name="ellipse-outline" size={12} color="white" />
-                    <Text style={[styles.chipText, { color: "white" }]}>{eventData.event_status}</Text>
-                  </View>
-                )}
-              </View>
-
-              <Text style={styles.heroTitle} numberOfLines={2}>{eventData.event_name}</Text>
-
-              <View style={styles.heroMetaRow}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="calendar-outline" size={16} color="#F9FAFB" />
-                  <Text style={styles.metaText}>{prettyDate}</Text>
-                </View>
-                <View style={styles.dot} />
-                <View style={styles.metaItem}>
-                  <Ionicons name="time-outline" size={16} color="#F9FAFB" />
-                  <Text style={styles.metaText}>{prettyTime}</Text>
-                </View>
-              </View>
-
-              {!!eventData.event_address && (
-                <View style={[styles.metaItem, { marginTop: 6 }]}>
-                  <Ionicons name="location-outline" size={16} color="#F9FAFB" />
-                  <Text style={styles.metaText} numberOfLines={1}>{eventData.event_address}</Text>
-                </View>
-              )}
-            </View>
-          </ImageBackground>
-        </View>
-
-        {/* INFO */}
         <View style={styles.sectionCard}>
-          <SectionTitle icon="document-text-outline" title="Descripción" />
+          <SectionTitle icon="document-text-outline" title="Descripción :" />
           <Text style={styles.sectionText}>{eventData.event_description?.trim() || "Sin descripción"}</Text>
         </View>
 
         <View style={styles.sectionCard}>
-          <SectionTitle icon="person-circle-outline" title="Tu rol en el evento es" />
+          <SectionTitle icon="person-circle-outline" title="Tu rol en el evento es :" />
           <Text style={styles.gridValue}>{roleLoading ? "Cargando…" : roleLabel || "—"}</Text>
-        </View>
-
-        {isOwner && !roleLoading && (
-          <View style={styles.grid}>
-            <View style={styles.gridCard}>
-              <SectionTitle icon="alarm-outline" title="Creado" />
-              <Text style={styles.gridValue}>
-                {new Date(eventData.created_at).toLocaleString("es-ES")}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        <View style={styles.sectionCard}>
-          <SectionTitle icon="map-outline" title="Dirección" />
-          <Text style={styles.sectionText}>{eventData.event_address || "Sin dirección"}</Text>
         </View>
       </ScrollView>
 
@@ -717,7 +684,7 @@ const toRoleLabel = (raw) => {
         </Animated.View>
       )}
 
-      {/* TAB BAR según rol */}
+      {/* TAB BAR (no se toca) */}
       <SafeAreaView style={styles.tabSafeArea}>
         <View style={styles.tabBar}>
           {roleLoading ? (
@@ -745,7 +712,7 @@ const toRoleLabel = (raw) => {
         </View>
       </SafeAreaView>
 
-      {/* MODAL EDITAR (solo owners) */}
+      {/* ====== MODALES (sin cambios de UX) ====== */}
       {isOwner && (
         <Modal visible={editVisible} animationType="slide">
           <View style={styles.modalHeader}>
@@ -902,7 +869,7 @@ const toRoleLabel = (raw) => {
         </View>
       </Modal>
 
-      {/* MODAL OWNER (agregar / eliminar) */}
+      {/* MODAL OWNER */}
       {isOwner && (
         <Modal visible={ownerVisible} animationType="slide" onRequestClose={() => setOwnerVisible(false)}>
           <View style={styles.modalHeader}>
@@ -1050,47 +1017,72 @@ function MiniAction({ icon, label, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#F5F7FA", marginTop: 28 },
-  safe: { backgroundColor: "#F5F7FA" },
-  header: {
-    height: 56, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-  },
-  headerIcon: {
-    width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 20, backgroundColor: "#FFFFFF",
-    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
-  },
-  headerTitle: { flex: 1, marginHorizontal: 8, fontSize: 16, fontWeight: "700", color: "#111827" },
+  root: { flex: 1, backgroundColor: "#F5F7FA" },
 
-  heroWrapper: { paddingHorizontal: 16, marginTop: 6 },
-  hero: { height: 220, borderRadius: 16, overflow: "hidden", backgroundColor: "#E5E7EB" },
-  heroImg: { resizeMode: "cover" },
-  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(17,24,39,0.35)" },
-  heroContent: { flex: 1, padding: 16, justifyContent: "flex-end" },
-  heroChips: { flexDirection: "row", gap: 8, marginBottom: 8 },
-  chip: {
-    flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, gap: 6,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+  /* Acciones arriba del hero */
+  topActions: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    top: 0,
+    zIndex: 5,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  chipText: { fontSize: 12, fontWeight: "700" },
-  heroTitle: { color: "#FFFFFF", fontSize: 22, fontWeight: "800" },
-  heroMetaRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 },
+  blurIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: "hidden",
+  },
+  iconHit: { flex: 1, alignItems: "center", justifyContent: "center" },
+
+  /* Contenido inferior del hero */
+  heroBottom: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 18,
+  },
+  heroTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "800" },
+  metaRow: { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   metaText: { color: "#F9FAFB", fontWeight: "600" },
   dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#F9FAFB", opacity: 0.85 },
 
+  /* Pill tipo de evento como rating */
+  typePill: {
+    position: "absolute",
+    right: 16,
+    bottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  typePillText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+
+  /* Tarjetas de contenido */
   sectionCard: {
-    backgroundColor: "#FFFFFF", borderRadius: 16, marginHorizontal: 16, marginTop: 16, padding: 16,
-    shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    // shadowColor: "#000",
+    // shadowOpacity: 0.05,
+    // shadowRadius: 0,
+    // shadowOffset: { width: 0, height: 3 },
+    // elevation: 2,
   },
   sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
   sectionTitle: { fontSize: 14, fontWeight: "800", color: "#111827" },
   sectionText: { fontSize: 15, color: "#334155", marginTop: 6, lineHeight: 22 },
 
-  grid: { flexDirection: "row", gap: 12, marginHorizontal: 16, marginTop: 12 },
-  gridCard: {
-    flex: 1, backgroundColor: "#FFFFFF", borderRadius: 16, padding: 14,
-    shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
-  },
   gridValue: { fontSize: 15, color: "#374151", marginTop: 6, fontWeight: "600" },
 
   submenuOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end", alignItems: "center" },

@@ -1,33 +1,35 @@
 // App.js
+import 'intl';
+import 'intl/locale-data/jsonp/es-MX'; // Sé explícito para asegurar que carga el formato de México
+import 'intl/locale-data/jsonp/es';
 import 'react-native-gesture-handler';
 import React, { useEffect, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import * as AuthSession from 'expo-auth-session';
-import { LogBox, Alert, Platform } from 'react-native';
+import { LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+
+
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+
+import * as AuthSession from 'expo-auth-session';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-
+import * as Linking from 'expo-linking'; // abrir URLs de invitaciones
 
 import { useFonts } from 'expo-font';
-import { 
-  Montserrat_700Bold 
-} from '@expo-google-fonts/montserrat';
+import { Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import { Lato_700Bold } from '@expo-google-fonts/lato';
 import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
 import { Lobster_400Regular } from '@expo-google-fonts/lobster';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 import { DancingScript_700Bold } from '@expo-google-fonts/dancing-script';
-import PdfViewerScreen from './src/screens/PdfViewerScreen';
 
-
-
-
+// Contexts
 import { AuthProvider } from './src/context/AuthContext';
 import { EventsProvider } from './src/context/EventsContext';
 
+// Screens
 import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
@@ -56,39 +58,106 @@ import FaqScreen from './src/screens/FaqScreen';
 import PlansScreen from './src/screens/PlansScreen';
 import InConstructionScreen from './src/screens/InConstructionScreen';
 import FeedbackScreen from './src/screens/FeedbackScreen';
+import PdfViewerScreen from './src/screens/PdfViewerScreen';
 import QuienesSomosScreen from './src/screens/QuienesSomosScreen';
 
 const Stack = createStackNavigator();
-
 LogBox.ignoreLogs(['useInsertionEffect']);
 
+// ======= Navegación global para listeners =======
+export const navigationRef = createNavigationContainerRef();
+
+function navigate(name, params) {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate(name, params);
+  } else {
+    setTimeout(() => navigate(name, params), 50);
+  }
+}
+
+// ======= Router: data.type → screen (usa event_id y/o deepLink) =======
+function routeFromDbType({ type, event_id, title, message, deepLink, ...rest }) {
+  const t = (type || '').toUpperCase();
+
+  switch (t) {
+    case 'CHECKLIST':
+      // Centro de planeación del evento
+      return { name: 'PlanningHome', params: { eventId: event_id, ...rest } };
+
+    case 'INVITATION': {
+      // Preferimos deepLink en data; si no, intentamos extraer URL del message
+      const urlMatch = typeof message === 'string' ? message.match(/https?:\/\/\S+/) : null;
+      const url = deepLink || (urlMatch ? urlMatch[0] : null);
+
+      return url
+        ? { name: '__OPEN_URL__', params: { url, fallback: { name: 'InvitationsHome', params: { eventId: event_id, ...rest } } } }
+        : { name: 'InvitationsHome', params: { eventId: event_id, ...rest } };
+    }
+
+    case 'OWNER':
+      // Te asignaron como propietario → detalle del evento
+      return { name: 'EventDetail', params: { eventId: event_id, ...rest } };
+
+    case 'AGENDA':
+      return { name: 'Agenda', params: { eventId: event_id, ...rest } };
+
+    case 'ALBUM':
+      return { name: 'Albums', params: { eventId: event_id, ...rest } };
+
+    case 'EVENT':
+      return { name: 'EventDetail', params: { eventId: event_id, ...rest } };
+
+    case 'NOTIFICATION':
+      return { name: 'Notifications', params: { ...rest } };
+
+    default:
+      // Fallback razonable: listado de eventos
+      return { name: 'Events', params: { ...rest } };
+  }
+}
+
+async function handleNotificationNavigationData(data = {}) {
+  const route = routeFromDbType(data);
+
+  if (!route?.name) return;
+
+  // Caso especial: abrir URL (invitaciones)
+  if (route.name === '__OPEN_URL__') {
+    const { url, fallback } = route.params || {};
+    try {
+      if (url) await Linking.openURL(url);
+      if (fallback?.name) navigate(fallback.name, fallback.params || {});
+      return;
+    } catch {
+      if (fallback?.name) navigate(fallback.name, fallback.params || {});
+      return;
+    }
+  }
+
+  // Navegación normal
+  navigate(route.name, route.params || {});
+}
+
+async function handleNotificationNavigationFromResponse(response) {
+  // Expo → response.notification.request.content.data
+  const data = response?.notification?.request?.content?.data || {};
+  await handleNotificationNavigationData(data);
+}
+
+// ======= Configuración de comportamiento en Android (opcional Heads-up) =======
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function App() {
-const notificationListener = useRef();
-const responseListener = useRef();
-useEffect(() => {
-    // URI de redirección OAuth
-    const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
-    console.log('URI de redirección OAuth:', redirectUri);
+  const notificationListener = useRef();
+  const responseListener = useRef();
 
-    // === Escucha notificaciones cuando la app está abierta ===
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notificación recibida:', notification);
-    });
-
-    // === Escucha cuando el usuario toca la notificación ===
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Usuario respondió a la notificación:', response);
-      Alert.alert('Notificación', 'Abriste una notificación');
-    });
-
-    return () => {
-      Notifications.removeNotificationSubscription(notificationListener.current);
-      Notifications.removeNotificationSubscription(responseListener.current);
-    };
-  }, []);
-
-
+  // Carga de fuentes
   const [fontsLoaded] = useFonts({
     Montserrat_700Bold,
     Lato_700Bold,
@@ -97,20 +166,71 @@ useEffect(() => {
     Pacifico_400Regular,
     DancingScript_700Bold,
   });
-  
-  if (!fontsLoaded) {
-    return null; // O un componente de carga
-  }
+
+  // Canal Android para notificaciones (heads-up)
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+  }, []);
+
+  // Listeners de notificaciones + cold start
+  useEffect(() => {
+    const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
+    console.log('URI de redirección OAuth:', redirectUri);
+
+    // App abierta (foreground): normalmente solo registramos
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('Notificación recibida (fg):', notification);
+      // Si quieres navegar también en foreground, descomenta:
+      // const data = notification?.request?.content?.data || {};
+      // handleNotificationNavigationData(data);
+    });
+
+    // Usuario toca la notificación (background/foreground)
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(async (response) => {
+      console.log('Usuario tocó la notificación:', response);
+      await handleNotificationNavigationFromResponse(response);
+
+      // (Opcional) Marcar como leída si mandas notification_id en data
+      // const nid = response?.notification?.request?.content?.data?.notification_id;
+      // if (nid) {
+      //   try { await axios.post(`${API_URL}/notifications/${nid}/read`); } catch (e) {}
+      // }
+    });
+
+    // Cold start: la app se abrió desde una notificación
+    (async () => {
+      const last = await Notifications.getLastNotificationResponseAsync();
+      if (last) {
+        console.log('Cold start con notificación previa:', last);
+        await handleNotificationNavigationFromResponse(last);
+      }
+    })();
+
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
+  }, []);
+
+  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <EventsProvider>
-          <NavigationContainer>
-            <Stack.Navigator
-              initialRouteName="Splash"
-              screenOptions={{ headerShown: false }}
-            >
+          <NavigationContainer ref={navigationRef}>
+            <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Splash" component={SplashScreen} />
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="MiPerfil" component={MiPerfilScreen} />
