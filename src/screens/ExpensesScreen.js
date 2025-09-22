@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,8 +26,6 @@ export default function ExpensesScreen({ route }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-
-      
       .then((data) => {
         console.log('DATOS RECIBIDOS DEL API:', JSON.stringify(data, null, 2));
         setCategories(
@@ -43,30 +40,31 @@ export default function ExpensesScreen({ route }) {
       .catch((err) => console.error('Error al cargar gastos:', err));
   }, [eventId, user.token]);
 
-  const totalSpent = categories.reduce((s, c) => s + (c.spent || 0), 0);
+  const totalSpent = categories.reduce((s, c) => {
+    const spentAsNumber = Number(String(c.spent || 0).replace(/\./g, ''));
+    return s + spentAsNumber;
+  }, 0);
+  
   const RADIUS = 60;
   const CIRCUM = 2 * Math.PI * RADIUS;
   const fillPercent = 0; 
 
   const formatCurrency = (value) => {
-  // Asegúrate de que el valor es un número antes de formatearlo.
-  console.log('Formateando valor:', value, 'Tipo:', typeof value);
-  if (typeof value !== 'number') {
-    return '$0'; // O lo que prefieras mostrar por defecto
-  }
-
-   // 2. Convertir a string
-  const stringValue = value.toString();
-
-  // 3. Usar una expresión regular para insertar comas
-  const formattedValue = stringValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-  return `$${formattedValue}`;
-};
+    if (value === null || value === undefined) {
+      return '$0';
+    }
+    const stringValue = String(value).replace(/\./g, '');
+    const number = Number(stringValue);
+    if (isNaN(number)) {
+      return '$0';
+    }
+    const formatted = new Intl.NumberFormat('es-MX').format(number);
+    return `$${formatted}`;
+  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Control de gastos</Text>
+      <Text style={styles.title}>Informacion de gestos</Text>
 
       {/* — Donut Chart — */}
       <View style={styles.chartWrapper}>

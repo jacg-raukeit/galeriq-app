@@ -20,6 +20,7 @@ import {
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AuthContext } from "../context/AuthContext";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 
 const API_URL = "http://143.198.138.35:8000";
 
@@ -101,7 +102,7 @@ function iconForCategory(cat) {
 }
 
 export default function PlanningHomeScreen({ navigation, route }) {
-  // === EDITAR / ELIMINAR CATEGORÍAS ===
+  const { t } = useTranslation("planning_home");
   const [showEditCategoryModal, setShowEditCategoryModal] = useState(false);
   const [editCategoryId, setEditCategoryId] = useState(null);
   const [editCategoryName, setEditCategoryName] = useState("");
@@ -221,13 +222,13 @@ export default function PlanningHomeScreen({ navigation, route }) {
 
       setCategories(merged);
     } catch (err) {
-      console.error("Error al fusionar categorías:", err);
-      Alert.alert("Error", "No se pudieron cargar las categorías.");
+       console.error("Error al fusionar categorías:", err);
+      Alert.alert(t("alerts.error_title"), t("alerts.load_categories_failed"));
       setCategories([]);
     } finally {
       setLoading(false);
     }
-  }, [eventId, user?.token, user?.accessToken]);
+  }, [eventId, user?.token, user?.accessToken, t]);
 
   useEffect(() => {
     loadCategories();
@@ -247,11 +248,11 @@ export default function PlanningHomeScreen({ navigation, route }) {
   const handleCreateCategory = useCallback(async () => {
     const token = user?.token || user?.accessToken;
     if (!newCategoryName?.trim()) {
-      Alert.alert("Error", "El nombre de la categoría no puede estar vacío.");
+      Alert.alert(t("alerts.error_title"), t("alerts.name_required"));
       return;
     }
-    if (newCategoryBudget && isNaN(parseFloat(newCategoryBudget))) {
-      Alert.alert("Error", "El presupuesto debe ser un número válido.");
+     if (newCategoryBudget && isNaN(parseFloat(newCategoryBudget))) {
+      Alert.alert(t("alerts.error_title"), t("alerts.budget_number"));
       return;
     }
 
@@ -284,7 +285,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
       await loadCategories();
     } catch (err) {
       console.error("Error al crear la categoría:", err);
-      Alert.alert("Error", "No se pudo crear la categoría.");
+      Alert.alert(t("alerts.error_title"), t("alerts.create_failed"));
     } finally {
       setCreatingCategory(false);
     }
@@ -314,16 +315,16 @@ export default function PlanningHomeScreen({ navigation, route }) {
   const handleUpdateCategory = useCallback(async () => {
     const token = user?.token || user?.accessToken;
 
-    if (!editCategoryId) {
-      Alert.alert("Error", "Categoría inválida.");
+   if (!editCategoryId) {
+      Alert.alert(t("alerts.error_title"), t("alerts.invalid_category"));
       return;
     }
     if (!editCategoryName?.trim()) {
-      Alert.alert("Error", "El nombre no puede estar vacío.");
+      Alert.alert(t("alerts.error_title"), t("alerts.name_required"));
       return;
     }
     if (editCategoryBudget && isNaN(parseFloat(editCategoryBudget))) {
-      Alert.alert("Error", "El presupuesto debe ser un número válido.");
+      Alert.alert(t("alerts.error_title"), t("alerts.budget_number"));
       return;
     }
 
@@ -359,7 +360,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
       await loadCategories();
     } catch (err) {
       console.error("Error al actualizar la categoría:", err);
-      Alert.alert("Error", "No se pudo actualizar la categoría.");
+      Alert.alert(t("alerts.error_title"), t("alerts.update_failed"));
     } finally {
       setUpdatingCategory(false);
     }
@@ -375,18 +376,18 @@ export default function PlanningHomeScreen({ navigation, route }) {
 
   const confirmDeleteCategory = useCallback((categoryId) => {
     Alert.alert(
-      "Eliminar categoría",
-      "¿Seguro que deseas eliminar esta categoría? Esta acción no se puede deshacer.",
+      t("alerts.delete_confirm_title"),
+      t("alerts.delete_confirm_message"),
       [
-        { text: "Cancelar", style: "cancel" },
+        { text: t("alerts.delete_confirm_cancel"), style: "cancel" },
         {
-          text: "Eliminar",
+          text: t("alerts.delete_confirm_ok"),
           style: "destructive",
           onPress: () => handleDeleteCategory(categoryId),
         },
       ]
     );
-  }, []);
+  }, [t]);
 
   const handleDeleteCategory = useCallback(
     async (categoryId) => {
@@ -420,7 +421,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
         await loadCategories();
       } catch (err) {
         console.error("Error al eliminar la categoría:", err);
-        Alert.alert("Error", "No se pudo eliminar la categoría.");
+        Alert.alert(t("alerts.error_title"), t("alerts.delete_failed"));
       } finally {
         setDeletingCategoryId(null);
       }
@@ -520,18 +521,18 @@ export default function PlanningHomeScreen({ navigation, route }) {
             ),
           }))
         );
-        Alert.alert("Error", "No se pudo actualizar el gasto.");
+        Alert.alert(t("alerts.error_title"), t("alerts.expense_update_failed"));
       }
     },
-    [user?.token, user?.accessToken]
+    [user?.token, user?.accessToken, t]
   );
 
   const displayName = (cat) =>
     cat?.name
       ? `${cat.name.charAt(0).toUpperCase()}${cat.name.slice(1)}`
       : cat?.category_id != null
-      ? `Categoría ${cat.category_id}`
-      : "Categoría";
+      ? t("labels.category_with_id", { id: cat.category_id })
+      : t("labels.category");
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -540,7 +541,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#254236" />
         </TouchableOpacity>
-        <Text style={styles.title}>Checklist</Text>
+        <Text style={styles.title}>{t("title")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -548,7 +549,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
       <View style={styles.progressBarBackground}>
         <View style={[styles.progressBarFill, { width: `${percent}%` }]} />
       </View>
-      <Text style={styles.percentText}>{percent}% completado</Text>
+      <Text style={styles.percentText}>{percent}% {t("progress.completed")}</Text>
 
       {/* Contenido según pestaña */}
       <ScrollView contentContainerStyle={styles.container}>
@@ -645,7 +646,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
               onPress={() => setShowAddCategoryModal(true)}
             >
               <Ionicons name="add-circle-outline" size={20} color="#254236" />
-              <Text style={styles.addText}>Añadir categoría</Text>
+              <Text style={styles.addText}>{t("buttons.add_category")}</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -653,7 +654,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
             {/* Lista de Gastos (solo is_expense) */}
             {expenseTasks.length === 0 ? (
               <Text style={{ color: "#254236", opacity: 0.8 }}>
-                No hay gastos aún.
+                {t("lists.no_expenses")}
               </Text>
             ) : (
               expenseTasks.map((task) => {
@@ -671,10 +672,10 @@ export default function PlanningHomeScreen({ navigation, route }) {
                     </TouchableOpacity>
                     <View style={{ marginLeft: 12, flex: 1 }}>
                       <Text style={styles.expenseTitle}>
-                        {task.title || task.checklist_name || "Gasto"}
+                        {task.title || task.checklist_name || t("expense.fallback_title")}
                       </Text>
                       <Text style={styles.expenseMeta}>
-                        {getCategoryDisplay(task)}
+                        {getCategoryDisplay(task) || t("labels.uncategorized")}
                         {typeof task.budget === "number"
                           ? ` · $${task.budget}`
                           : ""}
@@ -708,7 +709,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
               activeTab === "checklist" && styles.tabTextActive,
             ]}
           >
-            Checklist
+            {t("tabs.checklist")}
           </Text>
         </TouchableOpacity>
 
@@ -727,7 +728,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
               activeTab === "gastos" && styles.tabTextActive,
             ]}
           >
-            Gastos
+            {t("tabs.expenses")}
           </Text>
         </TouchableOpacity>
 
@@ -746,7 +747,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
               activeTab === "agenda" && styles.tabTextActive,
             ]}
           >
-            Agenda
+            {t("tabs.agenda")}
           </Text>
         </TouchableOpacity>
       </View>
@@ -759,17 +760,17 @@ export default function PlanningHomeScreen({ navigation, route }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Crear nueva categoría</Text>
+            <Text style={styles.modalTitle}>{t("modals.create_title")}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Nombre de la categoría"
+              placeholder={t("modals.placeholders.category_name")}
               placeholderTextColor="#888"
               value={newCategoryName}
               onChangeText={setNewCategoryName}
             />
             <TextInput
               style={styles.input}
-              placeholder="Presupuesto de la categoría (opcional)"
+              placeholder={t("modals.placeholders.category_budget")}
               placeholderTextColor="#888"
               value={newCategoryBudget}
               onChangeText={setNewCategoryBudget}
@@ -784,7 +785,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
                   setNewCategoryBudget("");
                 }}
               >
-                <Text style={styles.buttonText}>Cancelar</Text>
+                 <Text style={styles.buttonText}>{t("buttons.cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -799,7 +800,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
                 {creatingCategory ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={styles.buttonText}>Crear</Text>
+                  <Text style={styles.buttonText}>{t("buttons.create")}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -815,11 +816,11 @@ export default function PlanningHomeScreen({ navigation, route }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Editar categoría</Text>
+           <Text style={styles.modalTitle}>{t("modals.edit_title")}</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Nombre de la categoría"
+              placeholder={t("modals.placeholders.category_name")}
               placeholderTextColor="#888"
               value={editCategoryName}
               onChangeText={setEditCategoryName}
@@ -827,7 +828,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
 
             <TextInput
               style={styles.input}
-              placeholder="Presupuesto de la categoría (opcional)"
+              placeholder={t("modals.placeholders.category_budget")}
               placeholderTextColor="#888"
               value={editCategoryBudget}
               onChangeText={setEditCategoryBudget}
@@ -844,7 +845,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
                   setEditCategoryBudget("");
                 }}
               >
-                <Text style={styles.buttonText}>Cancelar</Text>
+                <Text style={styles.buttonText}>{t("buttons.cancel")}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -858,7 +859,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
                 {updatingCategory ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={styles.buttonText}>Guardar</Text>
+                  <Text style={styles.buttonText}>{t("buttons.save")}</Text>
                 )}
               </TouchableOpacity>
             </View>

@@ -1,0 +1,30 @@
+{
+  "title": "FAQ & Support",
+  "subtitle": "Didn’t find the answer you were looking for?\nGet in touch with our support team!",
+  "actions": {
+    "website": "Go to website",
+    "email": "Email",
+    "about": "About Galeriq",
+    "terms": "Terms of Service",
+    "terms_title": "Terms & Conditions"
+  },
+  "search_placeholder": "Search a question...",
+  "faqs": [
+    {
+      "q": "How do I change my password?",
+      "a": "To change your password, go to Menu → Profile, open your profile, enter your current and new password, then tap Confirm."
+    },
+    {
+      "q": "How do I change my profile status?",
+      "a": "Open your profile, tap Status, choose the new status and save your changes."
+    },
+    {
+      "q": "How do I export contacts?",
+      "a": "Go to Contacts → Options → Export and choose your preferred format to download."
+    },
+    {
+      "q": "How can I delete my account?",
+      "a": "Go to Settings → Account → Delete account. Carefully follow the confirmation steps."
+    }
+  ]
+}

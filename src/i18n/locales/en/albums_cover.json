@@ -1,0 +1,61 @@
+{
+  "brand": "Galeriq",
+  "search": {
+    "placeholder": "Search"
+  },
+  "empty": {
+    "no_albums": "There are no albums yet."
+  },
+  "overlay": {
+    "deleting": "Deleting…"
+  },
+  "cards": {
+    "photos_count_one": "1 photo",
+    "photos_count_other": "{{count}} photos"
+  },
+  "create": {
+    "open_button": "Create album",
+    "modal_title": "New album",
+    "name_label": "Name",
+    "name_placeholder": "e.g. Getting ready",
+    "cover_label": "Cover",
+    "pick_placeholder": "Select an image",
+    "gallery_btn": "Gallery",
+    "camera_btn": "Camera",
+    "cancel_btn": "Cancel",
+    "save_btn": "Save"
+  },
+  "menu": {
+    "title_with_name": "{{name}}",
+    "change_from_gallery": "Change cover from gallery",
+    "change_from_camera": "Change cover from camera",
+    "cannot_delete_has_photos": "Cannot delete (has photos)",
+    "cancel": "Cancel"
+  },
+  "toasts": {
+    "deleted_success": "Album deleted",
+    "delete_error": "Error deleting"
+  },
+  "alerts": {
+    "permission_title": "Permission required",
+    "permission_camera": "Enable camera access.",
+    "permission_photos": "Enable photo library access.",
+    "fetch_error_title": "Error",
+    "fetch_error_desc": "Could not load albums.",
+    "save_missing_name_title": "Missing name",
+    "save_missing_name_desc": "Please enter an album name.",
+    "save_missing_cover_title": "Missing cover",
+    "save_missing_cover_desc": "Please choose a cover photo.",
+    "save_missing_event_title": "No event",
+    "save_missing_event_desc": "eventId is required to create the album.",
+    "cover_update_error_desc": "Could not update the cover.",
+    "cannot_delete_title": "Cannot delete",
+    "cannot_delete_desc": "You can only delete empty albums.",
+    "delete_title": "Delete album",
+    "delete_message": "Are you sure you want to delete “{{name}}”? This action cannot be undone.",
+    "buttons": {
+      "cancel": "Cancel",
+      "delete": "Delete"
+    }
+  }
+}

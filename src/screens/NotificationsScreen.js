@@ -15,11 +15,13 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AuthContext } from "../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 const API_BASE = "http://143.198.138.35:8000";
 
 export default function NotificationsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
+  const { t } = useTranslation("notifications");
 
   const [unread, setUnread] = useState([]); 
   const [read, setRead] = useState([]);     
@@ -53,7 +55,7 @@ export default function NotificationsScreen({ navigation }) {
 
   const mapItem = (n) => {
     const id = n?.notification_id ?? n?.id ?? String(Math.random());
-    const title = n?.title ?? n?.titulo ?? "Notificación";
+    const title = n?.title ?? n?.titulo ?? t("labels.notification");
     const message = n?.message ?? n?.body ?? n?.content ?? "";
     const type = (n?.type ?? n?.tipo ?? "GENERAL")?.toString?.() ?? "GENERAL";
     const is_read = typeof n?.is_read === "boolean" ? n.is_read : n?.is_read;
@@ -131,8 +133,8 @@ export default function NotificationsScreen({ navigation }) {
         fetch(`${API_BASE}/notifications/read`,   { headers }),
       ]);
 
-      if (!ru.ok) throw new Error("No se pudieron cargar las no leídas.");
-      if (!rr.ok) throw new Error("No se pudieron cargar las leídas.");
+       if (!ru.ok) throw new Error(t("alerts.load_unread_fail"));
+      if (!rr.ok) throw new Error(t("alerts.load_read_fail"));
 
       const [unreadList, readList] = await Promise.all([ru.json(), rr.json()]);
 
@@ -142,7 +144,7 @@ export default function NotificationsScreen({ navigation }) {
       setUnread(mappedUnread);
       setRead(mappedRead);
     } catch (e) {
-      Alert.alert("Error", e?.message || "No se pudieron cargar las notificaciones.");
+      Alert.alert(t("alerts.error"), e?.message || t("alerts.load_all_fail"));
     } finally {
       setLoading(false);
     }
@@ -314,7 +316,7 @@ export default function NotificationsScreen({ navigation }) {
     });
     if (!r.ok) {
       const msg = await r.text();
-      throw new Error(msg || "No se pudo marcar como leída.");
+       throw new Error(msg || t("alerts.mark_read_fail"));
     }
     return r.json();
   };
@@ -348,7 +350,7 @@ export default function NotificationsScreen({ navigation }) {
         setUnread((prevUnread) => sortByDateDesc([itemBack, ...prevUnread]));
         return newRead;
       });
-      if (!silent) Alert.alert("Error", e?.message || "No se pudo marcar como leída.");
+      if (!silent) Alert.alert(t("alerts.error"), e?.message || t("alerts.mark_read_fail"));
     } finally {
       if (!silent) setMarkingRead(false);
     }
@@ -423,9 +425,9 @@ export default function NotificationsScreen({ navigation }) {
       setDetailOpen(false);
       setUnread((prev) => prev.filter((x) => x.id !== item.id));
       setRead((prev) => prev.filter((x) => x.id !== item.id));
-      Alert.alert("Listo", "Notificación eliminada.");
+      Alert.alert(t("alerts.ok"), t("alerts.deleted"));
     } catch (e) {
-      Alert.alert("Error", e?.message || "No se pudo eliminar la notificación.");
+       Alert.alert(t("alerts.error"), e?.message || t("alerts.cannot_delete"));
     } finally {
       setDeleting(false);
     }
@@ -435,7 +437,7 @@ export default function NotificationsScreen({ navigation }) {
     if (!selected) return;
     const guestId = resolvedGuestId;
     if (!guestId) {
-      return Alert.alert("Falta información", "No se encontró el identificador del invitado (guest_id) en la notificación.");
+      return Alert.alert(t("alerts.missing_info_title"), t("alerts.missing_guest_id"));
     }
     try {
       setRsvpLoading(true);
@@ -448,7 +450,7 @@ export default function NotificationsScreen({ navigation }) {
         body: new URLSearchParams({ rsvp_status: String(status) }).toString(),
       });
       const text = await res.text();
-      if (!res.ok) throw new Error(text || "No se pudo actualizar el RSVP.");
+      if (!res.ok) throw new Error(text || t("alerts.rsvp_fail"));
 
       const resultTxt = status === 1 ? "aceptado" : "declinado";
       setRsvpDone(true);
@@ -457,7 +459,7 @@ export default function NotificationsScreen({ navigation }) {
       setRsvpByNotif((prev) => ({ ...prev, [selected.id]: status }));
       setRead((prev) => prev.map((n) => (n.id === selected.id ? { ...n, __rsvp_status: status } : n)));
 
-      Alert.alert("Listo", `Has ${resultTxt} la invitación.`);
+      Alert.alert(t("alerts.ok"), t("alerts.rsvp_done", { result: resultTxt }));
       if (status === 1) { setDetailOpen(false); navigation.navigate("Events"); }
     } catch (e) {
       Alert.alert("Error", e?.message || "No se pudo actualizar el RSVP.");
@@ -512,12 +514,12 @@ export default function NotificationsScreen({ navigation }) {
   };
 
   const inviteCleanMessage = (item) => {
-    const nombre = me?.full_name || "invitado(a)";
+    const nombre = me?.full_name || t("invite_message.guest_generic");
     const eventName = getEventName(item);
     const inviter = getInviterName(item);
-    let text = `Hola ${nombre}, has sido invitado(a) al evento`;
+    let text = `${t("invite_message.hello_name", { name: nombre })}, ${t("invite_message.lead")}`;
     if (eventName) text += ` "${eventName}"`;
-    if (inviter) text += ` por ${inviter}`;
+    if (inviter) text += ` ${t("invite_message.by", { inviter })}`;
     return text + ".";
   };
 
@@ -527,7 +529,7 @@ export default function NotificationsScreen({ navigation }) {
   const alreadyAnswered =
     isInvite(selected) && (rsvpDone || selectedStatus === 1 || selectedStatus === 2);
   const answeredText =
-    selectedStatus === 1 ? "aceptado" : selectedStatus === 2 ? "declinado" : rsvpResult;
+    selectedStatus === 1 ? t("statuses.accepted") : selectedStatus === 2 ? t("statuses.declined") : rsvpResult;
 
   const selectedIsRead =
     selected &&
@@ -541,7 +543,7 @@ export default function NotificationsScreen({ navigation }) {
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Notificaciones</Text>
+        <Text style={styles.headerTitle}>{t("title")}</Text>
 
         <View style={styles.unreadBadge}>
           <Ionicons name="mail-unread-outline" size={16} color="#6B21A8" />
@@ -556,7 +558,7 @@ export default function NotificationsScreen({ navigation }) {
           onPress={() => setActiveTab("unread")}
         >
           <Text style={[styles.segText, activeTab === "unread" && styles.segTextActive]}>
-            No leídas ({unread.length})
+            {t("tabs.unread")} ({unread.length})
           </Text>
         </TouchableOpacity>
 
@@ -565,7 +567,7 @@ export default function NotificationsScreen({ navigation }) {
           onPress={() => setActiveTab("read")}
         >
           <Text style={[styles.segText, activeTab === "read" && styles.segTextActive]}>
-            Leídas ({read.length})
+            {t("tabs.read")} ({read.length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -585,9 +587,7 @@ export default function NotificationsScreen({ navigation }) {
           }
           ListEmptyComponent={
             <Text style={{ color: "#6B7280" }}>
-              {activeTab === "unread"
-                ? "No tienes notificaciones nuevas."
-                : "No hay notificaciones leídas aún."}
+              {activeTab === "unread" ? t("tabs.empty_unread") : t("tabs.empty_read")}
             </Text>
           }
         />
@@ -610,7 +610,7 @@ export default function NotificationsScreen({ navigation }) {
               {selectedIsRead && (
                 <View style={[styles.readPill, { marginLeft: 6 }]}>
                   <Ionicons name="checkmark-done" size={12} color="#065F46" />
-                  <Text style={styles.readPillText}>Leída</Text>
+                  <Text style={styles.readPillText}>{t("badges.read")}</Text>
                 </View>
               )}
             </View>
@@ -622,9 +622,7 @@ export default function NotificationsScreen({ navigation }) {
             )}
 
             {!!selected?.created_at && (
-              <Text style={styles.cardMeta}>
-                {new Date(selected.created_at).toLocaleString("es-MX")}
-              </Text>
+              <Text style={styles.cardMeta}>{new Date(selected.created_at).toLocaleString("es-MX")}</Text>
             )}
 
             {isInvite(selected) && (
@@ -632,7 +630,7 @@ export default function NotificationsScreen({ navigation }) {
                 {inviteImgLoading ? (
                   <View style={{ alignItems: "center", justifyContent: "center", paddingVertical: 12 }}>
                     <ActivityIndicator />
-                    <Text style={{ marginTop: 6, color: "#6B7280" }}>Cargando invitación…</Text>
+                    <Text style={{ marginTop: 6, color: "#6B7280" }}>{t("labels.loading_invite")}</Text>
                   </View>
                 ) : inviteImgUrl ? (
                   <Image
@@ -642,9 +640,7 @@ export default function NotificationsScreen({ navigation }) {
                     onError={() => setInviteImgUrl(null)}
                   />
                 ) : (
-                  <Text style={{ color: "#9CA3AF" }}>
-                    Este evento aún no tiene una invitación generada.
-                  </Text>
+                  <Text style={{ color: "#9CA3AF" }}>{t("labels.no_invite")}</Text>
                 )}
               </View>
             )}
@@ -654,8 +650,8 @@ export default function NotificationsScreen({ navigation }) {
                 {(resolving || rsvpChecking) ? (
                   <View style={{ marginTop: 12, alignItems: "center" }}>
                     <ActivityIndicator />
-                    <Text style={{ marginTop: 6, color: "#6B7280" }}>Buscando tu invitación…</Text>
-                    <Text style={{ marginTop: 6, color: "#6B7280" }}>Verificando tu respuesta…</Text>
+                    <Text style={{ marginTop: 6, color: "#6B7280" }}>{t("labels.searching_invite")}</Text>
+                    <Text style={{ marginTop: 6, color: "#6B7280" }}>{t("labels.checking_rsvp")}</Text>
                   </View>
                 ) : resolvedGuestId ? (
                   <View style={styles.rsvpRow}>
@@ -664,27 +660,25 @@ export default function NotificationsScreen({ navigation }) {
                       onPress={() => handleRSVP(1)}
                       disabled={rsvpLoading}
                     >
-                      {rsvpLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Aceptar invitación</Text>}
+                      {rsvpLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t("labels.accept_invite")}</Text>}
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.btn, { backgroundColor: "#6B7280" }, rsvpLoading && { opacity: 0.6 }]}
                       onPress={() => handleRSVP(2)}
                       disabled={rsvpLoading}
                     >
-                      {rsvpLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Declinar</Text>}
+                     {rsvpLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t("labels.decline")}</Text>}
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <Text style={{ marginTop: 12, color: "#B91C1C" }}>
-                    No se encontró el identificador del invitado (guest_id) en esta notificación.
-                  </Text>
+                  <Text style={{ marginTop: 12, color: "#B91C1C" }}>{t("alerts.missing_guest_id")}</Text>
                 )}
               </>
             )}
 
             {isInvite(selected) && alreadyAnswered && (
-              <Text style={{ marginTop: 12, fontWeight: "700", color: answeredText === "aceptado" ? "#065F46" : "#4B5563" }}>
-                Has {answeredText} esta invitación.
+              <Text style={{ marginTop: 12, fontWeight: "700", color: answeredText === t("statuses.accepted") ? "#065F46" : "#4B5563" }}>
+                {t("invite_message.answered_prefix", { status: answeredText })}
               </Text>
             )}
 
@@ -694,17 +688,13 @@ export default function NotificationsScreen({ navigation }) {
                 onPress={async () => { if (!selected) return; await markOneAsRead(selected, { silent: false }); }}
                 disabled={markingRead}
               >
-                {markingRead ? (
-                  <ActivityIndicator color="#065F46" />
-                ) : (
-                  <Text style={[styles.btnText, { color: "#065F46" }]}>Marcar como leída</Text>
-                )}
+                {markingRead ? <ActivityIndicator color="#065F46" /> : <Text style={[styles.btnText, { color: "#065F46" }]}>{t("labels.mark_read")}</Text>}
               </TouchableOpacity>
             )}
 
             <View style={styles.actionsRow}>
               <TouchableOpacity style={[styles.btn, { backgroundColor: "#efeff4" }]} onPress={() => setDetailOpen(false)}>
-                <Text style={[styles.btnText, { color: "#111827" }]}>Cerrar</Text>
+                <Text style={[styles.btnText, { color: "#111827" }]}>{t("labels.close")}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -712,7 +702,7 @@ export default function NotificationsScreen({ navigation }) {
                 onPress={() => deleteOne(selected)}
                 disabled={deleting}
               >
-                {deleting ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Eliminar</Text>}
+                {deleting ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t("labels.delete")}</Text>}
               </TouchableOpacity>
             </View>
           </View>

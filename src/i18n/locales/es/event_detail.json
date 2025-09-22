@@ -1,0 +1,137 @@
+{
+  "loading": "Cargando evento…",
+  "not_found": "Evento no encontrado.",
+  "session": {
+    "title": "Sesión",
+    "expired": "Tu sesión expiró. Inicia sesión nuevamente."
+  },
+
+  "hero": {
+    "address_icon_label": "Ubicación"
+  },
+
+  "section": {
+    "description_title": "Descripción :",
+    "description_empty": "Sin descripción",
+    "role_title": "Tu rol en el evento es :",
+    "role_loading": "Cargando…"
+  },
+
+  "pill": {
+    "type_icon_label": "Tipo de evento"
+  },
+
+  "mini_actions": {
+    "agenda": "Agenda",
+    "planning": "Planeación",
+    "expenses": "Gastos"
+  },
+
+  "tabs": {
+    "my_events": "Mis eventos",
+    "actions": "Acciones",
+    "guests": "Invitados",
+    "albums": "Álbumes",
+    "invites": "Invitaciones",
+    "owner": "Owner"
+  },
+
+  "edit_modal": {
+    "title": "Editar Evento",
+    "cover": {
+      "select": "Seleccionar portada",
+      "gallery": "Galería",
+      "camera": "Cámara"
+    },
+    "fields": {
+      "name": {
+        "label": "Nombre",
+        "placeholder": "Ej. Boda de Ana y Luis"
+      },
+      "datetime": {
+        "label": "Fecha y hora"
+      },
+      "address": {
+        "label": "Dirección",
+        "placeholder": "Ej. Jardín El Roble, Cuernavaca"
+      },
+      "type": {
+        "label": "Tipo de evento",
+        "select_placeholder": "Selecciona tipo",
+        "helper_other": "Especifica el tipo de evento",
+        "other_placeholder": "Escribe el tipo de evento"
+      },
+      "description": {
+        "label": "Descripción",
+        "placeholder": "Detalles y notas del evento"
+      }
+    },
+    "update_button": "Actualizar Evento"
+  },
+
+  "type_picker": {
+    "title": "Selecciona el tipo de evento",
+    "options": {
+      "wedding": "Boda",
+      "birthday": "Cumpleaños",
+      "quince": "XV Años",
+      "graduation": "Graduación",
+      "baptism": "Bautizo",
+      "corporate": "Evento Corporativo",
+      "other": "Otro"
+    }
+  },
+
+  "alerts": {
+    "event_title": "Evento",
+    "event_id_missing": "No se encontró el ID del evento.",
+    "event_not_found": "Evento no encontrado.",
+    "error_title": "Error",
+    "error_loading_event": "No fue posible cargar el evento.",
+    "error_updating_event": "No se pudo actualizar el evento.",
+    "permissions_title": "Permisos",
+    "need_gallery": "Se requieren permisos para acceder a la galería",
+    "need_camera": "Se requieren permisos para usar la cámara",
+    "type_required_title": "Tipo de evento",
+    "type_required_msg": "Escribe el tipo de evento cuando selecciones \"Otro\"."
+  },
+
+  "owner_modal": {
+    "title": "Gestionar owner",
+    "tabs": {
+      "add": "Agregar owner",
+      "remove": "Eliminar owner"
+    },
+    "fields": {
+      "user_email_label": "Correo del usuario",
+      "owner_email_remove_label": "Correo del owner a eliminar",
+      "email_placeholder": "correo@ejemplo.com"
+    },
+    "buttons": {
+      "assign": "Asignar como owner",
+      "remove": "Eliminar owner"
+    },
+    "validations": {
+      "email_invalid_title": "Correo inválido",
+      "email_invalid_msg": "Ingresa un correo electrónico válido."
+    },
+    "errors": {
+      "id_missing_title": "Error",
+      "id_missing_msg": "No se encontró el ID del evento.",
+      "assign_title": "Error",
+      "assign_msg": "No se pudo asignar el usuario como owner.",
+      "remove_title": "Error",
+      "remove_msg": "No se pudo eliminar el owner."
+    },
+    "api": {
+      "not_found_title": "No encontrado",
+      "not_found_user": "No se encontró el usuario. Verifica el correo e inténtalo de nuevo.",
+      "notice_title": "Aviso"
+    },
+    "success": {
+      "title": "Listo",
+      "assigned": "Owner asignado",
+      "removed": "Owner eliminado exitosamente."
+    }
+  }
+}

@@ -28,6 +28,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../context/AuthContext";
+import { useTranslation } from 'react-i18next';
 
 const API_BASE = "http://143.198.138.35:8000";
 const ME_URL = `${API_BASE}/me`;
@@ -109,6 +110,7 @@ function Skeleton() {
 }
 
 export default function MiPerfilScreen() {
+  const { t, i18n } = useTranslation('profile');
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
 
@@ -126,7 +128,7 @@ export default function MiPerfilScreen() {
   const [errPhone, setErrPhone] = useState("");
 
   const headerFade = useRef(new Animated.Value(0)).current;
-  const saveBarY = useRef(new Animated.Value(50)).current; // slide up
+  const saveBarY = useRef(new Animated.Value(50)).current;
   const saveBarOpacity = useRef(new Animated.Value(0)).current;
   const toastY = useRef(new Animated.Value(-60)).current;
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -194,6 +196,10 @@ export default function MiPerfilScreen() {
     fetchMe();
   }, [fetchMe]);
 
+  useEffect(() => {
+    navigation?.setOptions?.({ title: t('header.title') });
+  }, [i18n.language]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchMe();
@@ -252,11 +258,11 @@ export default function MiPerfilScreen() {
     setErrEmail("");
     setErrPhone("");
     if (!/^\S+@\S+\.\S+$/.test(edit.email.trim())) {
-      setErrEmail("Correo inválido");
+      setErrEmail(t('errors.email_invalid'));
       ok = false;
     }
     if (edit.phone && !/^\+?\d{7,15}$/.test(edit.phone.replace(/\s/g, ""))) {
-      setErrPhone("Teléfono inválido (usa solo dígitos y opcional +)");
+      setErrPhone(t('errors.phone_invalid'));
       ok = false;
     }
     return ok;
@@ -281,15 +287,15 @@ export default function MiPerfilScreen() {
       });
       if (!res.ok) {
         const txt = await res.text();
-        throw new Error(`No se pudo guardar (${res.status}): ${txt}`);
+        throw new Error(`${t('errors.save_failed')} (${res.status}): ${txt}`);
       }
       const updated = await res.json();
       setMe(updated);
       setEditing(false);
-      showToast("Perfil actualizado");
+      showToast(t('toasts.profile_saved'));
     } catch (e) {
-      Alert.alert("Error", e.message || "No se pudo guardar.");
-      showToast("Error al guardar", "error");
+      Alert.alert(t('common.error'), e.message || t('errors.save_failed'));
+     showToast(t('toasts.save_error'), "error");
     } finally {
       setSaving(false);
     }
@@ -301,12 +307,12 @@ export default function MiPerfilScreen() {
       if (fromCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== "granted") {
-          return Alert.alert("Permiso requerido", "Otorga permiso de cámara.");
+         return Alert.alert(t('errors.pick_perm_camera'), t('errors.pick_perm_camera_msg'));
         }
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
-          return Alert.alert("Permiso requerido", "Otorga permiso a tus fotos.");
+         return Alert.alert(t('errors.pick_perm_camera'), t('errors.pick_perm_photos_msg'));
         }
       }
 
@@ -321,7 +327,7 @@ export default function MiPerfilScreen() {
 
       await uploadPhoto(asset.uri);
     } catch (e) {
-      Alert.alert("Error", "No se pudo seleccionar la imagen.");
+       Alert.alert(t('common.error'), t('errors.pick_failed'));
     }
   };
 
@@ -351,15 +357,15 @@ export default function MiPerfilScreen() {
       });
       if (!res.ok) {
         const txt = await res.text();
-        throw new Error(`No se pudo subir (${res.status}): ${txt}`);
+        throw new Error(`${t('errors.upload_failed')} (${res.status}): ${txt}`);
       }
       const updated = await res.json();
       setMe(updated);
       if (updated?.profile_image) setAvatarUri(updated.profile_image);
-      showToast("Foto actualizada");
+      showToast(t('toasts.photo_uploaded'));
     } catch (e) {
-      Alert.alert("Error", e.message || "No se pudo subir la foto.");
-      showToast("Error al subir foto", "error");
+      Alert.alert(t('common.error'), e.message || t('errors.upload_failed'));
+      showToast(t('toasts.upload_error'), "error");
     } finally {
       setSaving(false);
     }
@@ -378,15 +384,15 @@ export default function MiPerfilScreen() {
       });
       if (!res.ok) {
         const txt = await res.text();
-        throw new Error(`No se pudo eliminar (${res.status}): ${txt}`);
+        throw new Error(`${t('errors.delete_failed')} (${res.status}): ${txt}`);
       }
       const updated = await res.json();
       setMe(updated);
       setAvatarUri(FALLBACK_AVATAR);
-      showToast("Foto eliminada");
+      showToast(t('toasts.photo_deleted'));
     } catch (e) {
-      Alert.alert("Error", e.message || "No se pudo eliminar la foto.");
-      showToast("Error al eliminar", "error");
+      Alert.alert(t('common.error'), e.message || t('errors.delete_failed'));
+      showToast(t('toasts.delete_error'), "error");
     } finally {
       setSaving(false);
     }
@@ -404,7 +410,6 @@ export default function MiPerfilScreen() {
     setEditing(false);
   };
 
-  // --------- Cambiar contraseña ----------
   const openPw = () => {
     setPwOpen(true);
     Animated.timing(pwAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
@@ -428,21 +433,21 @@ export default function MiPerfilScreen() {
     let ok = true;
     setErrOldPw(""); setErrNewPw(""); setErrConfirmPw("");
     if (!oldPw || oldPw.length < 1) {
-      setErrOldPw("Ingresa tu contraseña actual");
+      setErrOldPw(t('errors.pw_current_required'));
       ok = false;
     }
     if (!newPw || newPw.length < 8) {
-      setErrNewPw("Mínimo 8 caracteres");
+       setErrNewPw(t('errors.pw_new_min'));
       ok = false;
     } else if (!/[A-Za-z]/.test(newPw) || !/\d/.test(newPw)) {
-      setErrNewPw("Usa letras y números");
+      setErrNewPw(t('errors.pw_new_rules'));
       ok = false;
     } else if (newPw === oldPw) {
-      setErrNewPw("La nueva no puede ser igual a la actual");
+      setErrNewPw(t('errors.pw_same'));
       ok = false;
     }
     if (confirmPw !== newPw) {
-      setErrConfirmPw("Las contraseñas no coinciden");
+      setErrConfirmPw(t('errors.pw_mismatch'));
       ok = false;
     }
     return ok;
@@ -469,15 +474,15 @@ export default function MiPerfilScreen() {
       try { data = JSON.parse(text || "{}"); } catch { data = {}; }
 
       if (!res.ok) {
-        const msg = data?.detail || data?.message || text || "No fue posible cambiar la contraseña.";
+        const msg = data?.detail || data?.message || text || t('errors.pw_change_failed');
         throw new Error(msg);
       }
 
-      showToast("Contraseña actualizada");
+      showToast(t('toasts.pw_changed'));
       closePw();
     } catch (e) {
-      Alert.alert("No se pudo cambiar la contraseña", e.message || "Intenta nuevamente.");
-      showToast("Error al cambiar contraseña", "error");
+      Alert.alert(t('errors.pw_change_failed'), e.message || t('errors.pw_change_failed'));
++      showToast(t('toasts.pw_change_error'), "error");
     } finally {
       setPwLoading(false);
     }
@@ -523,7 +528,7 @@ export default function MiPerfilScreen() {
         <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mi perfil</Text>
+        <Text style={styles.headerTitle}>{t('header.title')}</Text>
         {!loading && !error && (
           <TouchableOpacity
             onPress={() => setEditing((v) => !v)}
@@ -535,7 +540,7 @@ export default function MiPerfilScreen() {
               size={20}
               color="#6B21A8"
             />
-            <Text style={styles.editTxt}>{editing ? "Cancelar" : "Editar"}</Text>
+           <Text style={styles.editTxt}>{editing ? t('header.cancel') : t('header.edit')}</Text>
           </TouchableOpacity>
         )}
       </Animated.View>
@@ -550,10 +555,10 @@ export default function MiPerfilScreen() {
         ) : error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={22} color="#dc2626" />
-            <Text style={styles.errorText}>No se pudo cargar el perfil</Text>
+            <Text style={styles.errorText}>{t('errors.load_profile_title')}</Text>
             <Text style={styles.errorSub}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={fetchMe}>
-              <Text style={styles.retryTxt}>Reintentar</Text>
+             <Text style={styles.retryTxt}>{t('common.retry')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -580,7 +585,7 @@ export default function MiPerfilScreen() {
                 )}
               </View>
               <Text style={styles.nameTxt} numberOfLines={1}>
-                {me?.full_name || me?.name || "Usuario"}
+                {me?.full_name || me?.name || t('common.user')}
               </Text>
             </View>
 
@@ -590,34 +595,34 @@ export default function MiPerfilScreen() {
                 <>
                   <FieldEditable
                     icon="person"
-                    label="Nombre"
+                    label={t('fields.name')}
                     value={edit.full_name}
                     onChangeText={(t) => setEdit((s) => ({ ...s, full_name: t }))}
-                    placeholder="Tu nombre completo"
+                    placeholder={t('fields.name_placeholder')}
                   />
                   <FieldEditable
                     icon="mail"
-                    label="Correo"
+                    label={t('fields.email')}
                     value={edit.email}
                     onChangeText={(t) => setEdit((s) => ({ ...s, email: t.trim() }))}
-                    placeholder="tu@correo.com"
+                    placeholder={t('fields.email_placeholder')}
                     keyboardType="email-address"
                     error={errEmail}
                   />
                   <FieldEditable
                     icon="call"
-                    label="Teléfono"
+                    label={t('fields.phone')}
                     value={edit.phone}
                     onChangeText={(t) => setEdit((s) => ({ ...s, phone: t }))}
-                    placeholder="+52 55 1234 5678"
+                     placeholder={t('fields.phone_placeholder')}
                     keyboardType="phone-pad"
                     error={errPhone}
                   />
                 </>
               ) : (
                 <>
-                  <FieldReadOnly icon="mail" label="Correo" value={me?.email} />
-                  <FieldReadOnly icon="call" label="Teléfono" value={me?.phone ?? me?.phone_number} />
+                 <FieldReadOnly icon="mail" label={t('fields.email')} value={me?.email} />
+                  <FieldReadOnly icon="call" label={t('fields.phone')} value={me?.phone ?? me?.phone_number} />
                 </>
               )}
             </View>
@@ -630,8 +635,8 @@ export default function MiPerfilScreen() {
                     <Ionicons name="key-outline" size={18} color="#6B21A8" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.actionTitle}>Cambiar contraseña</Text>
-                    <Text style={styles.actionSub}>Actualiza tu contraseña de acceso</Text>
+                    <Text style={styles.actionTitle}>{t('password.change_title')}</Text>
+                   <Text style={styles.actionSub}>{t('password.subtitle')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#6B7280" />
                 </TouchableOpacity>
@@ -641,9 +646,7 @@ export default function MiPerfilScreen() {
             {!editing && (
               <View style={styles.noteBox}>
                 <Ionicons name="information-circle-outline" size={18} color="#2563eb" />
-                <Text style={styles.noteText}>
-                  Actualiza tu información, desde el botón “Editar”.
-                </Text>
+               <Text style={styles.noteText}>{t('fields.readonly_hint')}</Text>
               </View>
             )}
           </>
@@ -664,7 +667,7 @@ export default function MiPerfilScreen() {
             disabled={saving}
             activeOpacity={0.9}
           >
-            <Text style={styles.cancelTxt}>Descartar</Text>
+            <Text style={styles.cancelTxt}>{t('common.discard')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.saveBtn, styles.primarySave, saving && { opacity: 0.7 }]}
@@ -677,7 +680,7 @@ export default function MiPerfilScreen() {
             ) : (
               <>
                 <Ionicons name="save-outline" size={18} color="#fff" />
-                <Text style={styles.primaryTxt}>Guardar</Text>
+                <Text style={styles.primaryTxt}>{t('common.save')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -692,26 +695,26 @@ export default function MiPerfilScreen() {
           </Animated.View>
           <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslate }] }]}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Foto de perfil</Text>
+            <Text style={styles.sheetTitle}>{t('photo.title')}</Text>
             <TouchableOpacity style={styles.sheetRow} onPress={() => pickImage(false)} activeOpacity={0.9}>
               <Ionicons name="images-outline" size={22} color="#6B21A8" />
-              <Text style={styles.sheetRowTxt}>Elegir de la galería</Text>
+              <Text style={styles.sheetRowTxt}>{t('photo.pick_gallery')}</Text>
               <Ionicons name="chevron-forward" size={18} color="#6B7280" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.sheetRow} onPress={() => pickImage(true)} activeOpacity={0.9}>
               <Ionicons name="camera-outline" size={22} color="#6B21A8" />
-              <Text style={styles.sheetRowTxt}>Tomar una foto</Text>
+             <Text style={styles.sheetRowTxt}>{t('photo.take_photo')}</Text>
               <Ionicons name="chevron-forward" size={18} color="#6B7280" />
             </TouchableOpacity>
             {me?.profile_image && (
               <TouchableOpacity style={styles.sheetRow} onPress={removePhoto} activeOpacity={0.9}>
                 <Ionicons name="trash-outline" size={22} color="#dc2626" />
-                <Text style={[styles.sheetRowTxt, { color: "#dc2626" }]}>Eliminar foto</Text>
+                <Text style={[styles.sheetRowTxt, { color: "#dc2626" }]}>{t('photo.delete_photo')}</Text>
                 <Ionicons name="chevron-forward" size={18} color="#6B7280" />
               </TouchableOpacity>
             )}
             <TouchableOpacity style={styles.sheetClose} onPress={closeSheet} activeOpacity={0.85}>
-              <Text style={styles.sheetCloseTxt}>Cerrar</Text>
+             <Text style={styles.sheetCloseTxt}>{t('common.close')}</Text>
             </TouchableOpacity>
           </Animated.View>
         </Modal>
@@ -725,15 +728,15 @@ export default function MiPerfilScreen() {
           </Animated.View>
           <Animated.View style={[styles.pwSheet, { transform: [{ translateY: pwTranslate }] }]}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Cambiar contraseña</Text>
+            <Text style={styles.sheetTitle}>{t('password.change_title')}</Text>
 
             {/* Old password */}
             <View style={styles.pwField}>
-              <Text style={styles.fieldLabel}>Contraseña actual</Text>
+              <Text style={styles.fieldLabel}>{t('password.current')}</Text>
               <View style={[styles.inputBox, errOldPw && styles.inputError]}>
                 <TextInput
                   style={[styles.inputText, { flex: 1 }]}
-                  placeholder="Ingresa tu contraseña actual"
+                  placeholder={t('password.current_placeholder')}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!oldVisible}
                   value={oldPw}
@@ -749,11 +752,11 @@ export default function MiPerfilScreen() {
 
             {/* New password */}
             <View style={styles.pwField}>
-              <Text style={styles.fieldLabel}>Nueva contraseña</Text>
+              <Text style={styles.fieldLabel}>{t('password.new')}</Text>
               <View style={[styles.inputBox, errNewPw && styles.inputError]}>
                 <TextInput
                   style={[styles.inputText, { flex: 1 }]}
-                  placeholder="Mínimo 8 caracteres, letras y números"
+                 placeholder={t('password.new_placeholder')}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!newVisible}
                   value={newPw}
@@ -769,11 +772,11 @@ export default function MiPerfilScreen() {
 
             {/* Confirm */}
             <View style={styles.pwField}>
-              <Text style={styles.fieldLabel}>Confirmar nueva contraseña</Text>
+             <Text style={styles.fieldLabel}>{t('password.confirm')}</Text>
               <View style={[styles.inputBox, errConfirmPw && styles.inputError]}>
                 <TextInput
                   style={[styles.inputText, { flex: 1 }]}
-                  placeholder="Repite tu nueva contraseña"
+                  placeholder={t('password.confirm_placeholder')}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!confirmVisible}
                   value={confirmPw}
@@ -790,7 +793,7 @@ export default function MiPerfilScreen() {
             {/* Botones */}
             <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
               <TouchableOpacity style={[styles.saveBtn, styles.cancelSave]} onPress={closePw} disabled={pwLoading}>
-                <Text style={styles.cancelTxt}>Cancelar</Text>
+                 <Text style={styles.cancelTxt}>{t('header.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.saveBtn, styles.primarySave, pwLoading && { opacity: 0.7 }]}
@@ -803,7 +806,7 @@ export default function MiPerfilScreen() {
                 ) : (
                   <>
                     <Ionicons name="key-outline" size={18} color="#fff" />
-                    <Text style={styles.primaryTxt}>Actualizar</Text>
+                    <Text style={styles.primaryTxt}>{t('common.update')}</Text>
                   </>
                 )}
               </TouchableOpacity>

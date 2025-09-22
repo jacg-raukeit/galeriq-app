@@ -1,0 +1,25 @@
+{
+  "headline": "Importar invitados desde archivo CSV",
+  "buttons": {
+    "upload_csv": "Subir archivo CSV",
+    "uploading": "Subiendo...",
+    "ok": "OK"
+  },
+  "snackbar": {
+    "import_failed": "Falló la importación."
+  },
+  "alerts": {
+    "missing_event_title": "Falta eventId",
+    "missing_event_desc": "No se encontró el ID del evento.",
+    "read_file_error": "No se pudo leer el archivo",
+    "invalid_file_title": "Archivo inválido",
+    "invalid_file_desc": "Selecciona un archivo .csv (o .txt con formato CSV).",
+    "empty_csv_title": "CSV vacío o inválido",
+    "empty_csv_desc": "Asegúrate de incluir columnas como: full_name (o nombre) y email (o correo).",
+    "success_title": "Importación exitosa",
+    "success_desc_one": "1 invitado agregado.",
+    "success_desc_other": "{{count}} invitados agregados.",
+    "error_title": "Error",
+    "generic_error": "No se pudo importar el archivo CSV."
+  }
+}

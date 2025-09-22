@@ -1,0 +1,53 @@
+{
+  "header": {
+    "description": "Add your to-dos and track progress."
+  },
+  "list": {
+    "add_task": "Add task"
+  },
+  "toast": {
+    "deleting": "Deleting task…"
+  },
+  "modal": {
+    "create_title": "Create task",
+    "edit_title": "Edit task",
+    "fields": {
+      "title": "Title",
+      "title_required_badge": "(required)",
+      "title_placeholder": "Task name",
+      "description": "Description",
+      "description_placeholder": "Details...",
+      "due_date": "Due date",
+      "due_date_placeholder": "Select date",
+      "priority": "Priority",
+      "is_expense": "Is it an expense?",
+      "budget": "Budget",
+      "budget_placeholder": "e.g. 1000.10"
+    },
+    "actions": {
+      "save_task": "Save task",
+      "save_changes": "Save changes"
+    }
+  },
+  "priority": {
+    "options": {
+      "alta": "High",
+      "media": "Medium",
+      "baja": "Low"
+    }
+  },
+  "alerts": {
+    "error_title": "Error",
+    "success_title": "Success",
+    "required_title": "Required field",
+    "title_required_msg": "You must provide a title for the task.",
+    "missing_fields_msg": "Please complete the fields: Description and Due date.",
+    "budget_required_title": "Budget missing",
+    "budget_required_msg": "Provide the estimated budget for the expense.",
+    "create_failed": "Could not create the task. Please verify the data.",
+    "update_failed": "Could not update the task.",
+    "toggle_failed": "Could not update the task.",
+    "delete_success": "Task deleted successfully",
+    "delete_failed": "Could not delete the task."
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "title": "Guest list",
+  "loading": "Loading guests...",
+  "status": {
+    "all": "All",
+    "confirmed": "Confirmed",
+    "pending": "Pending",
+    "rejected": "Rejected"
+  },
+  "confirm_delete_title": "Confirm deletion",
+  "confirm_delete_message": "This action will remove {{name}} from the list. Do you want to continue?",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "row_delete": "Delete",
+  "snackbar": {
+    "fetch_error": "Failed to fetch guests from server",
+    "rsvp_updated": "RSVP updated: {{status}}",
+    "rsvp_update_error": "Couldn’t update RSVP",
+    "delete_success": "Guest deleted",
+    "delete_error": "Couldn’t delete guest"
+  },
+  "fab": {
+    "add_manual": "Add manually",
+    "upload_csv": "Upload CSV"
+  },
+  "action_ok": "OK"
+}

@@ -26,11 +26,13 @@ import {
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { EventsContext } from "../../context/EventsContext";
 import { AuthContext } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 const { width } = Dimensions.get("window");
 const API_BASE = "http://143.198.138.35:8000";
 
 export default function InvitationsHomeScreen() {
+  const { t } = useTranslation("invitations_home");
   const navigation = useNavigation();
   const route = useRoute();
   const { events } = useContext(EventsContext);
@@ -46,14 +48,14 @@ export default function InvitationsHomeScreen() {
     return Array.isArray(events) && events.length > 0 ? events[0] : null;
   }, [eventParam, eventId, events]);
 
-  const eventName = currentEvent?.event_name ?? "Nuevo Evento";
-  const eventType = currentEvent?.event_type ?? "Evento";
+  const eventName = currentEvent?.event_name ?? t("placeholders.event_name_default");
+  const eventType = currentEvent?.event_type ?? t("placeholders.event_type_default");
   const eventDescription =
-    currentEvent?.event_description ?? "Descripción pendiente";
+    currentEvent?.event_description ?? t("placeholders.event_desc_default");
   const eventDateISO = currentEvent?.event_date ?? null;
 
   const formattedDateTime = useMemo(() => {
-    if (!eventDateISO) return "Fecha por definir";
+    if (!eventDateISO) return t("placeholders.date_tbd");
     const d = new Date(eventDateISO);
     const fecha = d.toLocaleDateString("es-MX", {
       weekday: "long",
@@ -66,9 +68,8 @@ export default function InvitationsHomeScreen() {
       minute: "2-digit",
     });
     return `${capitalize(fecha)} · ${hora}`;
-  }, [eventDateISO]);
+  }, [eventDateISO, t]);
 
-  // --- Rol ---
   const [role, setRole] = useState(null); // 1=owner, 2=invitado
   const [roleLoading, setRoleLoading] = useState(true);
   const bearer = useMemo(() => user?.token || user?.access_token || "", [user]);
@@ -158,8 +159,8 @@ export default function InvitationsHomeScreen() {
   const ready = !!currentEvent && !roleLoading;
   const titleText = ready
     ? isGuest
-      ? "¡Mira mi invitación!"
-      : "Invitaciones"
+       ? t("titles.guest")
+      : t("titles.owner")
     : "";
 
   const [invitationUrl, setInvitationUrl] = useState(null);
@@ -226,7 +227,7 @@ export default function InvitationsHomeScreen() {
         >
           <Ionicons name="chevron-back" size={22} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.brand}>Galeriq</Text>
+        <Text style={styles.brand}>{t("brand")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -238,7 +239,7 @@ export default function InvitationsHomeScreen() {
           <View style={[styles.previewBg, styles.centered]}>
             <ActivityIndicator />
             <Text style={{ marginTop: 8, color: "#6B7280", fontWeight: "600" }}>
-              Cargando invitación…
+              {t("loading.invitation")}
             </Text>
           </View>
         ) : invitationUrl ? (
@@ -248,9 +249,9 @@ export default function InvitationsHomeScreen() {
             resizeMode="cover"
             borderRadius={16}
             onError={() => {
-              Alert.alert(
-                "Aviso",
-                "No se pudo cargar la invitación. Mostrando vista previa alternativa."
+             Alert.alert(
+                t("alerts.invite_image_fail_title"),
+                t("alerts.invite_image_fail_msg")
               );
               setInvitationUrl(null);
             }}
@@ -263,7 +264,7 @@ export default function InvitationsHomeScreen() {
             resizeMode="cover"
           >
             <View style={styles.previewOverlay}>
-              <Text style={styles.p5}>Te invito a mi</Text>
+               <Text style={styles.p5}>{t("preview.invite_prefix")}</Text>
               <Text style={styles.p1}>{eventName}</Text>
               <Text numberOfLines={2} style={styles.p2}>
                 {String(eventType).toUpperCase()}
@@ -283,7 +284,7 @@ export default function InvitationsHomeScreen() {
           <View style={styles.grid}>
             <GridBtn
               icon="grid-outline"
-              label="Explorar diseños"
+              label={t("grid.explore_designs")}
               onPress={() =>
                 navigation.navigate("ExploreDesigns", {
                   event: currentEvent,
@@ -302,7 +303,7 @@ export default function InvitationsHomeScreen() {
               })
             }
           >
-            <Text style={styles.ctaText}>Crear invitación</Text>
+           <Text style={styles.ctaText}>{t("cta.create_invitation")}</Text>
           </TouchableOpacity>
         </>
       )}

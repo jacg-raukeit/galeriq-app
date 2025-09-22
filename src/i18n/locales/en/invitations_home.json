@@ -1,0 +1,29 @@
+{
+  "brand": "Galeriq",
+  "titles": {
+    "guest": "Check out my invitation!",
+    "owner": "Invitations"
+  },
+  "placeholders": {
+    "event_name_default": "New Event",
+    "event_type_default": "Event",
+    "event_desc_default": "Description pending",
+    "date_tbd": "Date to be determined"
+  },
+  "loading": {
+    "invitation": "Loading invitation…"
+  },
+  "alerts": {
+    "invite_image_fail_title": "Notice",
+    "invite_image_fail_msg": "Could not load the invitation. Showing fallback preview."
+  },
+  "preview": {
+    "invite_prefix": "You’re invited to my"
+  },
+  "grid": {
+    "explore_designs": "Explore designs"
+  },
+  "cta": {
+    "create_invitation": "Create invitation"
+  }
+}

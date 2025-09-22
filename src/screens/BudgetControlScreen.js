@@ -1,4 +1,3 @@
-// src/screens/BudgetControlScreen.js
 import React, { useEffect, useMemo, useState, useContext, useCallback } from 'react';
 import {
   View,
@@ -14,6 +13,7 @@ import {
 import { Svg, Circle } from 'react-native-svg';
 import { AuthContext } from '../context/AuthContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 
 const API_URL = 'http://143.198.138.35:8000';
 
@@ -22,8 +22,8 @@ const TOTALS_URL = (eventId) => `${API_URL}/checklists/event/${eventId}/totals`;
 const TOTALS_BY_CATEGORY_URL = (eventId) => `${API_URL}/checklists/event/${eventId}/totals-by-category`;
 const CATS_URL = (eventId) => `${API_URL}/category-checklists/event/${eventId}`;
 
-const C_BUDGET = '#D6C7FF';  
-const C_REAL   = '#5F3EE6';  
+const C_BUDGET = '#D6C7FF';
+const C_REAL   = '#5F3EE6';
 const C_TEXT   = '#0B1220';
 const C_MUTED  = '#6B7280';
 const CARD_BG  = '#FFFFFF';
@@ -34,7 +34,7 @@ const CARD_W = Math.min(420, width - 32);
 
 const money = (n = 0) => {
   const v = Math.round(Number(n) || 0);
-  return '$' + v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return '$' + v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 
 const normalize = (s) =>
@@ -54,6 +54,7 @@ function parseBudget(val) {
 }
 
 export default function BudgetControlScreen({ route, navigation }) {
+  const { t } = useTranslation('expenses');
   const eventId = route?.params?.eventId ?? 3;
   const eventDate = route?.params?.eventDate ?? null;
   const { user } = useContext(AuthContext);
@@ -164,7 +165,7 @@ export default function BudgetControlScreen({ route, navigation }) {
       >
         <View style={[styles.card, { width: CARD_W }]}>
           <Text style={styles.brand}>Galeriq</Text>
-          <Text style={styles.title}>Control de gastos</Text>
+          <Text style={styles.title}>{t('title')}</Text>
 
           {/* Dona */}
           <View style={styles.donutWrap}>
@@ -193,7 +194,7 @@ export default function BudgetControlScreen({ route, navigation }) {
             </Svg>
             <View style={styles.center}>
               <Text style={styles.centerAmount}>{money(eventBudget || totals.total_budget)}</Text>
-              <Text style={styles.centerLabel}>Presupuesto total</Text>
+              <Text style={styles.centerLabel}>{t('center.total_budget')}</Text>
             </View>
           </View>
 
@@ -201,11 +202,11 @@ export default function BudgetControlScreen({ route, navigation }) {
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
               <View style={[styles.dot, { backgroundColor: C_BUDGET }]} />
-              <Text style={styles.legendText}>Presupuesto</Text>
+              <Text style={styles.legendText}>{t('legend.budget')}</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.dot, { backgroundColor: C_REAL }]} />
-              <Text style={styles.legendText}>Gasto real</Text>
+              <Text style={styles.legendText}>{t('legend.real_spent')}</Text>
             </View>
           </View>
 
@@ -220,70 +221,68 @@ export default function BudgetControlScreen({ route, navigation }) {
               const p = bCat > 0 ? Math.min(1, gSpent / bCat) : 0;
 
               return (
-  <View key={row.name} style={styles.categoryBlock}>
-    <View style={styles.categoryHeader}>
-      <Text style={styles.categoryName}>{row.name}</Text>
+                <View key={row.name} style={styles.categoryBlock}>
+                  <View style={styles.categoryHeader}>
+                    <Text style={styles.categoryName}>{row.name}</Text>
 
-      {/* Derecha: etiqueta + monto de gasto real */}
-      <View style={styles.rightBox}>
-        <Text style={styles.rightCaption}>Gasto real</Text>
-        <Text style={styles.categoryRight}>{money(gSpent)}</Text>
-      </View>
-    </View>
+                    {/* Derecha: etiqueta + monto de gasto real */}
+                    <View style={styles.rightBox}>
+                      <Text style={styles.rightCaption}>{t('legend.real_spent')}</Text>
+                      <Text style={styles.categoryRight}>{money(gSpent)}</Text>
+                    </View>
+                  </View>
 
-    {/* Barra Gasto real (arriba) */}
-    <View style={styles.barTrack}>
-      <View style={[styles.barFillReal, { width: `${p * 100}%` }]} />
-    </View>
+                  {/* Barra Gasto real (arriba) */}
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFillReal, { width: `${p * 100}%` }]} />
+                  </View>
 
-    {/* Barra Presupuesto (abajo) */}
-    <View style={[styles.barTrack, { marginTop: 8 }]}>
-      <View style={[styles.barFillBudget]} />
-    </View>
+                  {/* Barra Presupuesto (abajo) */}
+                  <View style={[styles.barTrack, { marginTop: 8 }]}>
+                    <View style={[styles.barFillBudget]} />
+                  </View>
 
-    {/* Abajo derecha: etiqueta + monto de presupuesto */}
-    <View style={styles.bottomRightWrap}>
-      <Text style={styles.rightCaption}>Presupuesto</Text>
-      <Text style={styles.bottomRight}>{money(bCat)}</Text>
-    </View>
-  </View>
-);
+                  {/* Abajo derecha: etiqueta + monto de presupuesto */}
+                  <View style={styles.bottomRightWrap}>
+                    <Text style={styles.rightCaption}>{t('legend.budget')}</Text>
+                    <Text style={styles.bottomRight}>{money(bCat)}</Text>
+                  </View>
+                </View>
+              );
             })
           )}
         </View>
       </ScrollView>
 
-          {/* Tab bar inferior */}
-<View style={styles.tabBar}>
-  <TouchableOpacity
-    style={styles.tabButton}
-    onPress={() =>
-      navigation.replace('PlanningHome', { initialTab: 'checklist', eventId, eventDate })
-    }
-  >
-    <Ionicons name="list-outline" size={20} color={"#254236"} />
-    <Text style={styles.tabText}>Checklist</Text>
-  </TouchableOpacity>
+      {/* Tab bar inferior */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() =>
+            navigation.replace('PlanningHome', { initialTab: 'checklist', eventId, eventDate })
+          }
+        >
+          <Ionicons name="list-outline" size={20} color={"#254236"} />
+          <Text style={styles.tabText}>{t('tabs.checklist')}</Text>
+        </TouchableOpacity>
 
-  <TouchableOpacity
-    style={[styles.tabButton, styles.tabActive]}
-    onPress={() => {}}
-    disabled
-  >
-    <Ionicons name="cash-outline" size={20} color={"#FFF"} />
-    <Text style={[styles.tabText, styles.tabTextActive]}>Gastos</Text>
-  </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, styles.tabActive]}
+          onPress={() => {}}
+          disabled
+        >
+          <Ionicons name="cash-outline" size={20} color={"#FFF"} />
+         <Text style={[styles.tabText, styles.tabTextActive]}>{t('tabs.expenses')}</Text>
+        </TouchableOpacity>
 
-  <TouchableOpacity
-    style={styles.tabButton}
-    onPress={() => navigation.replace('Agenda', { eventId, eventDate })}
-  >
-    <Ionicons name="calendar-outline" size={20} color={"#254236"} />
-    <Text style={styles.tabText}>Agenda</Text>
-  </TouchableOpacity>
-</View>
-
-
+        <TouchableOpacity
+          style={styles.tabButton}
+          onPress={() => navigation.replace('Agenda', { eventId, eventDate })}
+        >
+          <Ionicons name="calendar-outline" size={20} color={"#254236"} />
+          <Text style={styles.tabText}>{t('tabs.agenda')}</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -328,37 +327,35 @@ const styles = StyleSheet.create({
 
   bottomRight: { alignSelf: 'flex-end', marginTop: 6, color: C_TEXT, fontWeight: '700' },
 
-
-
   rightBox: { alignItems: 'flex-end' },
-rightCaption: { color: C_MUTED, fontSize: 12, fontWeight: '600' },
-bottomRightWrap: { alignSelf: 'flex-end', marginTop: 6, alignItems: 'flex-end' },
+  rightCaption: { color: C_MUTED, fontSize: 12, fontWeight: '600' },
+  bottomRightWrap: { alignSelf: 'flex-end', marginTop: 6, alignItems: 'flex-end' },
 
-
-tabBar: {
-  position: 'absolute',
-  bottom: 12,
-  left: 16,
-  right: 16,
-  flexDirection: 'row',
-  backgroundColor: '#FFF',
-  borderRadius: 12,
-  padding: 8,
-  borderColor: '#EAEBDB',
-  borderWidth: 1,
-  elevation: 2,
-  marginBottom: 24,
-},
-tabButton: {
-  flex: 1,
-  height: 44,
-  borderRadius: 8,
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexDirection: 'row',
-  gap: 8,
-},
-tabActive: { backgroundColor: '#254236' },
-tabText: { marginLeft: 6, color: '#254236', fontWeight: '600' },
-tabTextActive: { color: '#FFF' },
+  tabBar: {
+    position: 'absolute',
+    bottom: 12,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 8,
+    borderColor: '#EAEBDB',
+    borderWidth: 1,
+    elevation: 2,
+    marginBottom: 24,
+  },
+  tabButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  tabActive: { backgroundColor: '#254236' },
+  tabText: { marginLeft: 6, color: '#254236', fontWeight: '600' },
+  tabTextActive: { color: '#FFF' },
 });
+

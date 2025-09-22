@@ -22,6 +22,7 @@ import Header from '../components/Header';
 import { AuthContext } from '../context/AuthContext';
 import { EventsContext } from '../context/EventsContext';
 import { Dropdown } from 'react-native-element-dropdown';
+import { useTranslation } from 'react-i18next';
 
 const EVENT_TYPES = [
   'Boda',
@@ -43,6 +44,7 @@ export default function CreateEventScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user }     = useContext(AuthContext);
   const { addEvent } = useContext(EventsContext);
+  const { t } = useTranslation('create_event');
 
   const [name, setName]               = useState('');
   const [description, setDescription] = useState('');
@@ -66,13 +68,13 @@ export default function CreateEventScreen({ navigation }) {
     `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
   const pickImage = () => {
-    Alert.alert(
-      'Seleccionar portada',
-      'Elige una opción',
+   Alert.alert(
+      t('cover.picker_title'),
+      t('cover.picker_message'),
       [
-        { text: 'Cámara', onPress: pickFromCamera },
-        { text: 'Galería', onPress: pickFromGallery },
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('cover.camera'), onPress: pickFromCamera },
+        { text: t('cover.gallery'), onPress: pickFromGallery },
+        { text: t('cover.cancel'), style: 'cancel' },
       ]
     );
   };
@@ -80,7 +82,7 @@ export default function CreateEventScreen({ navigation }) {
   const pickFromCamera = async () => {
     const { status: camPerm } = await ImagePicker.requestCameraPermissionsAsync();
     if (camPerm !== 'granted') {
-      return Alert.alert('Permiso requerido', 'Necesitamos acceso a tu cámara.');
+      return Alert.alert(t('permissions.title'), t('permissions.camera'));
     }
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
@@ -96,7 +98,7 @@ export default function CreateEventScreen({ navigation }) {
     if (Platform.OS !== 'web') {
       const { status: libPerm } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (libPerm !== 'granted') {
-        return Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería de fotos.');
+        return Alert.alert(t('permissions.title'), t('permissions.gallery'));
       }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -133,11 +135,11 @@ export default function CreateEventScreen({ navigation }) {
     if (submitting) return;
 
     if (!name.trim()) {
-      return Alert.alert('Error', 'El nombre del evento es obligatorio');
+       return Alert.alert(t('errors.title'), t('errors.name_required'));
     }
     const finalType = type === 'Otro' ? otherType.trim() : type;
     if (type === 'Otro' && !finalType) {
-      return Alert.alert('Tipo de evento', 'Por favor, escribe el tipo de evento.');
+       return Alert.alert(t('errors.type_title'), t('errors.type_required'));
     }
 
     const cleanBudget = budget?.trim()
@@ -163,7 +165,7 @@ export default function CreateEventScreen({ navigation }) {
       navigation.replace('EventCreated');
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'No se pudo crear el evento. Intenta de nuevo.');
+      Alert.alert(t('errors.title'), t('errors.create_failed'));
     } finally {
       setSubmitting(false); 
     }
@@ -171,49 +173,49 @@ export default function CreateEventScreen({ navigation }) {
 
   const confirmCancel = () => {
     if (submitting) return;
-    Alert.alert(
-      'Cancelar creación',
-      '¿Deseas cancelar la creación del evento?',
+     Alert.alert(
+      t('cancel_create.title'),
+      t('cancel_create.message'),
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Aceptar', onPress: () => navigation.goBack() },
+        { text: t('cancel_create.cancel'), style: 'cancel' },
+        { text: t('cancel_create.accept'), onPress: () => navigation.goBack() },
       ]
     );
   };
 
   return (
     <View style={[styles.screen, { marginTop: insets.top }]}>
-      <Header title="Crear un nuevo evento" onBack={confirmCancel} />
-      <Text style={styles.title}>Galeriq</Text>
+      <Header title={t('header_title')} onBack={confirmCancel} />
+      <Text style={styles.title}>{t('brand')}</Text>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.label}>Nombre del evento</Text>
+        <Text style={styles.label}>{t('labels.name')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Ej. Boda de Ana y Luis"
+          placeholder={t('placeholders.name')}
           value={name}
           editable={!submitting}
           onChangeText={setName}
         />
 
-        <Text style={styles.label}>Descripción</Text>
+        <Text style={styles.label}>{t('labels.description')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="Descripción del evento"
+          placeholder={t('placeholders.description')}
           value={description}
           editable={!submitting}
           onChangeText={text => text.length <= 200 && setDescription(text)}
           multiline
           maxLength={200}
         />
-        <Text style={styles.counter}>{description.length} / 200 caracteres</Text>
+        <Text style={styles.counter}>{t('counter', { count: description.length, max: 200 })}</Text>
 
-        <Text style={styles.label}>Tipo de evento</Text>
+        <Text style={styles.label}>{t('labels.type')}</Text>
         <Dropdown
           data={EVENT_TYPES.map(t => ({ label: t, value: t }))}
           labelField="label"
           valueField="value"
-          placeholder="Selecciona un tipo"
+          placeholder={t('placeholders.type')}
           value={type}
           disable={submitting}
           onChange={item => {
@@ -231,21 +233,21 @@ export default function CreateEventScreen({ navigation }) {
 
         {type === 'Otro' && (
           <>
-            <Text style={[styles.label, { marginTop: 12 }]}>Especifica el tipo</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>{t('labels.specify_type')}</Text>
             <TextInput
               style={[styles.input, !otherType.trim() && styles.inputWarning]}
-              placeholder="Escribe el tipo de evento"
+              placeholder={t('placeholders.specify_type')}
               value={otherType}
               editable={!submitting}
               onChangeText={setOtherType}
             />
             {!otherType.trim() && (
-              <Text style={styles.helperText}>Este campo es obligatorio al elegir “Otro”.</Text>
+             <Text style={styles.helperText}>{t('errors.type_required')}</Text>
             )}
           </>
         )}
 
-        <Text style={styles.label}>Fecha y hora del evento</Text>
+        <Text style={styles.label}>{t('labels.datetime')}</Text>
         <TouchableOpacity
           style={[styles.dateButton, submitting && { opacity: 0.7 }]}
           onPress={() => !submitting && setShowDatePicker(true)}
@@ -272,27 +274,27 @@ export default function CreateEventScreen({ navigation }) {
           />
         )}
 
-        <Text style={styles.label}>Ubicación</Text>
+        <Text style={styles.label}>{t('labels.location')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Ej. Jardín El Roble, Cuernavaca, Mor."
+         placeholder={t('placeholders.location')}
           value={location}
           editable={!submitting}
           onChangeText={setLocation}
         />
 
         {/* Presupuesto */}
-<Text style={styles.label}>Presupuesto (opcional)</Text>
+<Text style={styles.label}>{t('labels.budget')}</Text>
 <TextInput
   style={styles.input}
-  placeholder="Ej. 7500"
+  placeholder={t('placeholders.budget')}
   value={budget}
   keyboardType="numeric"
   editable={!submitting}
   onChangeText={(t) => setBudget(t.replace(/[^\d.,]/g, ''))}
 />
 
-        <Text style={styles.label}>Portada</Text>
+        <Text style={styles.label}>{t('labels.cover')}</Text>
         <TouchableOpacity
           style={[styles.imagePicker, submitting && { opacity: 0.7 }]}
           onPress={!submitting ? pickImage : undefined}
@@ -300,7 +302,7 @@ export default function CreateEventScreen({ navigation }) {
         >
           <Ionicons name="camera-outline" size={24} color="#6B21A8" />
           <Text style={styles.imagePickerText}>
-            {tempImageUri ? 'Cambiar imagen' : 'Seleccionar imagen'}
+            {tempImageUri ? t('cover.change_image') : t('cover.select_image')}
           </Text>
         </TouchableOpacity>
         {tempImageUri && (
@@ -308,12 +310,12 @@ export default function CreateEventScreen({ navigation }) {
         )}
 
         {/* Estado */}
-        <Text style={styles.label}>Estado</Text>
+        <Text style={styles.label}>{t('labels.status')}</Text>
         <Dropdown
-          data={STATUS_OPTIONS}
+         data={STATUS_OPTIONS.map(o => ({ ...o, label: t(`status.options.${o.value}`) }))}
           labelField="label"
           valueField="value"
-          placeholder="Selecciona estado"
+         placeholder={t('placeholders.status')}
           value={status}
           disable={submitting}
           onChange={item => setStatus(item.value)}
@@ -339,7 +341,7 @@ export default function CreateEventScreen({ navigation }) {
           {submitting ? (
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
-            <Text style={styles.submitText}>Guardar evento</Text>
+            <Text style={styles.submitText}>{t('submit')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

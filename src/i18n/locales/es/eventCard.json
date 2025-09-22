@@ -1,0 +1,12 @@
+{
+  "status": {
+    "active": "Activo",
+    "finished": "Pasado",
+    "draft": "Borrador"
+  },
+  "months": ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"],
+  "archive": {
+    "archive_event": "Archivar evento",
+    "unarchive_event": "Desarchivar evento"
+  }
+}

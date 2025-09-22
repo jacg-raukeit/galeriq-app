@@ -1,0 +1,51 @@
+{
+  "brand": "Galeriq",
+  "section": {
+    "photos": "Fotos"
+  },
+  "tabs": {
+    "new_album": "Nuevo álbum"
+  },
+  "actions": {
+    "add_photos": "Agregar fotos",
+    "favorite": "Favorito",
+    "share": "Compartir",
+    "download": "Descargar",
+    "create": "Crear",
+    "creating": "Creando...",
+    "cancel": "Cancelar",
+    "change_cover": "Cambiar portada",
+    "pick_cover": "Elegir portada (opcional)"
+  },
+  "alerts": {
+    "wait_title": "Espera un segundo",
+    "wait_desc": "Estamos preparando tu nuevo álbum. Intenta de nuevo.",
+    "perm_title": "Permisos",
+    "perm_photos": "Necesito acceso a tu galería para subir fotos.",
+    "perm_cover": "Necesito acceso a tu galería para elegir la portada.",
+    "error_title": "Error",
+    "albums_load_failed": "No se pudieron cargar los álbumes.",
+    "photos_load_failed": "No se pudieron cargar las fotos del álbum.",
+    "upload_none": "No se pudo subir ninguna foto. Revisa el token/endpoint.",
+    "upload_some_one": "Se subió 1 foto.",
+    "upload_some_other": "Se subieron {{count}} fotos.",
+    "upload_done_title": "Listo",
+    "photos_upload_failed": "No se pudieron subir las fotos.",
+    "cover_pick_failed": "No se pudo seleccionar la portada.",
+    "missing_info_title": "Falta información",
+    "missing_event_id": "No hay eventId para crear el álbum.",
+    "create_failed": "No se pudo crear el álbum.",
+    "fav_failed": "No se pudo cambiar el estado de favorito.",
+    "download_perm": "Necesito permiso para guardar en tu galería.",
+    "download_ok_title": "Descargada",
+    "download_ok_desc": "La foto se guardó en tu galería.",
+    "download_failed": "No se pudo descargar la foto."
+  },
+  "modal": {
+    "create_title": "Crear álbum",
+    "album_name_ph": "Nombre del álbum"
+  },
+  "header": {
+    "share_hint": "Compartir"
+  }
+}

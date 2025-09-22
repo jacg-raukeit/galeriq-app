@@ -1,0 +1,27 @@
+{
+  "title": "Lista de invitados",
+  "loading": "Cargando invitados...",
+  "status": {
+    "all": "Todos",
+    "confirmed": "Confirmado",
+    "pending": "Pendiente",
+    "rejected": "Rechazado"
+  },
+  "confirm_delete_title": "Confirmar eliminación",
+  "confirm_delete_message": "Esta acción eliminará a {{name}} de la lista. ¿Deseas continuar?",
+  "cancel": "Cancelar",
+  "delete": "Eliminar",
+  "row_delete": "Eliminar",
+  "snackbar": {
+    "fetch_error": "Error al obtener invitados del servidor",
+    "rsvp_updated": "RSVP actualizado: {{status}}",
+    "rsvp_update_error": "No se pudo actualizar RSVP",
+    "delete_success": "Invitado eliminado",
+    "delete_error": "No se pudo eliminar al invitado"
+  },
+  "fab": {
+    "add_manual": "Agregar manualmente",
+    "upload_csv": "Subir CSV"
+  },
+  "action_ok": "OK"
+}

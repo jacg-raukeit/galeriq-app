@@ -1,0 +1,77 @@
+{
+  "brand": "Galeriq",
+  "sectionTitle": "Agenda",
+  "tabs": {
+    "day": "Día",
+    "event": "Evento",
+    "albums": "Álbumes"
+  },
+  "empty": {
+    "general": "No hay actividades para mostrar.",
+    "eventDay": "No hay actividades para el día del evento.",
+    "albums": "No hay álbumes en la agenda."
+  },
+  "date": {
+    "todayPrefix": "Hoy, {{base}}",
+    "daysShort": ["dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."],
+    "monthsShort": ["en.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."]
+  },
+  "timeline": {
+    "allDay": "Todo el día"
+  },
+  "bottombar": {
+    "checklist": "Checklist",
+    "expenses": "Gastos",
+    "agenda": "Agenda"
+  },
+  "detail": {
+    "title": "Detalles de Actividad",
+    "labels": {
+      "title": "Título:",
+      "date": "Fecha:",
+      "time": "Hora:",
+      "description": "Descripción:",
+      "location": "Ubicación:",
+      "isAlbum": "¿Es álbum?:"
+    },
+    "yes": "Sí",
+    "no": "No",
+    "buttons": {
+      "update": "Actualizar tarea",
+      "delete": "Eliminar tarea",
+      "close": "Cerrar"
+    }
+  },
+  "form": {
+    "createTitle": "Crear etapa",
+    "editTitle": "Editar Actividad",
+    "requiredNote": "Los campos marcados con (*) son obligatorios",
+    "fields": {
+      "stageTitle": "Título de la etapa",
+      "stageTitleRequired": "Título de la etapa (*)",
+      "stageTitlePlaceholder": "Título",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Descripción de la actividad",
+      "date": "Fecha",
+      "dateRequired": "Fecha (*)",
+      "datePlaceholder": "Selecciona fecha",
+      "start": "Inicio",
+      "end": "Fin",
+      "allDay": "¿Todo el día?",
+      "createAlbum": "¿Crear álbum?"
+    },
+    "buttons": {
+      "cancel": "Cancelar",
+      "saveCreate": "Crear etapa",
+      "saveEdit": "Guardar cambios"
+    }
+  },
+  "errors": {
+    "title": "Error",
+    "loadStages": "No se pudieron cargar las actividades.",
+    "submitIncomplete": "Completa los campos obligatorios.",
+    "createFailed": "No se pudo crear la actividad.",
+    "updateFailed": "No se pudo actualizar la actividad.",
+    "deleteFailed": "No se pudo eliminar la actividad."
+  }
+}

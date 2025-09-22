@@ -1,0 +1,77 @@
+{
+  "brand": "Galeriq",
+  "sectionTitle": "Schedule",
+  "tabs": {
+    "day": "Day",
+    "event": "Event",
+    "albums": "Albums"
+  },
+  "empty": {
+    "general": "There are no activities to show.",
+    "eventDay": "There are no activities for the event day.",
+    "albums": "There are no albums in the schedule."
+  },
+  "date": {
+    "todayPrefix": "Today, {{base}}",
+    "daysShort": ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."],
+    "monthsShort": ["Jan.", "Feb.", "Mar.", "Apr.", "May.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."]
+  },
+  "timeline": {
+    "allDay": "All day"
+  },
+  "bottombar": {
+    "checklist": "Checklist",
+    "expenses": "Expenses",
+    "agenda": "Schedule"
+  },
+  "detail": {
+    "title": "Activity Details",
+    "labels": {
+      "title": "Title:",
+      "date": "Date:",
+      "time": "Time:",
+      "description": "Description:",
+      "location": "Location:",
+      "isAlbum": "Is album?:"
+    },
+    "yes": "Yes",
+    "no": "No",
+    "buttons": {
+      "update": "Update task",
+      "delete": "Delete task",
+      "close": "Close"
+    }
+  },
+  "form": {
+    "createTitle": "Create stage",
+    "editTitle": "Edit Activity",
+    "requiredNote": "Fields marked with (*) are required",
+    "fields": {
+      "stageTitle": "Stage title",
+      "stageTitleRequired": "Stage title (*)",
+      "stageTitlePlaceholder": "Title",
+      "description": "Description",
+      "descriptionPlaceholder": "Activity description",
+      "date": "Date",
+      "dateRequired": "Date (*)",
+      "datePlaceholder": "Pick a date",
+      "start": "Start",
+      "end": "End",
+      "allDay": "All day?",
+      "createAlbum": "Create album?"
+    },
+    "buttons": {
+      "cancel": "Cancel",
+      "saveCreate": "Create stage",
+      "saveEdit": "Save changes"
+    }
+  },
+  "errors": {
+    "title": "Error",
+    "loadStages": "Activities could not be loaded.",
+    "submitIncomplete": "Please complete the required fields.",
+    "createFailed": "The activity could not be created.",
+    "updateFailed": "The activity could not be updated.",
+    "deleteFailed": "The activity could not be deleted."
+  }
+}

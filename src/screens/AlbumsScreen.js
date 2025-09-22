@@ -22,6 +22,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { AuthContext } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 
 const API_URL = 'http://143.198.138.35:8000';
@@ -70,6 +71,7 @@ const mapPhotoFromApi = (p) => {
 };
 
 export default function AlbumsScreen({ navigation, route }) {
+  const { t } = useTranslation('albums_photos');
   const { eventId, albumId: initialAlbumId } = route?.params || {};
   const { user } = useContext(AuthContext);
   const token = user?.token || user?.accessToken || '';
@@ -107,7 +109,7 @@ export default function AlbumsScreen({ navigation, route }) {
     setLoadingAlbums(true);
     try {
       const r = await fetch(ALBUMS_BY_EVENT_URL(eventId), { headers: authHeaders });
-      if (!r.ok) throw new Error('No se pudieron cargar los álbumes.');
+       if (!r.ok) throw new Error('albums_load_failed');
       const data = await r.json();
       const tabs = (data || []).map(mapAlbumFromApi);
       setAlbums(tabs);
@@ -117,7 +119,7 @@ export default function AlbumsScreen({ navigation, route }) {
         await fetchPhotos(toSelect, tabs);
       }
     } catch (e) {
-      Alert.alert('Error', e?.message || 'No se pudieron cargar los álbumes.');
+      Alert.alert(t('alerts.error_title'), t('alerts.albums_load_failed'));
     } finally {
       setLoadingAlbums(false);
     }
@@ -129,7 +131,7 @@ export default function AlbumsScreen({ navigation, route }) {
       setLoadingPhotos(true);
       try {
         const r = await fetch(PHOTOS_BY_ALBUM_URL(albumId), { headers: authHeaders });
-        if (!r.ok) throw new Error('No se pudieron cargar las fotos del álbum.');
+         if (!r.ok) throw new Error('photos_load_failed');
         const list = await r.json();
         const mapped = (list || []).map(mapPhotoFromApi).filter(Boolean);
 
@@ -138,7 +140,7 @@ export default function AlbumsScreen({ navigation, route }) {
           return base.map(a => (a.id === String(albumId) ? { ...a, photos: mapped } : a));
         });
       } catch (e) {
-        Alert.alert('Error', e?.message || 'No se pudieron cargar las fotos del álbum.');
+       Alert.alert(t('alerts.error_title'), t('alerts.photos_load_failed'));
       } finally {
         setLoadingPhotos(false);
       }
@@ -207,7 +209,7 @@ export default function AlbumsScreen({ navigation, route }) {
 const pickImages = useCallback(async () => {
   const ready = await ensureActiveAlbumReady();
   if (!ready) {
-    Alert.alert('Espera un segundo', 'Estamos preparando tu nuevo álbum. Intenta de nuevo.');
+    Alert.alert(t('alerts.wait_title'), t('alerts.wait_desc'));
     return;
   }
 
@@ -215,7 +217,7 @@ const pickImages = useCallback(async () => {
     setPickerBusy(true);
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permisos', 'Necesito acceso a tu galería para subir fotos.');
+      Alert.alert(t('alerts.perm_title'), t('alerts.perm_photos'));
       return;
     }
 
@@ -237,13 +239,16 @@ const pickImages = useCallback(async () => {
 
     if (okCount > 0) {
       await fetchPhotos(activeAlbumId);
-      Alert.alert('Listo', `Se subieron ${okCount} foto(s).`);
+       Alert.alert(
+        t('alerts.upload_done_title'),
+        okCount === 1 ? t('alerts.upload_some_one') : t('alerts.upload_some_other', { count: okCount })
+      );
     } else {
-      Alert.alert('Error', 'No se pudo subir ninguna foto. Revisa el token/endpoint.');
+      Alert.alert(t('alerts.error_title'), t('alerts.upload_none'));
     }
   } catch (e) {
     console.error(e);
-    Alert.alert('Error', 'No se pudieron subir las fotos.');
+    Alert.alert(t('alerts.error_title'), t('alerts.photos_upload_failed'));
   } finally {
     setPickerBusy(false);
   }
@@ -253,7 +258,7 @@ const pickImages = useCallback(async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permisos', 'Necesito acceso a tu galería para elegir la portada.');
+         Alert.alert(t('alerts.perm_title'), t('alerts.perm_cover'));
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -265,7 +270,7 @@ const pickImages = useCallback(async () => {
       setNewAlbumCover(result.assets?.[0] || null);
     } catch (e) {
       console.log(e);
-      Alert.alert('Error', 'No se pudo seleccionar la portada.');
+      Alert.alert(t('alerts.error_title'), t('alerts.cover_pick_failed'));
     }
   }, []);
 
@@ -273,7 +278,7 @@ const pickImages = useCallback(async () => {
   const name = (newAlbumName || '').trim();
   if (!name) return;
   if (!eventId) {
-    Alert.alert('Falta información', 'No hay eventId para crear el álbum.');
+    Alert.alert(t('alerts.missing_info_title'), t('alerts.missing_event_id'));
     return;
   }
 
@@ -290,7 +295,7 @@ const pickImages = useCallback(async () => {
     const res = await fetch(CREATE_ALBUM_URL, { method: 'POST', headers: { ...authHeaders }, body: form });
     if (!res.ok) {
       const txt = await res.text().catch(() => '');
-      throw new Error(txt || 'No se pudo crear el álbum.');
+      throw new Error(txt || 'create_failed');
     }
     const created = await res.json().catch(() => ({}));
     const newId = String(created?.album_id ?? created?.id ?? '');
@@ -308,7 +313,7 @@ const pickImages = useCallback(async () => {
     setShowCreate(false);
   } catch (e) {
     console.error(e);
-    Alert.alert('Error', e?.message || 'No se pudo crear el álbum.');
+    Alert.alert(t('alerts.error_title'), t('alerts.create_failed'));
   } finally {
     setNewAlbumBusy(false);
   }
@@ -364,7 +369,7 @@ const pickImages = useCallback(async () => {
     } catch (e) {
       patchPhotoFavInState(photoId, !nextFav);
       console.error('Fav error:', e?.message);
-      Alert.alert('Error', 'No se pudo cambiar el estado de favorito.');
+      Alert.alert(t('alerts.error_title'), t('alerts.fav_failed'));
     }
   }, [albums, activeAlbumId, patchPhotoFavInState, apiToggleFavorite]);
 
@@ -388,7 +393,7 @@ const pickImages = useCallback(async () => {
   try {
     const ok = await ensureWritePermission();
     if (!ok) {
-      Alert.alert('Permisos', 'Necesito permiso para guardar en tu galería.');
+      Alert.alert(t('alerts.perm_title'), t('alerts.download_perm'));
       return;
     }
 
@@ -405,10 +410,10 @@ const pickImages = useCallback(async () => {
     const fileUri = FileSystem.documentDirectory + `${photo.id}.${ext}`;
     const { uri } = await FileSystem.downloadAsync(photo.uri, fileUri);
     await MediaLibrary.saveToLibraryAsync(uri);
-    Alert.alert('Descargada', 'La foto se guardó en tu galería.');
+    Alert.alert(t('alerts.download_ok_title'), t('alerts.download_ok_desc'));
   } catch (e) {
     console.error(e);
-    Alert.alert('Error', 'No se pudo descargar la foto.');
+    Alert.alert(t('alerts.error_title'), t('alerts.download_failed'));
   }
 }, [ensureWritePermission]);
 
@@ -444,13 +449,13 @@ useEffect(() => {
         <TouchableOpacity onPress={() => navigation?.goBack?.()}>
           <Ionicons name="arrow-back" size={24} color="#6F4C8C" />
         </TouchableOpacity>
-        <Text style={styles.title}>Galeriq</Text>
+        <Text style={styles.title}>{t('brand')}</Text>
         <TouchableOpacity onPress={shareAlbum}>
           <Ionicons name="share-outline" size={22} color="#6F4C8C" />
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.titleSection}>Fotos</Text>
+      <Text style={styles.titleSection}>{t('section.photos')}</Text>
 
       {/* Tabs de álbumes */}
       <ScrollView
@@ -491,7 +496,7 @@ useEffect(() => {
           disabled={newAlbumBusy || loadingAlbums}
         >
           <Ionicons name="add" size={18} color="#6F4C8C" />
-          <Text style={styles.chipOutlineText}>Nuevo álbum</Text>
+         <Text style={styles.chipOutlineText}>{t('tabs.new_album')}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -544,7 +549,7 @@ useEffect(() => {
           ) : (
             <>
               <Ionicons name="add-circle" size={22} color="#fff" />
-              <Text style={styles.addText}>Agregar fotos</Text>
+              <Text style={styles.addText}>{t('actions.add_photos')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -554,12 +559,12 @@ useEffect(() => {
       <Modal visible={showCreate} animationType="fade" transparent onRequestClose={() => setShowCreate(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Crear álbum</Text>
+             <Text style={styles.modalTitle}>{t('modal.create_title')}</Text>
 
             <TextInput
               value={newAlbumName}
               onChangeText={setNewAlbumName}
-              placeholder="Nombre del álbum"
+              placeholder={t('modal.album_name_ph')}
               style={styles.input}
               editable={!newAlbumBusy}
             />
@@ -572,7 +577,7 @@ useEffect(() => {
             >
               <Ionicons name="image-outline" size={18} color="#6F4C8C" />
               <Text style={styles.coverPickerText}>
-                {newAlbumCover ? 'Cambiar portada' : 'Elegir portada (opcional)'}
+                {newAlbumCover ? t('actions.change_cover') : t('actions.pick_cover')}
               </Text>
             </TouchableOpacity>
 
@@ -591,7 +596,7 @@ useEffect(() => {
                 onPress={() => !newAlbumBusy && setShowCreate(false)}
                 disabled={newAlbumBusy}
               >
-                <Text style={[styles.btnText, { color: '#111827' }]}>Cancelar</Text>
+                <Text style={[styles.btnText, { color: '#111827' }]}>{t('actions.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -600,7 +605,7 @@ useEffect(() => {
                 disabled={!newAlbumName.trim() || newAlbumBusy}
               >
                 {newAlbumBusy ? <ActivityIndicator color="#fff" /> : <Ionicons name="checkmark-circle" size={18} color="#fff" />}
-                <Text style={styles.btnText}>{newAlbumBusy ? 'Creando...' : 'Crear'}</Text>
+                <Text style={styles.btnText}>{newAlbumBusy ? t('actions.creating') : t('actions.create')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -620,15 +625,15 @@ useEffect(() => {
               <View style={styles.viewerActions}>
                 <TouchableOpacity onPress={() => toggleFav(viewerPhoto.id)} style={styles.viewerActionBtn}>
                   <Ionicons name={viewerPhoto.fav ? 'heart' : 'heart-outline'} size={22} color="#fff" />
-                  <Text style={styles.viewerActionTxt}>Favorito</Text>
+                  <Text style={styles.viewerActionTxt}>{t('actions.favorite')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => sharePhoto(viewerPhoto)} style={styles.viewerActionBtn}>
                   <Ionicons name="share-social-outline" size={22} color="#fff" />
-                  <Text style={styles.viewerActionTxt}>Compartir</Text>
+                  <Text style={styles.viewerActionTxt}>{t('actions.share')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => downloadPhoto(viewerPhoto)} style={styles.viewerActionBtn}>
                   <Ionicons name="download-outline" size={22} color="#fff" />
-                  <Text style={styles.viewerActionTxt}>Descargar</Text>
+                  <Text style={styles.viewerActionTxt}>{t('actions.download')}</Text>
                 </TouchableOpacity>
               </View>
             </>

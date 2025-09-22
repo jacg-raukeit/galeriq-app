@@ -1,0 +1,49 @@
+{
+  "title": "Notificaciones",
+  "tabs": {
+    "unread": "No leídas",
+    "read": "Leídas",
+    "empty_unread": "No tienes notificaciones nuevas.",
+    "empty_read": "No hay notificaciones leídas aún."
+  },
+  "badges": {
+    "read": "Leída"
+  },
+  "labels": {
+    "notification": "Notificación",
+    "loading_invite": "Cargando invitación…",
+    "no_invite": "Este evento aún no tiene una invitación generada.",
+    "searching_invite": "Buscando tu invitación…",
+    "checking_rsvp": "Verificando tu respuesta…",
+    "mark_read": "Marcar como leída",
+    "close": "Cerrar",
+    "delete": "Eliminar",
+    "accept_invite": "Aceptar invitación",
+    "decline": "Declinar"
+  },
+  "invite_message": {
+    "guest_generic": "invitado(a)",
+    "hello_name": "Hola {{name}}",
+    "lead": "has sido invitado(a) al evento",
+    "by": "por {{inviter}}",
+    "answered_prefix": "Has {{status}} esta invitación."
+  },
+  "statuses": {
+    "accepted": "aceptado",
+    "declined": "declinado"
+  },
+  "alerts": {
+    "ok": "Listo",
+    "error": "Error",
+    "deleted": "Notificación eliminada.",
+    "cannot_delete": "No se pudo eliminar la notificación.",
+    "missing_info_title": "Falta información",
+    "missing_guest_id": "No se encontró el identificador del invitado (guest_id) en la notificación.",
+    "load_unread_fail": "No se pudieron cargar las no leídas.",
+    "load_read_fail": "No se pudieron cargar las leídas.",
+    "load_all_fail": "No se pudieron cargar las notificaciones.",
+    "mark_read_fail": "No se pudo marcar como leída.",
+    "rsvp_fail": "No se pudo actualizar el RSVP.",
+    "rsvp_done": "Has {{result}} la invitación."
+  }
+}

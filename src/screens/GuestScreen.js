@@ -20,6 +20,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const API_URL = 'http://143.198.138.35:8000';
 
@@ -50,7 +51,6 @@ const getInitial = (name = '', email = '') => {
   const src = (name || email || '').trim();
   return src ? src[0].toUpperCase() : '?';
 };
-/* ======================================= */
 
 const getStatusIcon = (status) => {
   switch (status) {
@@ -85,7 +85,6 @@ const adaptGuest = (g) => ({
 
 const ACTION_WIDTH = 96;
 
-/* AvatarLeft: muestra imagen si hay URL, si no la inicial con color */
 const AvatarLeft = ({ uri, name, email }) => {
   if (uri) {
     return (
@@ -102,16 +101,17 @@ const AvatarLeft = ({ uri, name, email }) => {
 };
 
 const GuestRow = memo(function GuestRow({ item, onToggleStatus, onRequestDelete }) {
+  const { t } = useTranslation('guests');
   const swipeRef = useRef(null);
 
   const confirmDelete = () => {
-    Alert.alert(
-      'Confirmar eliminación',
-      `Esta acción eliminará a ${item.nombre} de la lista. ¿Deseas continuar?`,
+     Alert.alert(
+      t('confirm_delete_title'),
+      t('confirm_delete_message', { name: item.nombre }),
       [
-        { text: 'Cancelar', style: 'cancel', onPress: () => swipeRef.current?.close?.() },
+        { text: t('cancel'), style: 'cancel', onPress: () => swipeRef.current?.close?.() },
         {
-          text: 'Eliminar',
+          text: t('delete'),
           style: 'destructive',
           onPress: async () => {
             await onRequestDelete(item.id);
@@ -126,7 +126,7 @@ const GuestRow = memo(function GuestRow({ item, onToggleStatus, onRequestDelete 
     <View style={styles.rightActions}>
       <TouchableOpacity style={styles.deleteButton} onPress={confirmDelete} activeOpacity={0.85}>
         <Ionicons name="trash-outline" size={22} color="#fff" />
-        <Text style={styles.deleteText}>Eliminar</Text>
+        <Text style={styles.deleteText}>{t('row_delete')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -158,6 +158,7 @@ const GuestRow = memo(function GuestRow({ item, onToggleStatus, onRequestDelete 
 });
 
 export default function GuestScreen({ route }) {
+  const { t } = useTranslation('guests');
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
   const { eventId } = route.params || {};
@@ -204,7 +205,7 @@ export default function GuestScreen({ route }) {
       setGuests(data);
     } catch (e) {
       console.log('Error cargando invitados', e);
-      setSnackbarMsg('Error al obtener invitados del servidor');
+      setSnackbarMsg(t('snackbar.fetch_error'));
       setSnackbarVisible(true);
     } finally {
       setLoading(false);
@@ -302,11 +303,11 @@ export default function GuestScreen({ route }) {
       await loadGuests();
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       const estadoEsp = next === 'confirmed' ? 'Confirmado' : next === 'rejected' ? 'Rechazado' : 'Pendiente';
-      setSnackbarMsg(`RSVP actualizado: ${estadoEsp}`);
+      setSnackbarMsg(t('snackbar.rsvp_updated', { status: t(`status.${next}`) }));
       setSnackbarVisible(true);
     } catch (e) {
       console.error(e);
-      setSnackbarMsg('No se pudo actualizar RSVP');
+      setSnackbarMsg(t('snackbar.rsvp_update_error'));
       setSnackbarVisible(true);
     }
   };
@@ -320,10 +321,10 @@ export default function GuestScreen({ route }) {
         return next;
       });
       setSnackbarMsg('Invitado eliminado');
-      setSnackbarVisible(true);
+      setSnackbarMsg(t('snackbar.delete_success'));
     } catch (e) {
       console.error(e);
-      setSnackbarMsg('No se pudo eliminar al invitado');
+      setSnackbarMsg(t('snackbar.delete_error'));
       setSnackbarVisible(true);
     }
   };
@@ -339,7 +340,7 @@ export default function GuestScreen({ route }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#254236" />
         </TouchableOpacity>
-        <Text style={styles.title}>Lista de invitados</Text>
+        <Text style={styles.title}>{t('title')}</Text>
 
         <View style={styles.statusBar}>
           <Pressable style={[styles.statusBox, { backgroundColor: '#093FB4' }]} onPress={() => setFilter('all')}>
@@ -359,7 +360,7 @@ export default function GuestScreen({ route }) {
         {loading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" />
-            <Text style={{ marginTop: 8 }}>Cargando invitados...</Text>
+            <Text style={{ marginTop: 8 }}>{t('loading')}</Text>
           </View>
         ) : (
           <FlatList
@@ -386,8 +387,8 @@ export default function GuestScreen({ route }) {
               open={fabOpen}
               icon={fabOpen ? 'close' : 'plus'}
               actions={[
-                { icon: 'account-plus', label: 'Agregar Manualmente', onPress: () => navigation.navigate('AddGuestManual', { eventId }) },
-                { icon: 'file-upload', label: 'Subir CSV', onPress: () => navigation.navigate('AddGuestFromCSV', { eventId }) },
+                 { icon: 'account-plus', label: t('fab.add_manual'), onPress: () => navigation.navigate('AddGuestManual', { eventId }) },
+                { icon: 'file-upload', label: t('fab.upload_csv'), onPress: () => navigation.navigate('AddGuestFromCSV', { eventId }) },
               ]}
               onStateChange={({ open }) => setFabOpen(open)}
               visible={true}
@@ -400,7 +401,7 @@ export default function GuestScreen({ route }) {
           visible={snackbarVisible}
           onDismiss={() => setSnackbarVisible(false)}
           duration={2200}
-          action={{ label: 'OK', onPress: () => setSnackbarVisible(false) }}>
+          action={{ label: t('action_ok'), onPress: () => setSnackbarVisible(false) }}>
           {snackbarMsg}
         </Snackbar>
       </SafeAreaView>
@@ -412,7 +413,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#fff' },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, marginTop: 8, color: '#254236' },
 
-  /* Avatar */
   avatar: { width: 48, height: 48, borderRadius: 24, marginRight: 8 },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarLetter: { color: '#fff', fontWeight: '700', fontSize: 18 },

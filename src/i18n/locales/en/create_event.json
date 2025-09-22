@@ -1,0 +1,69 @@
+{
+  "header_title": "Create a new event",
+  "brand": "Galeriq",
+
+  "labels": {
+    "name": "Event name",
+    "description": "Description",
+    "type": "Event type",
+    "specify_type": "Specify the type",
+    "datetime": "Event date & time",
+    "location": "Location",
+    "budget": "Budget (optional)",
+    "cover": "Cover",
+    "status": "Status"
+  },
+
+  "placeholders": {
+    "name": "e.g. Ana & Luis' Wedding",
+    "description": "Event description",
+    "type": "Select a type",
+    "specify_type": "Type the event category",
+    "location": "e.g. El Roble Garden, Cuernavaca, Mor.",
+    "budget": "e.g. 7500",
+    "status": "Select status"
+  },
+
+  "counter": "{{count}} / {{max}} characters",
+
+  "cover": {
+    "select_image": "Select image",
+    "change_image": "Change image",
+    "picker_title": "Select cover",
+    "picker_message": "Choose an option",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "cancel": "Cancel"
+  },
+
+  "permissions": {
+    "title": "Permission required",
+    "camera": "We need access to your camera.",
+    "gallery": "We need access to your photo library."
+  },
+
+  "errors": {
+    "title": "Error",
+    "name_required": "Event name is required",
+    "type_title": "Event type",
+    "type_required": "Please enter the event type.",
+    "create_failed": "The event could not be created. Try again."
+  },
+
+  "cancel_create": {
+    "title": "Cancel creation",
+    "message": "Do you want to cancel event creation?",
+    "cancel": "Cancel",
+    "accept": "OK"
+  },
+
+  "status": {
+    "options": {
+      "active": "Active",
+      "finished": "Finished",
+      "cancelled": "Cancelled"
+    }
+  },
+
+  "submit": "Save event"
+}

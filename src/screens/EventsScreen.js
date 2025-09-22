@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import CreateEventButton from "../components/CreateEventButton";
 import EventCard from "../components/EventCard";
+import { useTranslation } from "react-i18next";
 
 const { width } = Dimensions.get("window");
 const DRAWER_W = Math.min(width * 0.76, 300);
@@ -38,6 +39,7 @@ const ROLE_ORGANIZER = 1;
 const ROLE_INVITADO = 2;
 
 export default function EventsScreen() {
+  const { t } = useTranslation("events_list");
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { user, setUser } = useContext(AuthContext);
@@ -282,12 +284,12 @@ export default function EventsScreen() {
 
   if (!user) return null;
 
-  const filterLabel =
+ const filterLabel =
     filterMode === "organizer"
-      ? "Organizados"
+      ? t("filter.chip_label.organizer")
       : filterMode === "guest"
-      ? "Invitado"
-      : "Todos";
+      ? t("filter.chip_label.guest")
+      : t("filter.chip_label.all");
 
   return (
     <View style={styles.screen}>
@@ -305,7 +307,7 @@ export default function EventsScreen() {
         </View>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.title}>Galeriq</Text>
+         <Text style={styles.title}>{t("brand")}</Text>
         </View>
 
         <View style={styles.headerSide}>
@@ -325,7 +327,7 @@ export default function EventsScreen() {
         </View>
       </View>
 
-      <Text style={styles.titleSection}>Mis Eventos</Text>
+      <Text style={styles.titleSection}>{t("section_title")}</Text>
 
       {/* NUEVO: Chip mostrando filtro activo (solo si no es "Todos") */}
       {filterMode !== "all" && (
@@ -365,15 +367,13 @@ export default function EventsScreen() {
               loop
               style={styles.emptyAnim}
             />
-            <Text style={styles.emptyTitle}>¡Nada por aquí!</Text>
-            <Text style={styles.emptySubtitle}>
-              Crea tu primer evento y vive la experiencia Galeriq
-            </Text>
+           <Text style={styles.emptyTitle}>{t("empty.title")}</Text>
+            <Text style={styles.emptySubtitle}>{t("empty.subtitle")}</Text>
           </View>
         ) : (
           <>
             {activeEvents.length === 0 ? (
-              <Text style={styles.emptyTextSmall}>No hay eventos activos.</Text>
+             <Text style={styles.emptyTextSmall}>{t("empty.no_active")}</Text>
             ) : (
               activeEvents.map((evt) => (
                 <TouchableOpacity
@@ -400,7 +400,7 @@ export default function EventsScreen() {
               <>
                 <View style={styles.sectionDivider} />
                 <Text style={styles.archivedTitle}>
-                  Archivados ({archivedEvents.length})
+                  {t("archived.title_with_count", { count: archivedEvents.length })}
                 </Text>
 
                 {archivedEvents.map((evt) => (
@@ -468,7 +468,7 @@ export default function EventsScreen() {
         ]}
       >
         <View style={styles.drawerHeader}>
-          <Text style={styles.drawerBrand}>Galeriq</Text>
+          <Text style={styles.drawerBrand}>{t("brand")}</Text>
           <TouchableOpacity
             onPress={() => setOpen(false)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -486,7 +486,7 @@ export default function EventsScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="person-circle-outline" size={20} color="#6B21A8" />
-          <Text style={styles.itemText}>Mi perfil</Text>
+           <Text style={styles.itemText}>{t("drawer.profile")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -499,7 +499,7 @@ export default function EventsScreen() {
         >
           <Ionicons name="notifications-outline" size={20} color="#6B21A8" />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={styles.itemText}>Notificaciones</Text>
+            <Text style={styles.itemText}>{t("drawer.notifications")}</Text>
             {notificationsCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
@@ -519,7 +519,7 @@ export default function EventsScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="help-circle-outline" size={20} color="#6B21A8" />
-          <Text style={styles.itemText}>Ayuda</Text>
+          <Text style={styles.itemText}>{t("drawer.help")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -531,7 +531,7 @@ export default function EventsScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="star-outline" size={20} color="#6B21A8" />
-          <Text style={styles.itemText}>Ayúdanos a mejorar</Text>
+           <Text style={styles.itemText}>{t("drawer.feedback")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -543,7 +543,7 @@ export default function EventsScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="diamond-outline" size={20} color="#6B21A8" />
-          <Text style={styles.itemText}>Planes y Suscripciones</Text>
+         <Text style={styles.itemText}>{t("drawer.plans")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -555,22 +555,22 @@ export default function EventsScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="share-social-outline" size={20} color="#6B21A8" />
-          <Text style={styles.itemText}>Comparte la app</Text>
+         <Text style={styles.itemText}>{t("drawer.share")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.item}
           onPress={() => {
             setOpen(false);
-            navigation.navigate("InConstruction");
+            navigation.navigate("Settings");
           }}
           activeOpacity={0.85}
         >
           <Ionicons name="settings-outline" size={20} color="#6B21A8" />
-          <Text style={styles.itemText}>Ajustes</Text>
+          <Text style={styles.itemText}>{t("drawer.settings")}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.item}
           onPress={() => {
             setOpen(false);
@@ -579,8 +579,8 @@ export default function EventsScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="settings-outline" size={20} color="#6B21A8" />
-          <Text style={styles.itemText}>Quienes somos</Text>
-        </TouchableOpacity>
+          <Text style={styles.itemText}>{t("drawer.about")}</Text>
+        </TouchableOpacity> */}
 
         {/* Cerrar sesión */}
         <TouchableOpacity
@@ -589,7 +589,7 @@ export default function EventsScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="log-out-outline" size={20} color="#6B21A8" />
-          <Text style={styles.itemText}>Cerrar sesión</Text>
+          <Text style={styles.itemText}>{t("drawer.logout")}</Text>
         </TouchableOpacity>
       </Animated.View>
 
@@ -603,7 +603,7 @@ export default function EventsScreen() {
         </Pressable>
 
         <View style={[styles.filterCard, { marginTop: insets.top + 8 }]}>
-          <Text style={styles.filterTitle}>Filtrar</Text>
+          <Text style={styles.filterTitle}>{t("filter.title")}</Text>
 
           <TouchableOpacity
             style={styles.filterItem}
@@ -614,7 +614,7 @@ export default function EventsScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="apps-outline" size={18} color="#6B21A8" />
-            <Text style={styles.filterItemText}>Todos</Text>
+            <Text style={styles.filterItemText}>{t("filter.all")}</Text>
             {filterMode === "all" && (
               <Ionicons name="checkmark" size={18} color="#10B981" />
             )}
@@ -629,7 +629,7 @@ export default function EventsScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="briefcase-outline" size={18} color="#6B21A8" />
-            <Text style={styles.filterItemText}>Organizados</Text>
+            <Text style={styles.filterItemText}>{t("filter.organizer")}</Text>
             {filterMode === "organizer" && (
               <Ionicons name="checkmark" size={18} color="#10B981" />
             )}
@@ -644,7 +644,7 @@ export default function EventsScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="people-outline" size={18} color="#6B21A8" />
-            <Text style={styles.filterItemText}>Invitado</Text>
+            <Text style={styles.filterItemText}>{t("filter.guest")}</Text>
             {filterMode === "guest" && (
               <Ionicons name="checkmark" size={18} color="#10B981" />
             )}
@@ -661,11 +661,8 @@ export default function EventsScreen() {
       >
         <View style={styles.expiredBackdrop}>
           <View style={styles.expiredCard}>
-            <Text style={styles.expiredTitle}>Sesión expirada</Text>
-            <Text style={styles.expiredText}>
-              Tu sesión ha caducado. Por seguridad debes iniciar sesión
-              nuevamente.
-            </Text>
+           <Text style={styles.expiredTitle}>{t("session_expired.title")}</Text>
++            <Text style={styles.expiredText}>{t("session_expired.text")}</Text>
 
             <View style={{ height: 10 }} />
 
@@ -674,7 +671,7 @@ export default function EventsScreen() {
               onPress={() => handleAuthExpired(true)}
               activeOpacity={0.9}
             >
-              <Text style={styles.expiredButtonText}>Ir a iniciar sesión</Text>
+              <Text style={styles.expiredButtonText}>{t("session_expired.button")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -737,10 +734,10 @@ const styles = StyleSheet.create({
     color: "#111827",
     textAlign: "center",
     textAlignVertical: "center",
-    includeFontPadding: false, // 👈 Android: quita padding extra del texto
+    includeFontPadding: false, 
   },
   iconNudge: {
-    transform: [{ translateY: 1 }], // 👈 baja 1px (sube/baja a 2 si aún lo ves desfasado)
+    transform: [{ translateY: 1 }],
   },
   titleSection: {
     fontFamily: "Montserrat-Regular",

@@ -17,12 +17,13 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AuthContext } from "../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 const API = "http://143.198.138.35:8000";
 
 // === Abreviaturas forzadas (días/meses) ===
-const DAYS = ["dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."]; // Date.getDay(): 0=domingo
-const MONTHS = ["en.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
+// const DAYS = ["dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."]; // Date.getDay(): 0=domingo
+// const MONTHS = ["en.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const formatTime = (t) => (t ? t.slice(0, 5) : "");
@@ -46,6 +47,7 @@ const toUtcTime = (localTime, ymd /* YYYY-MM-DD */) => {
 };
 
 export default function AgendaScreen({ navigation, route }) {
+  const { t } = useTranslation("agenda");
   const { user } = useContext(AuthContext);
   const { eventId, eventDate } = route.params;
 
@@ -54,7 +56,7 @@ export default function AgendaScreen({ navigation, route }) {
   const CONTENT_BOTTOM_INSET = TAB_BAR_HEIGHT + EXTRA_SAFE_SPACE;
 
   // === Vistas: Día | Evento | Álbumes
-  const [viewMode, setViewMode] = useState("Día");
+  const [viewMode, setViewMode] = useState(t("tabs.day"));
 
   // Datos
   const [stages, setStages] = useState([]);
@@ -97,7 +99,6 @@ export default function AgendaScreen({ navigation, route }) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      // Normaliza y ordena por fecha + hora
       const normalized = data
         .map((s) => ({
           ...s,
@@ -112,14 +113,13 @@ export default function AgendaScreen({ navigation, route }) {
         })
         .map((s) => ({
           ...s,
-          // color solo para NO álbum; álbum va en card blanca
           color: s.is_album ? "#FFFFFF" : colors[Math.floor(Math.random() * colors.length)],
         }));
 
       setStages(normalized);
     } catch (e) {
       console.error("Error al cargar actividades:", e);
-      Alert.alert("Error", "No se pudieron cargar las actividades.");
+      Alert.alert(t("errors.title"), t("errors.loadStages"));
     } finally {
       setLoading(false);
     }
@@ -129,21 +129,20 @@ export default function AgendaScreen({ navigation, route }) {
     fetchStages();
   }, []);
 
-  // === Filtro según pestaña
   const filteredStages = useMemo(() => {
     if (!stages?.length) return [];
 
-    if (viewMode === "Día") {
+   if (viewMode === t("tabs.day")) {
       // timeline completo (pasado/futuro)
       return stages;
     }
 
-    if (viewMode === "Evento") {
+    if (viewMode === t("tabs.event")) {
       // solo el día del evento
       return stages.filter((s) => s._ymd === eventDayYMD);
     }
 
-    if (viewMode === "Álbumes") {
+   if (viewMode === t("tabs.albums")) {
       // solo etapas marcadas como álbum
       return stages.filter((s) => Boolean(s.is_album));
     }
@@ -158,29 +157,28 @@ export default function AgendaScreen({ navigation, route }) {
       if (!map.has(s._ymd)) map.set(s._ymd, []);
       map.get(s._ymd).push(s);
     }
-    // ordenar llaves por fecha asc
     const keys = Array.from(map.keys()).sort(
       (a, b) => new Date(a) - new Date(b)
     );
     return keys.map((k) => ({ ymd: k, items: map.get(k) }));
   }, [filteredStages]);
 
+   const daysShort = t("date.daysShort", { returnObjects: true }) || ["dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."];
+  const monthsShort = t("date.monthsShort", { returnObjects: true }) || ["en.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
   const formatDayHeader = (ymd) => {
     const d = new Date(`${ymd}T00:00:00`);
-    const dow = DAYS[d.getDay()];
+    const dow = daysShort[d.getDay()];
     const dd = d.getDate();
-    const mon = MONTHS[d.getMonth()];
+    const mon = monthsShort[d.getMonth()];
     const base = `${dow} ${dd} ${mon}`; // "mar. 19 ago."
-    return ymd === todayYMD ? `Hoy, ${base}` : base;
+    return ymd === todayYMD ? t("date.todayPrefix", { base }) : base;
   };
 
-  // === Abrir detalle
   const openDetail = (stage) => {
     setSelectedStage(stage);
     setDetailModalVisible(true);
   };
 
-  // === Editar
   const startEditing = () => {
     setIsEditing(true);
     setModalVisible(true);
@@ -199,7 +197,7 @@ export default function AgendaScreen({ navigation, route }) {
   const handleSubmit = async () => {
     if (submittingStage) return;
     if (!title || !date || (!allDay && (!startTime || !endTime))) {
-      return Alert.alert("Error", "Completa los campos obligatorios.");
+      return Alert.alert(t("errors.title"), t("errors.submitIncomplete"));
     }
 
     try {
@@ -207,7 +205,7 @@ export default function AgendaScreen({ navigation, route }) {
 
       const body = {
         title,
-        date, // YYYY-MM-DD
+        date,
         start_time: allDay ? "00:00:00" : toUtcTime(startTime, date),
         end_time: allDay ? "23:59:59" : toUtcTime(endTime, date),
         description,
@@ -228,7 +226,6 @@ export default function AgendaScreen({ navigation, route }) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      // Reset form
       setModalVisible(false);
       setDetailModalVisible(false);
       setIsEditing(false);
@@ -246,8 +243,8 @@ export default function AgendaScreen({ navigation, route }) {
     } catch (e) {
       console.error("Error al crear/actualizar etapa:", e);
       Alert.alert(
-        "Error",
-        isEditing ? "No se pudo actualizar la actividad." : "No se pudo crear la actividad."
+        t("errors.title"),
+        isEditing ? t("errors.updateFailed") : t("errors.createFailed")
       );
     } finally {
       setSubmittingStage(false);
@@ -265,7 +262,7 @@ export default function AgendaScreen({ navigation, route }) {
       await fetchStages();
     } catch (e) {
       console.error("Error al eliminar actividad:", e);
-      Alert.alert("Error", "No se pudo eliminar la actividad.");
+      Alert.alert(t("errors.title"), t("errors.deleteFailed"));
     }
   };
 
@@ -276,12 +273,11 @@ export default function AgendaScreen({ navigation, route }) {
   });
 
   const emptyMsg =
-    viewMode === "Evento"
-      ? "No hay actividades para el día del evento."
-      : viewMode === "Álbumes"
-      ? "No hay álbumes en la agenda."
-      : "No hay actividades para mostrar.";
-
+    viewMode === t("tabs.event")
+      ? t("empty.eventDay")
+      : viewMode === t("tabs.albums")
+      ? t("empty.albums")
+      : t("empty.general");
   const isFormValid = title && date && (allDay || (startTime && endTime));
 
   return (
@@ -291,16 +287,16 @@ export default function AgendaScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#254236" />
         </TouchableOpacity>
-        <Text style={styles.title}>Galeriq</Text>
+        <Text style={styles.title}>{t("brand")}</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <Text style={styles.titleSection}>Agenda</Text>
+      <Text style={styles.titleSection}>{t("sectionTitle")}</Text>
       <Text style={styles.dateText}>{formattedDate}</Text>
 
       {/* Tabs: Día | Evento | Álbumes */}
       <View style={styles.tabs}>
-        {["Día", "Evento", "Álbumes"].map((m) => (
+        {[t("tabs.day"), t("tabs.event"), t("tabs.albums")].map((m) => (
           <TouchableOpacity
             key={m}
             style={[styles.tab, viewMode === m && styles.tabActive]}
@@ -338,10 +334,10 @@ export default function AgendaScreen({ navigation, route }) {
                     activeOpacity={0.85}
                   >
                     <Text style={styles.time}>
-                      {stage.all_day ? "Todo el día" : formatTime(stage.start_time)}
+                      {stage.all_day ? t("timeline.allDay") : formatTime(stage.start_time)}
                     </Text>
 
-                    {/* Card: blanca + ícono cámara si es álbum; de color si no */}
+                    {/* Card: blanca + ícono cámara si es álbum */}
                     <View
                       style={[
                         styles.cardBase,
@@ -410,7 +406,7 @@ export default function AgendaScreen({ navigation, route }) {
           }}
         >
           <Ionicons name="list-outline" size={20} color={"#254236"} />
-          <Text style={styles.tabText}>Checklist</Text>
+         <Text style={styles.tabText}>{t("bottombar.checklist")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -418,12 +414,12 @@ export default function AgendaScreen({ navigation, route }) {
           onPress={() => navigation.replace("BudgetControl", { eventId })}
         >
           <Ionicons name="cash-outline" size={20} color={"#254236"} />
-          <Text style={styles.tabText}>Gastos</Text>
+          <Text style={styles.tabText}>{t("bottombar.expenses")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.tabButton, styles.tabActiveBottom]} disabled>
           <Ionicons name="calendar-outline" size={20} color={"#FFF"} />
-          <Text style={[styles.tabText, styles.tabTextActive]}>Agenda</Text>
+          <Text style={[styles.tabText, styles.tabTextActive]}>{t("bottombar.agenda")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -438,7 +434,7 @@ export default function AgendaScreen({ navigation, route }) {
         <View style={styles.modalBackdrop}>
           <View style={styles.detailSheet}>
             <View style={styles.detailSheetHeader}>
-              <Text style={styles.detailHeaderTitle}>Detalles de Actividad</Text>
+              <Text style={styles.detailHeaderTitle}>{t("detail.title")}</Text>
               <TouchableOpacity
                 onPress={() => setDetailModalVisible(false)}
                 hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}
@@ -456,45 +452,45 @@ export default function AgendaScreen({ navigation, route }) {
                 {selectedStage && (
                   <>
                     <Text style={styles.detailText}>
-                      <Text style={{ fontWeight: "700" }}>Título:</Text> {selectedStage.title}
+                     <Text style={{ fontWeight: "700" }}>{t("detail.labels.title")}</Text> {selectedStage.title}
                     </Text>
                     <Text style={styles.detailText}>
-                      <Text style={{ fontWeight: "700" }}>Fecha:</Text> {selectedStage._ymd}
+                      <Text style={{ fontWeight: "700" }}>{t("detail.labels.date")}</Text> {selectedStage._ymd}
                     </Text>
                     <Text style={styles.detailText}>
-                      <Text style={{ fontWeight: "700" }}>Hora:</Text>{" "}
+                       <Text style={{ fontWeight: "700" }}>{t("detail.labels.time")}</Text>{" "}
                       {selectedStage.all_day
-                        ? "Todo el día"
+                       ? t("timeline.allDay")
                         : `${formatTime(selectedStage.start_time)} - ${formatTime(
                             selectedStage.end_time
                           )}`}
                     </Text>
                     {selectedStage.description ? (
                       <Text style={styles.detailText}>
-                        <Text style={{ fontWeight: "700" }}>Descripción:</Text> {selectedStage.description}
+                        <Text style={{ fontWeight: "700" }}>{t("detail.labels.description")}</Text> {selectedStage.description}
                       </Text>
                     ) : null}
                     {selectedStage.location ? (
                       <Text style={styles.detailText}>
-                        <Text style={{ fontWeight: "700" }}>Ubicación:</Text> {selectedStage.location}
+                        <Text style={{ fontWeight: "700" }}>{t("detail.labels.location")}</Text> {selectedStage.location}
                       </Text>
                     ) : null}
                     <Text style={styles.detailText}>
-                      <Text style={{ fontWeight: "700" }}>¿Es álbum?:</Text>{" "}
-                      {selectedStage.is_album ? "Sí" : "No"}
+                      <Text style={{ fontWeight: "700" }}>{t("detail.labels.isAlbum")}</Text>{" "}
+                      {selectedStage.is_album ? t("detail.yes") : t("detail.no")}
                     </Text>
                   </>
                 )}
 
                 <View style={styles.modalButtonsColumn}>
                   <TouchableOpacity style={styles.customButton} onPress={startEditing}>
-                    <Text style={styles.buttonText}>Actualizar tarea</Text>
+                    <Text style={styles.buttonText}>{t("detail.buttons.update")}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.customButton, styles.deleteButton]}
                     onPress={handleDelete}
                   >
-                    <Text style={styles.buttonText}>Eliminar tarea</Text>
+                    <Text style={styles.buttonText}>{t("detail.buttons.delete")}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -518,29 +514,29 @@ export default function AgendaScreen({ navigation, route }) {
         <SafeAreaView style={{ flex: 1, backgroundColor: "#FDF6F7" }}>
           <ScrollView contentContainerStyle={{ padding: 16 }}>
             <Text style={styles.modalTitle}>
-              {isEditing ? "Editar Actividad" : "Crear etapa"}
+              {isEditing ? t("form.editTitle") : t("form.createTitle")}
             </Text>
-            <Text style={styles.modalOptionsObligatorio}>
-              Los campos marcados con (*) son obligatorios
+           <Text style={styles.modalOptionsObligatorio}>
+              {t("form.requiredNote")}
             </Text>
 
             {/* Título */}
             <Text style={styles.modalOptions}>
-              Título de la etapa <Text style={styles.requiredText}>(*)</Text>
+              {t("form.fields.stageTitle")} <Text style={styles.requiredText}>(*)</Text>
             </Text>
             <TextInput
               style={styles.input}
-              placeholder="Título"
+              placeholder={t("form.fields.stageTitlePlaceholder")}
               value={title}
               editable={!submittingStage}
               onChangeText={setTitle}
             />
 
             {/* Descripción */}
-            <Text style={styles.modalOptions}>Descripción</Text>
+            <Text style={styles.modalOptions}>{t("form.fields.description")}</Text>
             <TextInput
               style={[styles.input, { height: 80 }]}
-              placeholder="Descripción de la actividad"
+               placeholder={t("form.fields.descriptionPlaceholder")}
               value={description}
               editable={!submittingStage}
               onChangeText={setDescription}
@@ -549,7 +545,7 @@ export default function AgendaScreen({ navigation, route }) {
 
             {/* Fecha */}
             <Text style={styles.modalOptions}>
-              Fecha <Text style={styles.requiredText}>(*)</Text>
+              {t("form.fields.date")} <Text style={styles.requiredText}>(*)</Text>
             </Text>
             <TouchableOpacity
               style={[styles.input, submittingStage && { opacity: 0.6 }]}
@@ -557,7 +553,7 @@ export default function AgendaScreen({ navigation, route }) {
               disabled={submittingStage}
               activeOpacity={0.7}
             >
-              <Text>{date || "Selecciona fecha"}</Text>
+              <Text>{date || t("form.fields.datePlaceholder")}</Text>
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
@@ -580,7 +576,7 @@ export default function AgendaScreen({ navigation, route }) {
                     onPress={() => !submittingStage && setShowStartPicker(true)}
                     disabled={submittingStage}
                   >
-                    <Text>{startTime ? formatTime(startTime) : "Inicio"}</Text>
+                    <Text>{startTime ? formatTime(startTime) : t("form.fields.start")}</Text>
                   </TouchableOpacity>
                   {showStartPicker && (
                     <DateTimePicker
@@ -601,7 +597,7 @@ export default function AgendaScreen({ navigation, route }) {
                     onPress={() => !submittingStage && setShowEndPicker(true)}
                     disabled={submittingStage}
                   >
-                    <Text>{endTime ? formatTime(endTime) : "Fin"}</Text>
+                    <Text>{endTime ? formatTime(endTime) : t("form.fields.end")}</Text>
                   </TouchableOpacity>
                   {showEndPicker && (
                     <DateTimePicker
@@ -626,7 +622,7 @@ export default function AgendaScreen({ navigation, route }) {
                 activeOpacity={0.7}
                 disabled={submittingStage}
               >
-                <Text style={styles.modalOptions}>¿Todo el día?</Text>
+                <Text style={styles.modalOptions}>{t("form.fields.allDay")}</Text>
                 <Ionicons
                   name={allDay ? "checkbox" : "square-outline"}
                   size={22}
@@ -638,7 +634,7 @@ export default function AgendaScreen({ navigation, route }) {
             {/* ¿Crear álbum? (solo al crear) */}
             {!isEditing && (
               <View style={[styles.switchRow, submittingStage && { opacity: 0.6 }]}>
-                <Text style={styles.modalOptions}>¿Crear álbum?</Text>
+                <Text style={styles.modalOptions}>{t("form.fields.createAlbum")}</Text>
                 <Switch
                   value={createAlbum}
                   onValueChange={(v) => !submittingStage && setCreateAlbum(v)}
@@ -661,7 +657,7 @@ export default function AgendaScreen({ navigation, route }) {
                 }}
                 disabled={submittingStage}
               >
-                <Text style={styles.buttonText}>Cancelar</Text>
+                <Text style={styles.buttonText}>{t("form.buttons.cancel")}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -678,7 +674,7 @@ export default function AgendaScreen({ navigation, route }) {
                 {submittingStage ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
-                  <Text style={styles.buttonText}>{isEditing ? "Guardar cambios" : "Crear etapa"}</Text>
+                  <Text style={styles.buttonText}>{isEditing ? t("form.buttons.saveEdit") : t("form.buttons.saveCreate")}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -717,7 +713,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Tabs
   tabs: { flexDirection: "row", marginHorizontal: 16, marginBottom: 16 },
   tab: {
     flex: 1,
@@ -731,7 +726,6 @@ const styles = StyleSheet.create({
   tabText: { color: "#254236", fontWeight: "500" },
   tabTextActive: { color: "#442D49" },
 
-  // Lista / Timeline
   list: { paddingHorizontal: 16, paddingBottom: 32 },
   dayHeader: {
     fontSize: 15,
@@ -743,7 +737,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "flex-start", marginBottom: 12 },
   time: { width: 90, fontSize: 14, color: "#A7A7A5", fontWeight: "500" },
 
-  // Cards
   cardBase: {
     flex: 1,
     flexDirection: "row",
@@ -775,7 +768,6 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  // Botón agregar
   addButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -790,7 +782,6 @@ const styles = StyleSheet.create({
   },
   addText: { marginLeft: 8, fontSize: 16, color: "#254236", fontWeight: "500" },
 
-  // Bottom tabs
   tabBar: {
     position: "absolute",
     bottom: 12,
@@ -817,7 +808,6 @@ const styles = StyleSheet.create({
   tabActiveBottom: { backgroundColor: "#254236" },
   tabTextActive: { color: "#FFF" },
 
-  // Detalle modal
   modalBackdrop: {
     flex: 1,
     backgroundColor: "#EBD6FB",
@@ -869,7 +859,6 @@ const styles = StyleSheet.create({
   },
   detailText: { fontSize: 14, marginBottom: 8, color: "#111827" },
 
-  // Crear/Editar modal
   modalTitle: {
     fontSize: 20,
     fontWeight: "600",

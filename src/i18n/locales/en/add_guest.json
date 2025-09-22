@@ -1,0 +1,37 @@
+{
+  "title": "Add guest",
+  "fields": {
+    "name": "Name",
+    "email": "Email",
+    "phone_opt": "Phone (optional)",
+    "alias_opt": "Alias (optional)",
+    "passes": "Number of passes",
+    "passes_suffix": "passes"
+  },
+  "buttons": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "yes_exit": "Yes, leave"
+  },
+  "alerts": {
+    "missing_info_title": "Missing information",
+    "missing_info_desc": "eventId was not found for this guest.",
+    "missing_data_title": "Missing data",
+    "missing_data_desc": "Name and email are required.",
+    "invalid_email_title": "Invalid email",
+    "invalid_email_desc": "Please enter a valid email address.",
+    "invalid_passes_title": "Invalid number of passes",
+    "invalid_passes_desc": "Enter an integer greater than or equal to 1.",
+    "confirm_save_title": "Confirm save",
+    "confirm_save_msg": "Do you want to save this guest with {{count}} pass(es)?",
+    "success_title": "Success",
+    "success_desc": "Guest saved successfully.",
+    "error_title": "Error",
+    "error_422": "Invalid data for the backend (check the fields).",
+    "error_generic": "Could not save the guest.",
+    "cancel_title": "Cancel?",
+    "cancel_desc": "You will lose the entered information. Continue?",
+    "no": "No"
+  }
+}

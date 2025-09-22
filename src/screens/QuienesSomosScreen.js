@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { useTranslation } from "react-i18next";
 
 
 const { width } = Dimensions.get("window");
@@ -28,13 +29,14 @@ const COLORS = {
   title: "#111111",
   text: "#3D3D3D",
   subtle: "#8A8F98",
-  primary: "#EB6BB2", // botón
+  primary: "#EB6BB2",
   primaryPressed: "#D85FA2",
 };
 
 const MOCK_IMG = require("../assets/images/quienes.jpg");
 
 export default function QuienesSomosScreen({ navigation }) {
+  const { t } = useTranslation("about");
   const titleAnim = useRef(new Animated.Value(0)).current;
   const p1Anim = useRef(new Animated.Value(0)).current;
   const p2Anim = useRef(new Animated.Value(0)).current;
@@ -85,7 +87,7 @@ export default function QuienesSomosScreen({ navigation }) {
         >
           <Ionicons name="chevron-back" size={24} color="#111" />
         </Pressable>
-        <Text style={styles.headerTitle}>¿Quiénes somos?</Text>
+       <Text style={styles.headerTitle}>{t("header_title")}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -108,30 +110,20 @@ export default function QuienesSomosScreen({ navigation }) {
         contentContainerStyle={{ paddingBottom: 28 }}
         style={styles.card}
       >
-        <Animated.Text style={[styles.h1, fadeUp(titleAnim)]}>
-          Somos Galeriq
+       <Animated.Text style={[styles.h1, fadeUp(titleAnim)]}>
+          {t("h1")}
         </Animated.Text>
 
         <Animated.Text style={[styles.p, fadeUp(p1Anim)]}>
-          Somos Galeriq, la app todo en uno que transforma la forma en la que
-          organizas y disfrutas tus eventos. Creemos que cada celebración merece
-          ser única y sin complicaciones. Por eso reunimos en un solo lugar todo
-          lo que necesitas: desde crear tu evento, llevar el control de tareas,
-          administrar tu presupuesto y gastos, hasta diseñar invitaciones
-          personalizadas y dar seguimiento a tus invitados con RSVP en tiempo
-          real.
+          {t("p1")}
         </Animated.Text>
 
         <Animated.Text style={[styles.p, fadeUp(p2Anim)]}>
-          Con Galeriq, también puedes crear álbumes colaborativos donde tus
-          invitados compartan fotos y videos de cada momento especial, haciendo
-          recuerdos juntos. Nuestra misión es simplificar lo complejo: hacer que
-          planificar, organizar y compartir tu evento sea tan emocionante como
-          vivirlo.
+          {t("p2")}
         </Animated.Text>
 
         <Animated.Text style={[styles.tagline, fadeUp(taglineAnim)]}>
-          Organiza. Comparte. Celebra.
+          {t("tagline")}
         </Animated.Text>
 
         <Animated.View style={[fadeUp(ctaAnim)]}>
@@ -146,14 +138,10 @@ export default function QuienesSomosScreen({ navigation }) {
               },
             ]}
           >
-            <Text style={styles.ctaText}>
-              Descubre cómo organizar tu evento
-            </Text>
+           <Text style={styles.ctaText}>{t("cta")}</Text>
           </Pressable>
 
-          <Text style={styles.caption}>
-            Todo lo que necesitas para tus eventos en una sola app
-          </Text>
+          <Text style={styles.caption}>{t("caption")}</Text>
         </Animated.View>
       </ScrollView>
     </SafeAreaView>

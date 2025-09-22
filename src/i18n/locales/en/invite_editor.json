@@ -1,0 +1,82 @@
+{
+  "title": "Editor",
+  "preview": "Preview",
+  "toolbar": {
+    "text": "Text",
+    "color": "Color",
+    "size": "Size",
+    "font": "Font",
+    "stickers": "Stickers"
+  },
+  "actions": {
+    "addText": "Add text",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "front": "Bring to front",
+    "back": "Send to back",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "bold": "Bold",
+    "toggleFont": "Toggle font",
+    "apply": "Apply",
+    "cancel": "Cancel",
+    "upload": "Save",
+    "share": "Share",
+    "uploadImage": "Upload image",
+    "close": "Close"
+  },
+  "colorPanel": {
+    "title": "Color",
+    "custom": "Custom color",
+    "hex": "HEX",
+    "note": "Tap +/- to adjust"
+  },
+  "fontPanel": {
+    "title": "Font",
+    "previewSample": "Preview"
+  },
+  "sizePanel": {
+    "textSize": "Text size: {{size}}",
+    "stickerTitle": "Sticker size & rotation",
+    "basePx": "Base (px)",
+    "scale": "Scale",
+    "rotation": "Rotation",
+    "selectHint": "Select an element to edit its size."
+  },
+  "stickersPanel": {
+    "categories": "Categories",
+    "groups": {
+      "Flowers": "Flowers",
+      "Balloons": "Balloons",
+      "Borders": "Borders",
+      "Cake": "Cake"
+    }
+  },
+  "previewModal": {
+    "title": "Preview",
+    "note": "Note: once saved you won’t be able to edit this invitation. Create a new one to make changes."
+  },
+  "alerts": {
+    "confirmSaveTitle": "Confirm save",
+    "confirmSaveMsg": "Saving will make this invitation permanent and non-editable. To change anything, create a new invitation.",
+    "ok": "OK",
+    "error": "Error",
+    "doneTitle": "Done!",
+    "doneMsg": "The invitation was saved successfully.",
+    "eventRequiredTitle": "Event required",
+    "eventRequiredMsg": "Couldn’t determine the event ID from navigation.\nOpen the editor with: navigate(\"InviteEditor\", { eventId, event, template })",
+    "previewError": "Couldn’t generate the preview.",
+    "uploadError": "Couldn’t upload the invitation.\n{{msg}}",
+    "shareError": "Couldn’t share the image."
+  },
+  "placeholders": {
+    "writeText": "Type your text…",
+    "templateDefaults": {
+      "inviteLead": "You are invited to my",
+      "eventType": "Event",
+      "descPending": "Description pending",
+      "dateTbd": "Date to be defined",
+      "newEvent": "New event"
+    }
+  }
+}

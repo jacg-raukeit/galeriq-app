@@ -1,0 +1,61 @@
+{
+  "brand": "Galeriq",
+  "search": {
+    "placeholder": "Buscar"
+  },
+  "empty": {
+    "no_albums": "Aún no hay álbumes."
+  },
+  "overlay": {
+    "deleting": "Eliminando…"
+  },
+  "cards": {
+    "photos_count_one": "1 foto",
+    "photos_count_other": "{{count}} fotos"
+  },
+  "create": {
+    "open_button": "Crear álbum",
+    "modal_title": "Nuevo álbum",
+    "name_label": "Nombre",
+    "name_placeholder": "Ej. Preparativos",
+    "cover_label": "Portada",
+    "pick_placeholder": "Selecciona una imagen",
+    "gallery_btn": "Galería",
+    "camera_btn": "Cámara",
+    "cancel_btn": "Cancelar",
+    "save_btn": "Guardar"
+  },
+  "menu": {
+    "title_with_name": "{{name}}",
+    "change_from_gallery": "Cambiar portada desde galería",
+    "change_from_camera": "Cambiar portada desde cámara",
+    "cannot_delete_has_photos": "No se puede eliminar (tiene fotos)",
+    "cancel": "Cancelar"
+  },
+  "toasts": {
+    "deleted_success": "Álbum eliminado",
+    "delete_error": "Error al eliminar"
+  },
+  "alerts": {
+    "permission_title": "Permiso requerido",
+    "permission_camera": "Habilita la cámara.",
+    "permission_photos": "Habilita el acceso a fotos.",
+    "fetch_error_title": "Error",
+    "fetch_error_desc": "No se pudieron cargar los álbumes.",
+    "save_missing_name_title": "Falta el nombre",
+    "save_missing_name_desc": "Escribe un nombre para el álbum.",
+    "save_missing_cover_title": "Falta la portada",
+    "save_missing_cover_desc": "Elige una foto de portada.",
+    "save_missing_event_title": "Sin evento",
+    "save_missing_event_desc": "Falta el eventId para crear el álbum.",
+    "cover_update_error_desc": "No se pudo actualizar la portada.",
+    "cannot_delete_title": "No se puede eliminar",
+    "cannot_delete_desc": "Solo puedes eliminar álbumes vacíos.",
+    "delete_title": "Eliminar álbum",
+    "delete_message": "¿Seguro que quieres eliminar “{{name}}”? Esta acción no se puede deshacer.",
+    "buttons": {
+      "cancel": "Cancelar",
+      "delete": "Eliminar"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "status": {
+    "active": "Active",
+    "finished": "Finished",
+    "draft": "Draft"
+  },
+  "months": ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"],
+  "archive": {
+    "archive_event": "Archive event",
+    "unarchive_event": "Unarchive event"
+  }
+}

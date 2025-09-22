@@ -1,0 +1,17 @@
+{
+  "title": "Expense tracker",
+  "center": {
+    "real_spent": "Actual spend",
+    "total_budget": "Total budget"
+  },
+  "legend": {
+    "expenses": "Expenses",
+    "budget": "Budget",
+    "real_spent": "Actual spend"
+  },
+  "tabs": {
+    "checklist": "Checklist",
+    "expenses": "Expenses",
+    "agenda": "Agenda"
+  }
+}

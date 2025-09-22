@@ -1,0 +1,51 @@
+{
+  "title": "Checklist",
+  "progress": {
+    "completed": "completado"
+  },
+  "tabs": {
+    "checklist": "Checklist",
+    "expenses": "Gastos",
+    "agenda": "Agenda"
+  },
+  "lists": {
+    "no_expenses": "No hay gastos aún."
+  },
+  "buttons": {
+    "add_category": "Añadir categoría",
+    "create": "Crear",
+    "save": "Guardar",
+    "cancel": "Cancelar"
+  },
+  "modals": {
+    "create_title": "Crear nueva categoría",
+    "edit_title": "Editar categoría",
+    "placeholders": {
+      "category_name": "Nombre de la categoría",
+      "category_budget": "Presupuesto de la categoría (opcional)"
+    }
+  },
+  "alerts": {
+    "error_title": "Error",
+    "load_categories_failed": "No se pudieron cargar las categorías.",
+    "create_failed": "No se pudo crear la categoría.",
+    "update_failed": "No se pudo actualizar la categoría.",
+    "delete_failed": "No se pudo eliminar la categoría.",
+    "invalid_category": "Categoría inválida.",
+    "name_required": "El nombre de la categoría no puede estar vacío.",
+    "budget_number": "El presupuesto debe ser un número válido.",
+    "delete_confirm_title": "Eliminar categoría",
+    "delete_confirm_message": "¿Seguro que deseas eliminar esta categoría? Esta acción no se puede deshacer.",
+    "delete_confirm_cancel": "Cancelar",
+    "delete_confirm_ok": "Eliminar",
+    "expense_update_failed": "No se pudo actualizar el gasto."
+  },
+  "labels": {
+    "category": "Categoría",
+    "category_with_id": "Categoría {{id}}",
+    "uncategorized": "Sin categoría"
+  },
+  "expense": {
+    "fallback_title": "Gasto"
+  }
+}

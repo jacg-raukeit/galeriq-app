@@ -1,0 +1,29 @@
+{
+  "brand": "Galeriq",
+  "titles": {
+    "guest": "¡Mira mi invitación!",
+    "owner": "Invitaciones"
+  },
+  "placeholders": {
+    "event_name_default": "Nuevo Evento",
+    "event_type_default": "Evento",
+    "event_desc_default": "Descripción pendiente",
+    "date_tbd": "Fecha por definir"
+  },
+  "loading": {
+    "invitation": "Cargando invitación…"
+  },
+  "alerts": {
+    "invite_image_fail_title": "Aviso",
+    "invite_image_fail_msg": "No se pudo cargar la invitación. Mostrando vista previa alternativa."
+  },
+  "preview": {
+    "invite_prefix": "Te invito a mi"
+  },
+  "grid": {
+    "explore_designs": "Explorar diseños"
+  },
+  "cta": {
+    "create_invitation": "Crear invitación"
+  }
+}

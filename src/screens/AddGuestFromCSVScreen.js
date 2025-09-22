@@ -7,6 +7,7 @@ import Papa from 'papaparse';
 import { Button, Snackbar, Text } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const API_URL = 'http://143.198.138.35:8000'; 
 
@@ -14,6 +15,7 @@ export default function AddGuestFromCSVScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { user } = useContext(AuthContext);
+  const { t } = useTranslation('add_guest_csv');
 
   const eventId = route?.params?.eventId;
   const token = user?.token || user?.accessToken || '';
@@ -81,7 +83,7 @@ export default function AddGuestFromCSVScreen() {
   const handleImportCSV = async () => {
     try {
       if (!eventId) {
-        Alert.alert('Falta eventId', 'No se encontró el ID del evento.');
+       Alert.alert(t('alerts.missing_event_title'), t('alerts.missing_event_desc'));
         return;
       }
 
@@ -103,7 +105,7 @@ export default function AddGuestFromCSVScreen() {
       
       if (!/\.(csv|txt)$/i.test(fileName) && !/\.(csv|txt)$/i.test(fileUri)) {
         setLoading(false);
-        Alert.alert('Archivo inválido', 'Selecciona un archivo .csv (o .txt con formato CSV).');
+        Alert.alert(t('alerts.invalid_file_title'), t('alerts.invalid_file_desc'));
         return;
       }
 
@@ -129,10 +131,7 @@ export default function AddGuestFromCSVScreen() {
 
       if (!normalized.length) {
         setLoading(false);
-        Alert.alert(
-          'CSV vacío o inválido',
-          'Asegúrate de incluir columnas como: full_name (o nombre) y email (o correo).'
-        );
+       Alert.alert(t('alerts.empty_csv_title'), t('alerts.empty_csv_desc'));
         return;
       }
 
@@ -159,13 +158,19 @@ export default function AddGuestFromCSVScreen() {
       const created = await resp.json(); 
       const count = Array.isArray(created) ? created.length : 0;
 
-      Alert.alert('Importación exitosa', `${count} invitado(s) agregados.`, [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+       Alert.alert(
+        t('alerts.success_title'),
+        t(count === 1 ? 'alerts.success_desc_one' : 'alerts.success_desc_other', { count }),
+        [{ text: t('buttons.ok'), onPress: () => navigation.goBack() }]
+      );
     } catch (error) {
       console.error('Error al importar CSV:', error);
-      Alert.alert('Error', 'No se pudo importar el archivo CSV.');
-      setMessage('Falló la importación.');
+       if (String(error?.message || '').toLowerCase().includes('leer el archivo')) {
+        Alert.alert(t('alerts.error_title'), t('alerts.read_file_error'));
+      } else {
+        Alert.alert(t('alerts.error_title'), t('alerts.generic_error'));
+      }
+      setMessage(t('snackbar.import_failed'));
       setVisible(true);
     } finally {
       setLoading(false);
@@ -174,7 +179,7 @@ export default function AddGuestFromCSVScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Importar invitados desde archivo CSV</Text>
+      <Text style={styles.text}>{t('headline')}</Text>
 
       <Button
         icon="file-upload"
@@ -183,7 +188,7 @@ export default function AddGuestFromCSVScreen() {
         loading={loading}
         disabled={loading}
       >
-        {loading ? 'Subiendo...' : 'Subir archivo CSV'}
+        {loading ? t('buttons.uploading') : t('buttons.upload_csv')}
       </Button>
 
       <Snackbar

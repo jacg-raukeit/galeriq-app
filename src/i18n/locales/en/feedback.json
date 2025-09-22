@@ -1,0 +1,38 @@
+{
+  "header_title": "Help us improve",
+  "title": "Your feedback matters!",
+  "subtitle": "Tell us how you’d rate your experience and what you’d improve, or if you found any bug.",
+  "tags": ["Bug", "Suggestion", "Idea", "UI/UX", "Performance"],
+  "labels": {
+    "message": "Message"
+  },
+  "placeholders": {
+    "message": "Write your feedback here..."
+  },
+  "buttons": {
+    "send": "Send feedback"
+  },
+  "mail": {
+    "default_subject": "Feedback",
+    "device": "Device",
+    "os_version": "OS version",
+    "tags": "Tags",
+    "rating": "Rating",
+    "not_rated": "Not rated",
+    "message": "Message"
+  },
+  "alerts": {
+    "thanks_title": "Thanks!",
+    "thanks_body": "We opened your email client so you can send your feedback 🙌",
+    "cannot_open_title": "Couldn't open email",
+    "cannot_open_body": "Please email us at {{email}}",
+    "error_title": "Error",
+    "error_open_mail": "We couldn't open the email client.",
+    "empty_title": "Empty message",
+    "empty_body": "Please tell us a bit about your idea or issue."
+  },
+  "sent_modal": {
+    "title": "Sent!",
+    "subtitle": "Thanks for your feedback. We’ll be in touch soon."
+  }
+}

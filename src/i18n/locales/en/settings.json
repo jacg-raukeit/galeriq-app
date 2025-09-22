@@ -1,0 +1,11 @@
+{
+  "title": "Settings",
+  "language": "Language",
+  "spanish": "Spanish",
+  "english": "English",
+  "change_notice_es": "Idioma cambiado a Español",
+  "change_notice_en": "Language switched to English",
+  "preview": "Preview",
+  "preview_text": "This text will change when you select a language.",
+  "back": "Back"
+}

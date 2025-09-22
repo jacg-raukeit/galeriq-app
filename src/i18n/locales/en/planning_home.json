@@ -1,0 +1,51 @@
+{
+  "title": "Checklist",
+  "progress": {
+    "completed": "completed"
+  },
+  "tabs": {
+    "checklist": "Checklist",
+    "expenses": "Expenses",
+    "agenda": "Agenda"
+  },
+  "lists": {
+    "no_expenses": "No expenses yet."
+  },
+  "buttons": {
+    "add_category": "Add category",
+    "create": "Create",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "modals": {
+    "create_title": "Create new category",
+    "edit_title": "Edit category",
+    "placeholders": {
+      "category_name": "Category name",
+      "category_budget": "Category budget (optional)"
+    }
+  },
+  "alerts": {
+    "error_title": "Error",
+    "load_categories_failed": "Could not load categories.",
+    "create_failed": "Could not create the category.",
+    "update_failed": "Could not update the category.",
+    "delete_failed": "Could not delete the category.",
+    "invalid_category": "Invalid category.",
+    "name_required": "Category name cannot be empty.",
+    "budget_number": "Budget must be a valid number.",
+    "delete_confirm_title": "Delete category",
+    "delete_confirm_message": "Are you sure you want to delete this category? This action cannot be undone.",
+    "delete_confirm_cancel": "Cancel",
+    "delete_confirm_ok": "Delete",
+    "expense_update_failed": "Could not update the expense."
+  },
+  "labels": {
+    "category": "Category",
+    "category_with_id": "Category {{id}}",
+    "uncategorized": "Uncategorized"
+  },
+  "expense": {
+    "fallback_title": "Expense"
+  }
+}

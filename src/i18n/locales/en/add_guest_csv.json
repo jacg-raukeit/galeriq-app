@@ -1,0 +1,25 @@
+{
+  "headline": "Import guests from CSV file",
+  "buttons": {
+    "upload_csv": "Upload CSV file",
+    "uploading": "Uploading...",
+    "ok": "OK"
+  },
+  "snackbar": {
+    "import_failed": "Import failed."
+  },
+  "alerts": {
+    "missing_event_title": "Missing eventId",
+    "missing_event_desc": "The event ID was not found.",
+    "read_file_error": "Could not read the file",
+    "invalid_file_title": "Invalid file",
+    "invalid_file_desc": "Please select a .csv file (or .txt in CSV format).",
+    "empty_csv_title": "Empty or invalid CSV",
+    "empty_csv_desc": "Make sure to include columns such as: full_name (or name) and email (or correo).",
+    "success_title": "Import successful",
+    "success_desc_one": "1 guest added.",
+    "success_desc_other": "{{count}} guests added.",
+    "error_title": "Error",
+    "generic_error": "Could not import the CSV file."
+  }
+}

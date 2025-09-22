@@ -31,6 +31,8 @@ import { AuthContext } from "../context/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n/i18n";
 
 const API_URL = "http://143.198.138.35:8000";
 
@@ -53,11 +55,12 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const initialEvent = route?.params?.event || null;
+  const { t } = useTranslation("event_detail");
+  const locale = i18n.language?.startsWith("es") ? "es-ES" : "en-US";
 
   const { user } = useContext(AuthContext);
   const bearer = useMemo(() => user?.token || user?.access_token || "", [user]);
 
-  // ==== Estados ====
   const [loading, setLoading] = useState(true);
   const [eventData, setEventData] = useState(null);
 
@@ -75,7 +78,6 @@ export default function EventDetailScreen() {
   const [updatingEvent, setUpdatingEvent] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
 
-  // ==== OWNER modal ====
   const [ownerVisible, setOwnerVisible] = useState(false);
   const [ownerTab, setOwnerTab] = useState("add"); // "add" | "remove"
   const [ownerEmail, setOwnerEmail] = useState("");
@@ -83,7 +85,6 @@ export default function EventDetailScreen() {
   const [assigningOwner, setAssigningOwner] = useState(false);
   const [removingOwner, setRemovingOwner] = useState(false);
 
-  // ==== Submenú ====
   const [activeTab, setActiveTab] = useState(null);
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const submenuAnim = useRef(new Animated.Value(0)).current;
@@ -96,7 +97,6 @@ export default function EventDetailScreen() {
   const isOwner = role === 1;
   const isGuest = role === 2;
 
-  // Helpers rol
   const toRoleNumber = (data) => {
     if (data == null) return null;
     if (typeof data === "number") return data;
@@ -128,7 +128,6 @@ export default function EventDetailScreen() {
     return "—";
   };
 
-  // ====== Cargar evento por ID ======
   const targetEventId =
     initialEvent?.event_id ??
     route?.params?.eventId ??
@@ -166,7 +165,7 @@ export default function EventDetailScreen() {
           setLoading(false);
         } else {
           setLoading(false);
-          Alert.alert("Evento", "No se encontró el ID del evento.");
+          Alert.alert(t("alerts.event_title"), t("alerts.event_id_missing"));
         }
         return;
       }
@@ -183,12 +182,12 @@ export default function EventDetailScreen() {
         const raw = await res.text();
         if (!res.ok) {
           if (res.status === 401 || res.status === 403) {
-            Alert.alert("Sesión", "Tu sesión expiró. Inicia sesión nuevamente.");
+           Alert.alert(t("session.title"), t("session.expired"));
             navigation.goBack();
             return;
           }
           if (res.status === 404) {
-            Alert.alert("Evento", "Evento no encontrado.");
+             Alert.alert(t("alerts.event_title"), t("alerts.event_not_found"));
             navigation.goBack();
             return;
           }
@@ -210,7 +209,7 @@ export default function EventDetailScreen() {
       } catch (e) {
         if (mounted) {
           console.error("Error cargando evento por ID:", e?.message || e);
-          Alert.alert("Error", "No fue posible cargar el evento.");
+          Alert.alert(t("alerts.error_title"), t("alerts.error_loading_event"));
         }
       } finally {
         if (mounted) {
@@ -224,7 +223,6 @@ export default function EventDetailScreen() {
     return () => { mounted = false; };
   }, [targetEventId, bearer]);
 
-  // Animaciones submenú
   const animateSubmenuIn = () => {
     Animated.timing(submenuAnim, {
       toValue: 1,
@@ -244,7 +242,6 @@ export default function EventDetailScreen() {
     });
   };
 
-  // Pickers
   const onChangeDate = (_, selectedDate) => {
     if (Platform.OS === "ios") setShowDatePicker(false);
     if (selectedDate) setEventDate(selectedDate);
@@ -266,7 +263,7 @@ export default function EventDetailScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permisos", "Se requieren permisos para acceder a la galería");
+      Alert.alert(t("alerts.permissions_title"), t("alerts.need_gallery"));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -281,7 +278,7 @@ export default function EventDetailScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permisos", "Se requieren permisos para usar la cámara");
+      Alert.alert(t("alerts.permissions_title"), t("alerts.need_camera"));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -292,12 +289,11 @@ export default function EventDetailScreen() {
     if (!result.canceled) setCoverUri(result.assets[0].uri);
   };
 
-  // Update evento (usa eventData.event_id)
   const handleUpdate = async () => {
     if (updatingEvent) return;
 
     if (isOtherType && !eventType.trim()) {
-      Alert.alert("Tipo de evento", 'Escribe el tipo de evento cuando selecciones "Otro".');
+      Alert.alert(t("alerts.type_required_title"), t("alerts.type_required_msg"));
       return;
     }
 
@@ -335,7 +331,6 @@ export default function EventDetailScreen() {
         updated.event_cover = coverData.event_cover;
       }
 
-      // Resembrar estado
       setEventData(updated);
       setEventName(updated.event_name || "");
       setEventDate(updated.event_date ? new Date(updated.event_date) : new Date());
@@ -349,24 +344,23 @@ export default function EventDetailScreen() {
       setEditVisible(false);
     } catch (err) {
       console.error("Error al actualizar evento:", err);
-      Alert.alert("Error", "No se pudo actualizar el evento.");
+     Alert.alert(t("alerts.error_title"), t("alerts.error_updating_event"));
     } finally {
       setUpdatingEvent(false);
     }
   };
 
-  // Owners
   const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email.trim());
 
   const handleAssignOwnerByEmail = async () => {
     if (assigningOwner) return;
     const email = ownerEmail.trim();
     if (!isValidEmail(email)) {
-      Alert.alert("Correo inválido", "Ingresa un correo electrónico válido.");
+      Alert.alert(t("owner_modal.validations.email_invalid_title"), t("owner_modal.validations.email_invalid_msg"));
       return;
     }
     if (!eventData?.event_id) {
-      Alert.alert("Error", "No se encontró el ID del evento.");
+      Alert.alert(t("owner_modal.errors.id_missing_title"), t("owner_modal.errors.id_missing_msg"));
       return;
     }
 
@@ -390,25 +384,24 @@ export default function EventDetailScreen() {
           if (data?.detail) detail = data.detail;
         } catch {}
         if (res.status === 404) {
-          Alert.alert("No encontrado", "No se encontró el usuario. Verifica el correo e inténtalo de nuevo.");
+         Alert.alert(t("owner_modal.api.not_found_title"), t("owner_modal.api.not_found_user"));
         } else {
-          Alert.alert("Aviso", String(detail));
+          Alert.alert(t("owner_modal.api.notice_title"), String(detail));
         }
         return;
       }
 
-      Alert.alert("Listo", "Owner asignado");
+      Alert.alert(t("owner_modal.success.title"), t("owner_modal.success.assigned"));
       setOwnerEmail("");
       setOwnerVisible(false);
     } catch (e) {
       console.error("Error asignando owner:", e);
-      Alert.alert("Error", "No se pudo asignar el usuario como owner.");
+      Alert.alert(t("owner_modal.errors.assign_title"), t("owner_modal.errors.assign_msg"));
     } finally {
       setAssigningOwner(false);
     }
   };
 
-  // Resolver user_id por email
   const resolveUserIdByEmail = async (email) => {
     const headers = { Authorization: `Bearer ${user.token}` };
 
@@ -444,11 +437,11 @@ export default function EventDetailScreen() {
     if (removingOwner) return;
     const email = removeEmail.trim();
     if (!isValidEmail(email)) {
-      Alert.alert("Correo inválido", "Ingresa un correo electrónico válido.");
+      Alert.alert(t("owner_modal.validations.email_invalid_title"), t("owner_modal.validations.email_invalid_msg"));
       return;
     }
     if (!eventData?.event_id) {
-      Alert.alert("Error", "No se encontró el ID del evento.");
+      Alert.alert(t("owner_modal.errors.id_missing_title"), t("owner_modal.errors.id_missing_msg"));
       return;
     }
 
@@ -476,22 +469,21 @@ export default function EventDetailScreen() {
           const data = JSON.parse(raw);
           if (data?.detail) msg = data.detail;
         } catch {}
-        Alert.alert("Aviso", msg);
+        Alert.alert(t("owner_modal.api.notice_title"), msg);
         return;
       }
 
-      Alert.alert("Listo", "Owner eliminado exitosamente.");
+      Alert.alert(t("owner_modal.success.title"), t("owner_modal.success.removed"));
       setRemoveEmail("");
       setOwnerVisible(false);
     } catch (e) {
       console.error("Error eliminando owner:", e);
-      Alert.alert("Error", "No se pudo eliminar el owner.");
+      Alert.alert(t("owner_modal.errors.remove_title"), t("owner_modal.errors.remove_msg"));
     } finally {
       setRemovingOwner(false);
     }
   };
 
-  // Navegación de pestañas
   const goMyEvents = () => {
     setActiveTab(0);
     setSubmenuOpen(false);
@@ -549,7 +541,7 @@ export default function EventDetailScreen() {
     return (
       <View style={[styles.empty, { paddingTop: 40 }]}>
         <ActivityIndicator size="large" color="#6B21A8" />
-        <Text style={{ marginTop: 8, color: "#6B7280" }}>Cargando evento…</Text>
+        <Text style={{ marginTop: 8, color: "#6B7280" }}>{t("loading")}</Text>
       </View>
     );
   }
@@ -557,15 +549,15 @@ export default function EventDetailScreen() {
   if (!eventData) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>Evento no encontrado.</Text>
+       <Text style={styles.emptyText}>{t("not_found")}</Text>
       </View>
     );
   }
 
-  const prettyDate = new Date(eventData.event_date).toLocaleDateString("es-ES", {
+  const prettyDate = new Date(eventData.event_date).toLocaleDateString(locale, {
     day: "2-digit", month: "long", year: "numeric",
   });
-  const prettyTime = new Date(eventData.event_date).toLocaleTimeString("es-ES", {
+  const prettyTime = new Date(eventData.event_date).toLocaleTimeString(locale, {
     hour: "2-digit", minute: "2-digit",
   });
 
@@ -638,13 +630,13 @@ export default function EventDetailScreen() {
       {/* ====== CONTENIDO ====== */}
       <ScrollView bounces contentContainerStyle={{ paddingBottom: 150 }}>
         <View style={styles.sectionCard}>
-          <SectionTitle icon="document-text-outline" title="Descripción :" />
-          <Text style={styles.sectionText}>{eventData.event_description?.trim() || "Sin descripción"}</Text>
+          <SectionTitle icon="document-text-outline" title={t("section.description_title")} />
+          <Text style={styles.sectionText}>{eventData.event_description?.trim() || t("section.description_empty")}</Text>
         </View>
 
         <View style={styles.sectionCard}>
-          <SectionTitle icon="person-circle-outline" title="Tu rol en el evento es :" />
-          <Text style={styles.gridValue}>{roleLoading ? "Cargando…" : roleLabel || "—"}</Text>
+          <SectionTitle icon="person-circle-outline" title={t("section.role_title")} />
+          <Text style={styles.gridValue}>{roleLoading ? t("section.role_loading") : roleLabel || "—"}</Text>
         </View>
       </ScrollView>
 
@@ -677,9 +669,9 @@ export default function EventDetailScreen() {
               },
             ]}
           >
-            <MiniAction icon="calendar-outline" label="Agenda" onPress={goAgenda} />
-            <MiniAction icon="list-outline" label="Planeación" onPress={goPlanning} />
-            <MiniAction icon="cash-outline" label="Gastos" onPress={goExpenses} />
+           <MiniAction icon="calendar-outline" label={t("mini_actions.agenda")} onPress={goAgenda} />
+            <MiniAction icon="list-outline" label={t("mini_actions.planning")} onPress={goPlanning} />
+            <MiniAction icon="cash-outline" label={t("mini_actions.expenses")} onPress={goExpenses} />
           </Animated.View>
         </Animated.View>
       )}
@@ -696,17 +688,17 @@ export default function EventDetailScreen() {
             </>
           ) : isOwner ? (
             <>
-              <TabItem icon="sparkles-outline" label="Mis eventos" active={activeTab === 0} onPress={goMyEvents} />
-              <TabItem icon="clipboard-outline" label="Acciones" active={activeTab === 1 || submenuOpen} onPress={toggleSubmenu} />
-              <TabItem icon="people-outline" label="Invitados" active={activeTab === 3} onPress={goGuests} />
-              <TabItem icon="images-outline" label="Álbumes" active={activeTab === 4} onPress={goAlbums} />
-              <TabItem icon="mail-open-outline" label="Invitaciones" active={activeTab === 5} onPress={goInvitations} />
-              <TabItem icon="person-add-outline" label="Owner" active={activeTab === 6} onPress={openOwner} />
+              <TabItem icon="sparkles-outline" label={t("tabs.my_events")} active={activeTab === 0} onPress={goMyEvents} />
+              <TabItem icon="clipboard-outline" label={t("tabs.actions")} active={activeTab === 1 || submenuOpen} onPress={toggleSubmenu} />
+              <TabItem icon="people-outline" label={t("tabs.guests")} active={activeTab === 3} onPress={goGuests} />
+              <TabItem icon="images-outline" label={t("tabs.albums")} active={activeTab === 4} onPress={goAlbums} />
+              <TabItem icon="mail-open-outline" label={t("tabs.invites")} active={activeTab === 5} onPress={goInvitations} />
+              <TabItem icon="person-add-outline" label={t("tabs.owner")} active={activeTab === 6} onPress={openOwner} />
             </>
           ) : (
             <>
-              <TabItem icon="images-outline" label="Álbumes" active={activeTab === 4} onPress={goAlbums} />
-              <TabItem icon="mail-open-outline" label="Invitaciones" active={activeTab === 5} onPress={goInvitations} />
+              <TabItem icon="images-outline" label={t("tabs.albums")} active={activeTab === 4} onPress={goAlbums} />
+              <TabItem icon="mail-open-outline" label={t("tabs.invites")} active={activeTab === 5} onPress={goInvitations} />
             </>
           )}
         </View>
@@ -719,7 +711,7 @@ export default function EventDetailScreen() {
             <TouchableOpacity onPress={() => !updatingEvent && setEditVisible(false)} disabled={updatingEvent}>
               <Ionicons name="close" size={24} color="#111827" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Editar Evento</Text>
+            <Text style={styles.modalTitle}>{t("edit_modal.title")}</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -730,35 +722,35 @@ export default function EventDetailScreen() {
               ) : (
                 <View style={[styles.coverPreview, styles.coverPlaceholder]}>
                   <Ionicons name="image-outline" size={28} color="#9CA3AF" />
-                  <Text style={{ color: "#9CA3AF", marginTop: 6 }}>Seleccionar portada</Text>
+                   <Text style={{ color: "#9CA3AF", marginTop: 6 }}>{t("edit_modal.cover.select")}</Text>
                 </View>
               )}
               <View style={styles.coverActions}>
                 <TouchableOpacity style={styles.iconBtn} onPress={pickImage}>
                   <Ionicons name="images-outline" size={18} color="#ffff" />
-                  <Text style={styles.iconBtnText}>Galería</Text>
+                 <Text style={styles.iconBtnText}>{t("edit_modal.cover.gallery")}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.iconBtn} onPress={takePhoto}>
                   <Ionicons name="camera-outline" size={18} color="#ffff" />
-                  <Text style={styles.iconBtnText}>Cámara</Text>
+                  <Text style={styles.iconBtnText}>{t("edit_modal.cover.camera")}</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            <Field label="Nombre">
+             <Field label={t("edit_modal.fields.name.label")}>
               <TextInput
                 style={styles.input}
                 value={eventName}
                 onChangeText={setEventName}
-                placeholder="Ej. Boda de Ana y Luis"
+                placeholder={t("edit_modal.fields.name.placeholder")}
                 placeholderTextColor="#6B7280"
               />
             </Field>
 
-            <Field label="Fecha y hora">
+            <Field label={t("edit_modal.fields.datetime.label")}>
               <TouchableOpacity style={styles.input} onPress={openDateTimePicker}>
                 <Text>
-                  {eventDate.toLocaleString("es-ES", {
+                  {eventDate.toLocaleString(locale, {
                     day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
                   })}
                 </Text>
@@ -768,21 +760,21 @@ export default function EventDetailScreen() {
               )}
             </Field>
 
-            <Field label="Dirección">
+            <Field label={t("edit_modal.fields.address.label")}>
               <TextInput
                 style={styles.input}
                 value={eventAddress}
                 onChangeText={setEventAddress}
-                placeholder="Ej. Jardín El Roble, Cuernavaca"
+                placeholder={t("edit_modal.fields.address.placeholder")}
                 placeholderTextColor="#6B7280"
               />
             </Field>
 
-            <Field label="Tipo de evento">
+            <Field label={t("edit_modal.fields.type.label")}>
               <TouchableOpacity style={styles.input} onPress={() => setTypePickerVisible(true)} activeOpacity={0.9}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                   <Text style={{ color: eventType ? "#111827" : "#9CA3AF" }}>
-                    {eventType || "Selecciona tipo"}
+                    {eventType || t("edit_modal.fields.type.select_placeholder")}
                   </Text>
                   <Ionicons name="chevron-down-outline" size={18} color="#6B7280" />
                 </View>
@@ -790,12 +782,12 @@ export default function EventDetailScreen() {
 
               {isOtherType && (
                 <>
-                  <Text style={styles.helperText}>Especifica el tipo de evento</Text>
+                  <Text style={styles.helperText}>{t("edit_modal.fields.type.helper_other")}</Text>
                   <TextInput
                     style={styles.input}
                     value={EVENT_TYPES.includes(eventType) ? "" : eventType}
                     onChangeText={setEventType}
-                    placeholder="Escribe el tipo de evento"
+                    placeholder={t("edit_modal.fields.type.other_placeholder")}
                     autoCapitalize="sentences"
                     placeholderTextColor="#6B7280"
                   />
@@ -803,13 +795,13 @@ export default function EventDetailScreen() {
               )}
             </Field>
 
-            <Field label="Descripción">
+            <Field label={t("edit_modal.fields.description.label")}>
               <TextInput
                 style={[styles.input, { height: 110, textAlignVertical: "top" }]}
                 multiline
                 value={eventDescription}
                 onChangeText={setEventDescription}
-                placeholder="Detalles y notas del evento"
+                placeholder={t("edit_modal.fields.description.placeholder")}
                 placeholderTextColor="#6B7280"
               />
             </Field>
@@ -821,7 +813,7 @@ export default function EventDetailScreen() {
               accessibilityRole="button"
               accessibilityState={{ disabled: updatingEvent, busy: updatingEvent }}
             >
-              {updatingEvent ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.saveText}>Actualizar Evento</Text>}
+              {updatingEvent ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.saveText}>{t("edit_modal.update_button")}</Text>}
             </TouchableOpacity>
           </ScrollView>
         </Modal>
@@ -837,7 +829,7 @@ export default function EventDetailScreen() {
         <TouchableOpacity style={styles.pickerBackdrop} activeOpacity={1} onPress={() => setTypePickerVisible(false)} />
         <View style={styles.pickerSheet}>
           <View style={styles.pickerHeader}>
-            <Text style={styles.pickerTitle}>Selecciona el tipo de evento</Text>
+            <Text style={styles.pickerTitle}>{t("type_picker.title")}</Text>
             <TouchableOpacity onPress={() => setTypePickerVisible(false)}>
               <Ionicons name="close" size={22} color="#111827" />
             </TouchableOpacity>
@@ -876,7 +868,7 @@ export default function EventDetailScreen() {
             <TouchableOpacity onPress={() => setOwnerVisible(false)}>
               <Ionicons name="close" size={24} color="#111827" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Gestionar owner</Text>
+            <Text style={styles.modalTitle}>{t("owner_modal.title")}</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -889,7 +881,7 @@ export default function EventDetailScreen() {
                 activeOpacity={0.9}
               >
                 <Text style={[styles.ownerTabText, ownerTab === "add" && styles.ownerTabTextActive]}>
-                  Agregar owner
+                  {t("owner_modal.tabs.add")}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -898,17 +890,17 @@ export default function EventDetailScreen() {
                 activeOpacity={0.9}
               >
                 <Text style={[styles.ownerTabText, ownerTab === "remove" && styles.ownerTabTextActive]}>
-                  Eliminar owner
+                  {t("owner_modal.tabs.remove")}
                 </Text>
               </TouchableOpacity>
             </View>
 
             {ownerTab === "add" ? (
               <>
-                <Field label="Correo del usuario">
+                <Field label={t("owner_modal.fields.user_email_label")}>
                   <TextInput
                     style={styles.input}
-                    placeholder="correo@ejemplo.com"
+                    placeholder={t("owner_modal.fields.email_placeholder")}
                     value={ownerEmail}
                     onChangeText={setOwnerEmail}
                     placeholderTextColor="#6B7280"
@@ -931,16 +923,16 @@ export default function EventDetailScreen() {
                   {assigningOwner ? (
                     <ActivityIndicator size="small" color="#FFF" />
                   ) : (
-                    <Text style={styles.saveText}>Asignar como owner</Text>
+                    <Text style={styles.saveText}>{t("owner_modal.buttons.assign")}</Text>
                   )}
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <Field label="Correo del owner a eliminar">
+                <Field label={t("owner_modal.fields.owner_email_remove_label")}>
                   <TextInput
                     style={styles.input}
-                    placeholder="correo@ejemplo.com"
+                    placeholder={t("owner_modal.fields.email_placeholder")}
                     value={removeEmail}
                     onChangeText={setRemoveEmail}
                     placeholderTextColor="#6B7280"
@@ -963,7 +955,7 @@ export default function EventDetailScreen() {
                   {removingOwner ? (
                     <ActivityIndicator size="small" color="#FFF" />
                   ) : (
-                    <Text style={styles.removeText}>Eliminar owner</Text>
+                    <Text style={styles.removeText}>{t("owner_modal.buttons.remove")}</Text>
                   )}
                 </TouchableOpacity>
               </>
@@ -1019,7 +1011,6 @@ function MiniAction({ icon, label, onPress }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#F5F7FA" },
 
-  /* Acciones arriba del hero */
   topActions: {
     position: "absolute",
     left: 16,
@@ -1038,7 +1029,6 @@ const styles = StyleSheet.create({
   },
   iconHit: { flex: 1, alignItems: "center", justifyContent: "center" },
 
-  /* Contenido inferior del hero */
   heroBottom: {
     position: "absolute",
     left: 16,
@@ -1051,7 +1041,6 @@ const styles = StyleSheet.create({
   metaText: { color: "#F9FAFB", fontWeight: "600" },
   dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#F9FAFB", opacity: 0.85 },
 
-  /* Pill tipo de evento como rating */
   typePill: {
     position: "absolute",
     right: 16,
@@ -1066,7 +1055,6 @@ const styles = StyleSheet.create({
   },
   typePillText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
-  /* Tarjetas de contenido */
   sectionCard: {
     backgroundColor: "transparent",
     borderRadius: 0,
@@ -1164,7 +1152,6 @@ const styles = StyleSheet.create({
   pickerText: { fontSize: 15, color: "#111827" },
   pickerTextSelected: { color: "#6B21A8", fontWeight: "800" },
 
-  // Tabs del modal de Owner
   ownerTabs: {
     flexDirection: "row",
     backgroundColor: "#F3F4F6",

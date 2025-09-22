@@ -11,12 +11,19 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { useTranslation } from "react-i18next";
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 16 * 2 - 12) / 2;
 const CARD_H = CARD_W * 1.45;
 
-const CATS = ["Moderno", "Minimalista", "Natural", "Tradicional"];
+const CAT_KEYS = ["modern", "minimal", "natural", "traditional"];
+const ES_LABELS = {
+  modern: "Moderno",
+  minimal: "Minimalista",
+  natural: "Natural",
+  traditional: "Tradicional"
+};
 
 const TEMPLATES = [
   {
@@ -244,10 +251,11 @@ export default function ExploreDesignsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { event, eventId } = route.params || {};
-  const [active, setActive] = useState("Moderno");
+  const { t } = useTranslation("explore_designs");
+  const [active, setActive] = useState("modern");
 
   const data = useMemo(
-    () => TEMPLATES.filter((t) => t.cat === active),
+    () => TEMPLATES.filter((tpl) => tpl.cat === ES_LABELS[active]),
     [active]
   );
 
@@ -261,7 +269,7 @@ export default function ExploreDesignsScreen() {
         >
           <Ionicons name="chevron-back" size={22} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.brand}>Explorar diseños</Text>
+        <Text style={styles.brand}>{t("title")}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -272,16 +280,16 @@ export default function ExploreDesignsScreen() {
         showsHorizontalScrollIndicator={false}
         style={{ flexGrow: 0 }}
       >
-        {CATS.map((cat) => (
+        {CAT_KEYS.map((key) => (
           <TouchableOpacity
-            key={cat}
-            onPress={() => setActive(cat)}
-            style={[styles.chip, active === cat && styles.chipActive]}
+            key={key}
+            onPress={() => setActive(key)}
+            style={[styles.chip, active === key && styles.chipActive]}
           >
             <Text
-              style={[styles.chipText, active === cat && styles.chipTextActive]}
+             style={[styles.chipText, active === key && styles.chipTextActive]}
             >
-              {cat}
+             {t(`categories.${key}`)}
             </Text>
           </TouchableOpacity>
         ))}

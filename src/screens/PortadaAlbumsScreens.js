@@ -7,6 +7,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const API_URL = 'http://143.198.138.35:8000';
 
@@ -72,6 +73,7 @@ function isAllDayTimes(start, end) {
 export default function PortadaAlbumsScreens({ navigation, route }) {
   const { eventId } = route.params || {};
   const { user } = useContext(AuthContext);
+  const { t } = useTranslation('albums_cover');
 
   const token = user?.token || user?.access_token || user?.accessToken || '';
   const authHeaders = useMemo(() => (token ? { Authorization: `Bearer ${token}` } : {}), [token]);
@@ -178,10 +180,14 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
   const ensurePermission = async (fromCamera) => {
     if (fromCamera) {
       const cam = await ImagePicker.requestCameraPermissionsAsync();
-      return cam.status === 'granted';
+      const ok = cam.status === 'granted';
+      if (!ok) Alert.alert(t('alerts.permission_title'), t('alerts.permission_camera'));
+      return ok;
     } else {
       const lib = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      return lib.status === 'granted';
+      const ok = lib.status === 'granted';
+      if (!ok) Alert.alert(t('alerts.permission_title'), t('alerts.permission_photos'));
+      return ok;
     }
   };
 
@@ -267,7 +273,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
     setLoading(true);
     try {
       const r = await fetch(ALBUMS_BY_EVENT(eventId), { headers: { ...authHeaders } });
-      if (!r.ok) throw new Error('No se pudo obtener los álbumes');
+      if (!r.ok) throw new Error('fetch_albums_failed');
       const raw = await r.json();
 
       const mapped = (raw || []).map(a => {
@@ -289,7 +295,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
       fetchCountsForAlbums(mapped);
       fetchTimesForAlbums(mapped);
     } catch (e) {
-      Alert.alert('Error', e?.message || 'No se pudieron cargar los álbumes.');
+      Alert.alert(t('alerts.fetch_error_title'), t('alerts.fetch_error_desc'));
     } finally {
       setLoading(false);
     }
@@ -304,9 +310,9 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
   }, [fetchAlbums]);
 
   const saveAlbum = async () => {
-    if (!newName.trim()) return Alert.alert('Falta el nombre', 'Escribe un nombre para el álbum.');
-    if (!newCover) return Alert.alert('Falta la portada', 'Elige una foto de portada.');
-    if (!eventId) return Alert.alert('Sin evento', 'Falta el eventId para crear el álbum.');
+    if (!newName.trim()) return Alert.alert(t('alerts.save_missing_name_title'), t('alerts.save_missing_name_desc'));
+    if (!newCover) return Alert.alert(t('alerts.save_missing_cover_title'), t('alerts.save_missing_cover_desc'));
+    if (!eventId) return Alert.alert(t('alerts.save_missing_event_title'), t('alerts.save_missing_event_desc'));
 
     try {
       setCreating(true);
@@ -325,14 +331,14 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
 
       if (!r.ok) {
         const txt = await r.text();
-        throw new Error(txt || 'No se pudo crear el álbum.');
+        throw new Error(txt || 'create_album_failed');
       }
 
       setCreateOpen(false);
       setNewName(''); setNewCover(null);
       await fetchAlbums();
     } catch (e) {
-      Alert.alert('Error', e?.message || 'No se pudo crear el álbum.');
+      Alert.alert(t('alerts.fetch_error_title'), t('alerts.fetch_error_desc'));
     } finally {
       setCreating(false);
     }
@@ -352,13 +358,13 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
       });
       if (!r.ok) {
         const txt = await r.text();
-        throw new Error(txt || 'No se pudo actualizar la portada.');
+        throw new Error(txt || 'cover_update_failed');
       }
       setMenuOpen(false);
       setMenuAlbum(null);
       await fetchAlbums();
     } catch (e) {
-      Alert.alert('Error', e?.message || 'No se pudo actualizar la portada.');
+      Alert.alert(t('alerts.fetch_error_title'), t('alerts.cover_update_error_desc'));
     } finally {
       setUpdatingCover(false);
     }
@@ -374,15 +380,15 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
   const confirmDelete = (album) => {
     if (!isOwner) return;
     if (album.photosCount !== 0) {
-      Alert.alert('No se puede eliminar', 'Solo puedes eliminar álbumes vacíos.');
+      Alert.alert(t('alerts.cannot_delete_title'), t('alerts.cannot_delete_desc'));
       return;
     }
-    Alert.alert(
-      'Eliminar álbum',
-      `¿Seguro que quieres eliminar “${album.name}”? Esta acción no se puede deshacer.`,
+     Alert.alert(
+      t('alerts.delete_title'),
+      t('alerts.delete_message', { name: album.name }),
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => deleteAlbum(album.id) },
+        { text: t('alerts.buttons.cancel'), style: 'cancel' },
+        { text: t('alerts.buttons.delete'), style: 'destructive', onPress: () => deleteAlbum(album.id) },
       ]
     );
   };
@@ -401,10 +407,10 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
         throw new Error(txt || 'No se pudo eliminar el álbum.');
       }
       setAlbums(prev => prev.filter(a => String(a.id) !== String(albumId)));
-      showToast('Álbum eliminado', 'success');
+      showToast(t('toasts.deleted_success'), 'success');
     } catch (e) {
-      Alert.alert('Error', e?.message || 'No se pudo eliminar el álbum.');
-      showToast('Error al eliminar', 'error');
+      Alert.alert(t('alerts.fetch_error_title'), t('alerts.fetch_error_desc'));
+      showToast(t('toasts.delete_error'), 'error');
     } finally {
       setDeletingId(null);
     }
@@ -425,7 +431,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
           {isDeleting && (
             <View style={styles.cardOverlay}>
               <ActivityIndicator color="#fff" />
-              <Text style={styles.overlayTxt}>Eliminando…</Text>
+              <Text style={styles.overlayTxt}>{t('overlay.deleting')}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -451,7 +457,9 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
         )}
 
         {Number.isFinite(item.photosCount) ? (
-          <Text style={styles.cardSubtitle}>{`${item.photosCount} fotos`}</Text>
+          <Text style={styles.cardSubtitle}>
+            {t(item.photosCount === 1 ? 'cards.photos_count_one' : 'cards.photos_count_other', { count: item.photosCount })}
+          </Text>
         ) : (
           <Text style={[styles.cardSubtitle, { color: '#aaa' }]}>—</Text>
         )}
@@ -489,7 +497,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} />
         </TouchableOpacity>
-        <Text style={styles.title}>Galeriq</Text>
+        <Text style={styles.title}>{t('brand')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -499,7 +507,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Buscar"
+          placeholder={t('search.placeholder')}
           placeholderTextColor="#999"
           style={styles.searchInput}
           autoCorrect={false}
@@ -528,7 +536,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <View style={{ padding: 32, alignItems: 'center' }}>
-              <Text style={{ color: '#666' }}>Aún no hay álbumes.</Text>
+              <Text style={{ color: '#666' }}>{t('empty.no_albums')}</Text>
             </View>
           }
         />
@@ -539,7 +547,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
         <View style={styles.bottomBar}>
           <TouchableOpacity style={styles.createBtn} onPress={() => setCreateOpen(true)}>
             <Ionicons name="add" size={22} color="#fff" />
-            <Text style={styles.createText}>Crear álbum</Text>
+            <Text style={styles.createText}>{t('create.open_button')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -548,12 +556,12 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
       <Modal visible={createOpen} transparent animationType="slide" onRequestClose={() => setCreateOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Nuevo álbum</Text>
+            <Text style={styles.modalTitle}>{t('create.modal_title')}</Text>
 
-            <Text style={styles.label}>Nombre</Text>
-            <TextInput value={newName} onChangeText={setNewName} placeholder="Ej. Preparativos" style={styles.input} />
+            <Text style={styles.label}>{t('create.name_label')}</Text>
+            <TextInput value={newName} onChangeText={setNewName} placeholder={t('create.name_placeholder')} style={styles.input} />
 
-            <Text style={[styles.label, { marginTop: 12 }]}>Portada</Text>
+            <Text style={[styles.label, { marginTop: 12 }]}>{t('create.cover_label')}</Text>
             <TouchableOpacity
               style={styles.coverPicker}
               activeOpacity={0.9}
@@ -564,7 +572,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
               ) : (
                 <View style={styles.coverEmpty}>
                   <Ionicons name="image-outline" size={28} />
-                  <Text style={{ marginTop: 6, color: '#666' }}>Selecciona una imagen</Text>
+                  <Text style={{ marginTop: 6, color: '#666' }}>{t('create.pick_placeholder')}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -575,7 +583,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
                 onPress={async () => { const uri = await pickImage(false); if (uri) setNewCover(uri); }}
               >
                 <Ionicons name="images-outline" size={18} color="#fff" />
-                <Text style={styles.smallBtnText}>Galería</Text>
+                <Text style={styles.smallBtnText}>{t('create.gallery_btn')}</Text>
               </TouchableOpacity>
 
               <View style={{ width: 10 }} />
@@ -585,7 +593,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
                 onPress={async () => { const uri = await pickImage(true); if (uri) setNewCover(uri); }}
               >
                 <Ionicons name="camera-outline" size={18} color="#fff" />
-                <Text style={styles.smallBtnText}>Cámara</Text>
+                <Text style={styles.smallBtnText}>{t('create.camera_btn')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -595,11 +603,11 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
                 onPress={() => { setCreateOpen(false); setNewName(''); setNewCover(null); }}
                 disabled={creating}
               >
-                <Text style={[styles.actionText, { color: '#333' }]}>Cancelar</Text>
+                <Text style={[styles.actionText, { color: '#333' }]}>{t('create.cancel_btn')}</Text>
               </TouchableOpacity>
               <View style={{ width: 10 }} />
               <TouchableOpacity style={styles.actionBtn} onPress={saveAlbum} disabled={creating}>
-                {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionText}>Guardar</Text>}
+                 {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionText}>{t('create.save_btn')}</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -610,16 +618,16 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.menuBackdrop}>
           <View style={styles.menuCard}>
-            <Text style={styles.menuTitle}>{menuAlbum?.name}</Text>
+            <Text style={styles.menuTitle}>{t('menu.title_with_name', { name: menuAlbum?.name })}</Text>
 
             <TouchableOpacity style={styles.menuItem} disabled={updatingCover || !!deletingId} onPress={() => onChangeCoverFrom(false)}>
               <Ionicons name="images-outline" size={18} />
-              <Text style={styles.menuText}>Cambiar portada desde galería</Text>
+              <Text style={styles.menuText}>{t('menu.change_from_gallery')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.menuItem} disabled={updatingCover || !!deletingId} onPress={() => onChangeCoverFrom(true)}>
               <Ionicons name="camera-outline" size={18} />
-              <Text style={styles.menuText}>Cambiar portada desde cámara</Text>
+              <Text style={styles.menuText}>{t('menu.change_from_camera')}</Text>
             </TouchableOpacity>
 
             {/* Eliminar: solo propietario y álbum vacío */}
@@ -630,14 +638,14 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
                 onPress={() => confirmDelete(menuAlbum)}
               >
                 <Ionicons name="trash-outline" size={18} color="#dc2626" />
-                <Text style={[styles.menuText, { color: '#dc2626' }]}>Eliminar álbum</Text>
+                <Text style={[styles.menuText, { color: '#dc2626' }]}>{t('alerts.buttons.delete')}</Text>
               </TouchableOpacity>
             )}
 
             {isOwner && Number(menuAlbum?.photosCount) > 0 && (
               <View style={[styles.menuItem, { opacity: 0.6 }]}>
                 <Ionicons name="lock-closed-outline" size={18} />
-                <Text style={styles.menuText}>No se puede eliminar (tiene fotos)</Text>
+                 <Text style={styles.menuText}>{t('menu.cannot_delete_has_photos')}</Text>
               </View>
             )}
 
@@ -645,7 +653,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
               style={[styles.menuItem, { justifyContent: 'center' }]}
               onPress={() => { setMenuOpen(false); setMenuAlbum(null); }}
             >
-              <Text style={[styles.menuText, { fontWeight: '700' }]}>Cancelar</Text>
+              <Text style={[styles.menuText, { fontWeight: '700' }]}>{t('menu.cancel')}</Text>
             </TouchableOpacity>
 
             {(updatingCover || !!deletingId) && <ActivityIndicator style={{ marginTop: 10 }} />}

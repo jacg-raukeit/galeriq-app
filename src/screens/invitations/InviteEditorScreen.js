@@ -13,6 +13,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 
 const API_URL = 'http://143.198.138.35:8000';
 
@@ -82,7 +83,6 @@ const { width } = Dimensions.get('window');
 const CANVAS_W = width - 32;
 const CANVAS_H = CANVAS_W * 1.4;
 
-// util colores
 const clamp255 = (n, min = 0, max = 255) => Math.max(min, Math.min(max, Math.round(n)));
 const hexToRgb = (hex) => {
   if (!hex) return { r: 17, g: 24, b: 39 };
@@ -95,7 +95,6 @@ const hexToRgb = (hex) => {
 const rgbToHex = ({ r, g, b }) => '#' + [r, g, b].map(v => clamp255(v).toString(16).padStart(2, '0')).join('').toUpperCase();
 const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : '');
 
-// ====== Picker de color inline ======
 function InlineColorPicker({ value, onChange, onClose }) {
   const [hex, setHex] = useState(value || '#111827');
   const [rgb, setRgb] = useState(hexToRgb(value));
@@ -303,7 +302,6 @@ function DraggableSticker({
   );
 }
 
-// ====== Sliders ======
 function SizeSlider({ value, onChange, min = 10, max = 64 }) {
   return (
     <View style={{ width: '100%', paddingVertical: 8 }}>
@@ -368,8 +366,8 @@ function LiveSlider({ title, value, min, max, step = 1, format = (v) => v.toFixe
   );
 }
 
-/* ==================== PANTALLA PRINCIPAL ==================== */
 export default function InviteEditorScreen() {
+  const { t, i18n } = useTranslation('invite_editor');
   const navigation = useNavigation();
   const route = useRoute();
   const template = route.params?.template;
@@ -394,13 +392,13 @@ export default function InviteEditorScreen() {
     return route.params?.event || null;
   }, [activeEventId, events, route.params?.event]);
 
-  const eventName        = currentEvent?.event_name || 'Nuevo evento';
-  const eventType        = currentEvent?.event_type ?? 'Evento';
-  const eventDescription = currentEvent?.event_description ?? 'Descripción pendiente';
+  const eventName        = currentEvent?.event_name || t('placeholders.templateDefaults.newEvent');
+  const eventType        = currentEvent?.event_type ?? t('placeholders.templateDefaults.eventType');
+  const eventDescription = currentEvent?.event_description ?? t('placeholders.templateDefaults.descPending');
   const eventDateISO     = currentEvent?.event_date ?? null;
 
   const formattedDateTime = useMemo(() => {
-    if (!eventDateISO) return 'Fecha por definir';
+    if (!eventDateISO) return t('placeholders.templateDefaults.dateTbd');
     const d = new Date(eventDateISO);
     const fecha = d.toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
     const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -408,12 +406,12 @@ export default function InviteEditorScreen() {
   }, [eventDateISO]);
 
   const baseLayers = useMemo(() => ([
-    { kind: 'text', id: 't1', text: 'Te invito a mi',                x: CANVAS_W * 0.29, y: CANVAS_H * 0.18, size: 18, color: '#4B5563', weight: '700', align: 'center', font: 'System' },
+    { kind: 'text', id: 't1', text: t('placeholders.templateDefaults.inviteLead'), x: CANVAS_W * 0.29, y: CANVAS_H * 0.18, size: 18, color: '#4B5563', weight: '700', align: 'center', font: 'System' },
     { kind: 'text', id: 't2', text: String(eventType).toUpperCase(), x: CANVAS_W * 0.29, y: CANVAS_H * 0.30, size: 22, color: '#5B2B2B', weight: '900', align: 'left',   font: 'Montserrat' },
     { kind: 'text', id: 't3', text: eventDescription,                x: CANVAS_W * 0.07, y: CANVAS_H * 0.42, size: 24, color: '#6B2A4A', weight: '800', align: 'center', font: 'Pacifico' },
     { kind: 'text', id: 't4', text: formattedDateTime,               x: CANVAS_W * 0.12, y: CANVAS_H * 0.54, size: 14, color: '#374151', weight: '700', align: 'left',   font: 'Lato' },
     { kind: 'text', id: 't5', text: eventName,                       x: CANVAS_W * 0.29, y: CANVAS_H * 0.66, size: 14, color: '#374151', weight: '700', align: 'left',   font: 'Lato' },
-  ]), [eventType, eventDescription, formattedDateTime, eventName]);
+  ]), [eventType, eventDescription, formattedDateTime, eventName, i18n.language]);
 
   const [layers, setLayers] = useState(baseLayers);
   const [initializedFromEvent, setInitializedFromEvent] = useState(false);
@@ -434,12 +432,10 @@ export default function InviteEditorScreen() {
   const [panel, setPanel] = useState('edit');
   const [isAdjusting, setIsAdjusting] = useState(false);
 
-  // === PREVISUALIZACIÓN ===
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewUri, setPreviewUri] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // zoom/pan en previsualización
   const PREV_W = width - 32;
   const PREV_H = PREV_W * 1.4;
   const pScale = useSharedValue(1);
@@ -462,7 +458,6 @@ export default function InviteEditorScreen() {
     .onUpdate((e) => {
       const next = Math.max(1, Math.min(4, pStartScale.value * e.scale));
       pScale.value = next;
-      // al hacer pinch, si la escala baja, recentrar si supera límites
       const maxX = (PREV_W * (next - 1)) / 2;
       const maxY = (PREV_H * (next - 1)) / 2;
       pTX.value = Math.max(-maxX, Math.min(maxX, pTX.value));
@@ -497,7 +492,6 @@ export default function InviteEditorScreen() {
     ],
   }));
 
-  /* ---------- Helpers de capas ---------- */
   const patchLayer = (id, patch) => setLayers(prev => prev.map(l => (l.id === id ? { ...l, ...patch } : l)));
   const changeSelected = (patch) => { if (selected) patchLayer(selected.id, patch); };
   const updateLayerPosition = (id, nx, ny) => patchLayer(id, { x: nx, y: ny });
@@ -505,7 +499,7 @@ export default function InviteEditorScreen() {
   const addText = () => {
     const id = `t${Date.now()}`;
     setLayers(prev => [...prev, {
-      kind: 'text', id, text: 'Tu texto',
+      kind: 'text', id, text: t('fontPanel.previewSample'),
       x: CANVAS_W * 0.5, y: CANVAS_H * 0.7,
       size: 20, color: '#111827', weight: '700', align: 'center', font: 'System'
     }]);
@@ -592,7 +586,6 @@ export default function InviteEditorScreen() {
     return uri;
   };
 
-  // Previsualizar
   const openPreview = async () => {
     try {
       setPreviewLoading(true);
@@ -600,20 +593,19 @@ export default function InviteEditorScreen() {
       setPreviewUri(uri);
       setPreviewVisible(true);
     } catch (e) {
-      Alert.alert('Error', 'No se pudo generar la previsualización.');
+      Alert.alert(t('alerts.error'), t('alerts.previewError'));
     } finally {
       setPreviewLoading(false);
     }
   };
 
-  // Confirmación antes de guardar (nota de no-edición)
   const confirmAndUpload = (forcedUri) => {
-    Alert.alert(
-      'Confirmar guardado',
-      'Al guardar, esta invitación quedará fija y no se podrá editar. Para cualquier cambio tendrás que crear una nueva invitación.',
+   Alert.alert(
+      t('alerts.confirmSaveTitle'),
+      t('alerts.confirmSaveMsg'),
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Guardar', style: 'destructive', onPress: () => uploadInvitation(forcedUri) },
+       { text: t('actions.cancel'), style: 'cancel' },
+        { text: t('actions.upload'), style: 'destructive', onPress: () => uploadInvitation(forcedUri) },
       ],
       { cancelable: true }
     );
@@ -622,8 +614,8 @@ export default function InviteEditorScreen() {
   const uploadInvitation = async (forcedUri) => {
     const eid = activeEventId != null ? Number(activeEventId) : null;
     if (!eid) {
-      Alert.alert('Evento requerido','No se pudo determinar el ID del evento desde la navegación.\nAbre el editor con: navigate("InviteEditor", { eventId, event, template })');
-      return;
+      Alert.alert(t('alerts.eventRequiredTitle'), t('alerts.eventRequiredMsg'));
+       return;
     }
     try {
       setIsUploading(true);
@@ -645,8 +637,8 @@ export default function InviteEditorScreen() {
         throw new Error(`HTTP ${resp.status} - ${txt}`);
       }
 
-      Alert.alert('¡Listo!','La invitación se guardó con éxito en la nube.',[
-        { text: 'OK', onPress: () => {
+       Alert.alert(t('alerts.doneTitle'), t('alerts.doneMsg'),[
+        { text: t('alerts.ok'), onPress: () => {
           setPreviewVisible(false);
           navigation.reset({
             index: 1,
@@ -658,7 +650,7 @@ export default function InviteEditorScreen() {
         }},
       ],{ cancelable: false });
     } catch (e) {
-      Alert.alert('Error', `No se pudo subir la invitación.\n${String(e?.message || e)}`);
+      Alert.alert(t('alerts.error'), t('alerts.uploadError', { msg: String(e?.message || e) }));
     } finally {
       setIsUploading(false);
     }
@@ -668,7 +660,7 @@ export default function InviteEditorScreen() {
     try {
       const uri = forcedUri ?? await captureWithoutSelection();
       await Sharing.shareAsync(uri);
-    } catch (e) { Alert.alert('Error', 'No se pudo compartir la imagen.'); }
+    }  catch (e) { Alert.alert(t('alerts.error'), t('alerts.shareError')); }
   };
 
   const [showCustom, setShowCustom] = useState(false);
@@ -684,7 +676,7 @@ export default function InviteEditorScreen() {
           <Ionicons name="chevron-back" size={22} color="#111827" />
         </TouchableOpacity>
 
-        <Text style={styles.brand}>Editor</Text>
+        <Text style={styles.brand}>{t('title')}</Text>
 
         {/* Previsualizar */}
         <TouchableOpacity
@@ -697,7 +689,7 @@ export default function InviteEditorScreen() {
           ) : (
             <>
               <Ionicons name="eye-outline" size={16} color="#6B21A8" />
-              <Text style={styles.previewBtnText}>Previsualizar</Text>
+              <Text style={styles.previewBtnText}>{t('preview')}</Text>
             </>
           )}
         </TouchableOpacity>
@@ -761,27 +753,27 @@ export default function InviteEditorScreen() {
 
         {/* Herramientas */}
         <View style={styles.toolbar}>
-          <Tool icon="text-outline" label="Texto" onPress={() => setPanel('edit')}   active={panel === 'edit'} />
-          <Tool icon="color-palette-outline" label="Color" onPress={() => setPanel('color')} active={panel === 'color'} />
-          <Tool icon="text" label="Tamaño" onPress={() => setPanel('size')} active={panel === 'size'} />
-          <Tool icon="text-sharp" label="Fuente" onPress={() => setPanel('font')} active={panel === 'font'} />
-          <Tool label="Stickers" onPress={() => setPanel('stickers')} active={panel === 'stickers'} />
+          <Tool icon="text-outline" label={t('toolbar.text')} onPress={() => setPanel('edit')}   active={panel === 'edit'} />
+          <Tool icon="color-palette-outline" label={t('toolbar.color')} onPress={() => setPanel('color')} active={panel === 'color'} />
+          <Tool icon="text" label={t('toolbar.size')} onPress={() => setPanel('size')} active={panel === 'size'} />
+          <Tool icon="text-sharp" label={t('toolbar.font')} onPress={() => setPanel('font')} active={panel === 'font'} />
+          <Tool label={t('toolbar.stickers')} onPress={() => setPanel('stickers')} active={panel === 'stickers'} />
         </View>
 
         {/* Paneles */}
         {panel === 'edit' && (
           <View style={styles.panel}>
             <Row>
-              <Btn onPress={addText} icon="add-outline" text="Añadir texto" />
-              <Btn onPress={duplicate} icon="copy-outline" text="Duplicar" disabled={!selected} />
-              <Btn onPress={remove} icon="trash-outline" text="Eliminar" danger disabled={!selected} />
+              <Btn onPress={addText} icon="add-outline" text={t('actions.addText')} />
+              <Btn onPress={duplicate} icon="copy-outline" text={t('actions.duplicate')} disabled={!selected} />
+              <Btn onPress={remove} icon="trash-outline" text={t('actions.delete')} danger disabled={!selected} />
             </Row>
 
             {selected?.kind === 'sticker' && (
               <Row>
-                <Btn onPress={bringToFront} icon="arrow-up-circle-outline" text="Al frente" />
-                <Btn onPress={sendToBack} icon="arrow-down-circle-outline" text="Atrás" />
-                <Btn onPress={toggleLock} icon={selected.locked ? 'lock-open-outline' : 'lock-closed-outline'} text={selected.locked ? 'Desbloquear' : 'Bloquear'} />
+                <Btn onPress={bringToFront} icon="arrow-up-circle-outline" text={t('actions.front')} />
+                <Btn onPress={sendToBack} icon="arrow-down-circle-outline" text={t('actions.back')} />
+                <Btn onPress={toggleLock} icon={selected.locked ? 'lock-open-outline' : 'lock-closed-outline'} text={selected.locked ? t('actions.unlock') : t('actions.lock')} />
               </Row>
             )}
 
@@ -793,13 +785,13 @@ export default function InviteEditorScreen() {
                     active={selected.weight === '900'}
                     onPress={() => changeSelected({ weight: selected.weight === '900' ? '700' : '900' })}
                     icon="text-outline"
-                    text="Negrita"
+                    text={t('actions.bold')}
                   />
                   <Toggle
                     active={!!getFontFamily(selected.font)}
                     onPress={() => changeSelected({ font: getFontFamily(selected.font) ? 'System' : 'Pacifico' })}
                     icon="brush-outline"
-                    text="Alternar fuente"
+                    text={t('actions.toggleFont')}
                   />
                 </Row>
               </>
@@ -809,7 +801,7 @@ export default function InviteEditorScreen() {
 
         {panel === 'color' && selected?.kind === 'text' && (
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Color</Text>
+            <Text style={styles.panelTitle}>{t('colorPanel.title')}</Text>
             <View style={styles.palette}>
               {['#111827','#4B5563','#6B7280','#5B2B2B','#6B2A4A','#B91C1C','#15803D','#0EA5E9','#7C3AED','#F59E0B'].map(c => (
                 <TouchableOpacity key={c} onPress={() => changeSelected({ color: c })} style={[styles.swatch, { backgroundColor: c }]} />
@@ -830,7 +822,7 @@ export default function InviteEditorScreen() {
 
         {panel === 'font' && selected?.kind === 'text' && (
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Fuente</Text>
+            <Text style={styles.panelTitle}>{t('fontPanel.title')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: 6 }}>
               {FONT_OPTIONS.map(opt => {
                 const active = selected.font === opt.key;
@@ -842,7 +834,7 @@ export default function InviteEditorScreen() {
                   >
                     <Text style={[styles.fontLabel]}>{opt.label}</Text>
                     <Text numberOfLines={1} style={[styles.fontSample, { fontFamily: opt.family }]}>
-                      {selected.text || 'Vista previa'}
+                      {selected.text || t('fontPanel.previewSample')}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -856,17 +848,17 @@ export default function InviteEditorScreen() {
           <View style={styles.panel}>
             {selected?.kind === 'text' && (
               <>
-                <Text style={styles.panelTitle}>Tamaño de texto: {Math.round(selected.size)}</Text>
+                <Text style={styles.panelTitle}>{t('sizePanel.textSize', { size: Math.round(selected.size) })}</Text>
                 <SizeSlider value={selected.size} min={10} max={64} onChange={(v) => changeSelected({ size: v })} />
               </>
             )}
 
             {selected?.kind === 'sticker' && (
               <>
-                <Text style={styles.panelTitle}>Tamaño y rotación del sticker</Text>
+                <Text style={styles.panelTitle}>{t('sizePanel.stickerTitle')}</Text>
 
                 <LiveSlider
-                  title="Base (px)"
+                  title={t('sizePanel.basePx')}
                   value={selected.base ?? 160}
                   min={60}
                   max={480}
@@ -877,7 +869,7 @@ export default function InviteEditorScreen() {
                   onCommit={() => setIsAdjusting(false)}
                 />
                 <LiveSlider
-                  title="Escala"
+                  title={t('sizePanel.scale')}
                   value={selected.scale ?? 1}
                   min={0.25}
                   max={4}
@@ -887,7 +879,7 @@ export default function InviteEditorScreen() {
                   onCommit={() => setIsAdjusting(false)}
                 />
                 <LiveSlider
-                  title="Rotación"
+                  title={t('sizePanel.rotation')}
                   value={selected.rotate ?? 0}
                   min={0}
                   max={360}
@@ -903,21 +895,21 @@ export default function InviteEditorScreen() {
               </>
             )}
 
-            {!selected && <Text style={{ color:'#6B7280' }}>Selecciona un elemento para editar su tamaño.</Text>}
+            {!selected && <Text style={{ color:'#6B7280' }}>{t('sizePanel.selectHint')}</Text>}
           </View>
         )}
 
         {panel === 'stickers' && (
           <View style={styles.panel}>
             <Row>
-              <Btn onPress={pickStickerFromDevice} icon="cloud-upload-outline" text="Cargar imagen" />
+              <Btn onPress={pickStickerFromDevice} icon="cloud-upload-outline" text={t('actions.uploadImage')} />
             </Row>
 
-            <Text style={[styles.panelTitle, { marginTop: 10 }]}>Categorías</Text>
+           <Text style={[styles.panelTitle, { marginTop: 10 }]}>{t('stickersPanel.categories')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {Object.entries(STICKER_CATEGORIES).map(([cat, list]) => (
                 <View key={cat} style={{ marginRight: 16 }}>
-                  <Text style={{ fontWeight: '700', marginBottom: 8 }}>{cat}</Text>
+                  <Text style={{ fontWeight: '700', marginBottom: 8 }}>{t(`stickersPanel.groups.${cat}`, cat)}</Text>
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     {list.map((asset, i) => (
                       <TouchableOpacity key={i} onPress={() => addSticker(asset)}>
@@ -947,13 +939,13 @@ export default function InviteEditorScreen() {
             ) : (
               <>
                 <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-                <Text style={styles.bottomBtnText}>Guardar</Text>
+                <Text style={styles.bottomBtnText}>{t('actions.upload')}</Text>
               </>
             )}
           </TouchableOpacity>
           <TouchableOpacity style={[styles.bottomBtn, { backgroundColor: '#6B21A8' }]} onPress={() => shareImage()}>
             <Ionicons name="share-social-outline" size={18} color="#fff" />
-            <Text style={styles.bottomBtnText}>Compartir</Text>
+            <Text style={styles.bottomBtnText}>{t('actions.share')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -970,7 +962,7 @@ export default function InviteEditorScreen() {
             <TouchableOpacity onPress={() => setPreviewVisible(false)} style={styles.backBtn}>
               <Ionicons name="close" size={20} color="#111827" />
             </TouchableOpacity>
-            <Text style={[styles.brand, { color:'#fff' }]}>Previsualización</Text>
+            <Text style={[styles.brand, { color:'#fff' }]}>{t('previewModal.title')}</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -991,7 +983,7 @@ export default function InviteEditorScreen() {
 
           {/* Nota y acciones */}
           <Text style={{ color:'#9CA3AF', textAlign:'center', marginHorizontal:16, marginBottom:8 }}>
-            Nota: al guardar no podrás editar esta invitación. Para cambios, crea una nueva.
+            {t('previewModal.note')}
           </Text>
           <View style={{ flexDirection:'row', gap:12, paddingHorizontal:16, paddingBottom:24 }}>
             <TouchableOpacity
@@ -1004,7 +996,7 @@ export default function InviteEditorScreen() {
               ) : (
                 <>
                   <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
-                  <Text style={styles.bottomBtnText}>Guardar</Text>
+                  <Text style={styles.bottomBtnText}>{t('actions.upload')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -1014,7 +1006,7 @@ export default function InviteEditorScreen() {
               disabled={!previewUri}
             >
               <Ionicons name="share-social-outline" size={18} color="#fff" />
-              <Text style={styles.bottomBtnText}>Compartir</Text>
+              <Text style={styles.bottomBtnText}>{t('actions.share')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1023,7 +1015,6 @@ export default function InviteEditorScreen() {
   );
 }
 
-/* ---------- UI helpers ---------- */
 function Tool({ icon, label, onPress, active }) {
   return (
     <TouchableOpacity onPress={onPress} style={[styles.tool, active && styles.toolActive]}>

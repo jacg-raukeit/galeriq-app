@@ -1,0 +1,49 @@
+{
+  "title": "Notifications",
+  "tabs": {
+    "unread": "Unread",
+    "read": "Read",
+    "empty_unread": "You have no new notifications.",
+    "empty_read": "No read notifications yet."
+  },
+  "badges": {
+    "read": "Read"
+  },
+  "labels": {
+    "notification": "Notification",
+    "loading_invite": "Loading invitation…",
+    "no_invite": "This event doesn’t have an invitation yet.",
+    "searching_invite": "Looking up your invite…",
+    "checking_rsvp": "Checking your response…",
+    "mark_read": "Mark as read",
+    "close": "Close",
+    "delete": "Delete",
+    "accept_invite": "Accept invite",
+    "decline": "Decline"
+  },
+  "invite_message": {
+    "guest_generic": "guest",
+    "hello_name": "Hi {{name}}",
+    "lead": "you have been invited to the event",
+    "by": "by {{inviter}}",
+    "answered_prefix": "You have {{status}} this invitation."
+  },
+  "statuses": {
+    "accepted": "accepted",
+    "declined": "declined"
+  },
+  "alerts": {
+    "ok": "Done",
+    "error": "Error",
+    "deleted": "Notification deleted.",
+    "cannot_delete": "Couldn’t delete the notification.",
+    "missing_info_title": "Missing information",
+    "missing_guest_id": "Could not find the guest identifier (guest_id) in the notification.",
+    "load_unread_fail": "Couldn’t load unread notifications.",
+    "load_read_fail": "Couldn’t load read notifications.",
+    "load_all_fail": "Couldn’t load notifications.",
+    "mark_read_fail": "Couldn’t mark as read.",
+    "rsvp_fail": "Couldn’t update RSVP.",
+    "rsvp_done": "You have {{result}} the invitation."
+  }
+}

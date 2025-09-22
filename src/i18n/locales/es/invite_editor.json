@@ -1,0 +1,82 @@
+{
+  "title": "Editor",
+  "preview": "Previsualizar",
+  "toolbar": {
+    "text": "Texto",
+    "color": "Color",
+    "size": "Tamaño",
+    "font": "Fuente",
+    "stickers": "Stickers"
+  },
+  "actions": {
+    "addText": "Añadir texto",
+    "duplicate": "Duplicar",
+    "delete": "Eliminar",
+    "front": "Al frente",
+    "back": "Atrás",
+    "lock": "Bloquear",
+    "unlock": "Desbloquear",
+    "bold": "Negrita",
+    "toggleFont": "Alternar fuente",
+    "apply": "Aplicar",
+    "cancel": "Cancelar",
+    "upload": "Guardar",
+    "share": "Compartir",
+    "uploadImage": "Cargar imagen",
+    "close": "Cerrar"
+  },
+  "colorPanel": {
+    "title": "Color",
+    "custom": "Color personalizado",
+    "hex": "HEX",
+    "note": "Toca +/- para ajustar"
+  },
+  "fontPanel": {
+    "title": "Fuente",
+    "previewSample": "Vista previa"
+  },
+  "sizePanel": {
+    "textSize": "Tamaño de texto: {{size}}",
+    "stickerTitle": "Tamaño y rotación del sticker",
+    "basePx": "Base (px)",
+    "scale": "Escala",
+    "rotation": "Rotación",
+    "selectHint": "Selecciona un elemento para editar su tamaño."
+  },
+  "stickersPanel": {
+    "categories": "Categorías",
+    "groups": {
+      "Flowers": "Flores",
+      "Balloons": "Globos",
+      "Borders": "Marcos",
+      "Cake": "Pastel"
+    }
+  },
+  "previewModal": {
+    "title": "Previsualización",
+    "note": "Nota: al guardar no podrás editar esta invitación. Para cambios, crea una nueva."
+  },
+  "alerts": {
+    "confirmSaveTitle": "Confirmar guardado",
+    "confirmSaveMsg": "Al guardar, esta invitación quedará fija y no se podrá editar. Para cualquier cambio tendrás que crear una nueva invitación.",
+    "ok": "OK",
+    "error": "Error",
+    "doneTitle": "¡Listo!",
+    "doneMsg": "La invitación se guardó con éxito en la nube.",
+    "eventRequiredTitle": "Evento requerido",
+    "eventRequiredMsg": "No se pudo determinar el ID del evento desde la navegación.\nAbre el editor con: navigate(\"InviteEditor\", { eventId, event, template })",
+    "previewError": "No se pudo generar la previsualización.",
+    "uploadError": "No se pudo subir la invitación.\n{{msg}}",
+    "shareError": "No se pudo compartir la imagen."
+  },
+  "placeholders": {
+    "writeText": "Escribe tu texto…",
+    "templateDefaults": {
+      "inviteLead": "Te invito a mi",
+      "eventType": "Evento",
+      "descPending": "Descripción pendiente",
+      "dateTbd": "Fecha por definir",
+      "newEvent": "Nuevo evento"
+    }
+  }
+}

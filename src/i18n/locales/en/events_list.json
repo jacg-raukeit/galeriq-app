@@ -1,0 +1,51 @@
+{
+  "brand": "Galeriq",
+  "section_title": "My Events",
+
+  "filter": {
+    "title": "Filter",
+    "all": "All",
+    "organizer": "Organized",
+    "guest": "Guest",
+    "chip_label": {
+      "all": "All",
+      "organizer": "Organized",
+      "guest": "Guest"
+    }
+  },
+
+  "empty": {
+    "title": "Nothing here!",
+    "subtitle": "Create your first event and enjoy the Galeriq experience",
+    "no_active": "There are no active events."
+  },
+
+  "archived": {
+    "title_with_count": "Archived ({{count}})"
+  },
+
+  "drawer": {
+    "profile": "My profile",
+    "notifications": "Notifications",
+    "help": "Help",
+    "feedback": "Help us improve",
+    "plans": "Plans & Subscriptions",
+    "share": "Share the app",
+    "settings": "Settings",
+    "about": "About us",
+    "logout": "Log out"
+  },
+
+  "session_expired": {
+    "title": "Session expired",
+    "text": "Your session has expired. For security, please log in again.",
+    "button": "Go to sign in"
+  },
+
+  "logout_confirm": {
+    "title": "Log out",
+    "message": "Do you want to sign out of your account?",
+    "cancel": "Cancel",
+    "ok": "Sign out"
+  }
+}

@@ -103,7 +103,7 @@ export default function LoginScreen() {
   const passRef = useRef(null);
 
   const [supportOpen, setSupportOpen] = useState(false);
-  const supportAnim = useRef(new Animated.Value(0)).current; // 0 cerrado, 1 abierto
+  const supportAnim = useRef(new Animated.Value(0)).current; 
 
   const openSupport = () => {
     setSupportOpen(true);
@@ -322,7 +322,6 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      // === Obtener token FCM ===
       let fcmToken = null;
       if (Device.isDevice) {
         const { status: existingStatus } =
@@ -343,7 +342,6 @@ export default function LoginScreen() {
         }
       }
 
-      // === Llamada al backend con email, password y fcm_token ===
       const res = await fetch(`${API_BASE}/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -593,7 +591,7 @@ export default function LoginScreen() {
         )}
       </KeyboardAwareScrollView>
 
-      {/* Nodo A: solo translateY/opacity (native) */}
+      {/* Nodo A: solo translateY/opacity (nativo) */}
       <Animated.View
         pointerEvents="box-none"
         style={[
@@ -604,7 +602,7 @@ export default function LoginScreen() {
           },
         ]}
       >
-        {/* Nodo B: solo height (JS) */}
+        {/* Nodo B: solo height */}
         <Animated.View
           style={[
             styles.peachPanelInner,

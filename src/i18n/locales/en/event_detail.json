@@ -1,0 +1,137 @@
+{
+  "loading": "Loading event…",
+  "not_found": "Event not found.",
+  "session": {
+    "title": "Session",
+    "expired": "Your session expired. Please sign in again."
+  },
+
+  "hero": {
+    "address_icon_label": "Location"
+  },
+
+  "section": {
+    "description_title": "Description :",
+    "description_empty": "No description",
+    "role_title": "Your role in this event is :",
+    "role_loading": "Loading…"
+  },
+
+  "pill": {
+    "type_icon_label": "Event type"
+  },
+
+  "mini_actions": {
+    "agenda": "Agenda",
+    "planning": "Planning",
+    "expenses": "Expenses"
+  },
+
+  "tabs": {
+    "my_events": "My events",
+    "actions": "Actions",
+    "guests": "Guests",
+    "albums": "Albums",
+    "invites": "Invitations",
+    "owner": "Owner"
+  },
+
+  "edit_modal": {
+    "title": "Edit Event",
+    "cover": {
+      "select": "Select cover",
+      "gallery": "Gallery",
+      "camera": "Camera"
+    },
+    "fields": {
+      "name": {
+        "label": "Name",
+        "placeholder": "e.g. Ana & Luis' Wedding"
+      },
+      "datetime": {
+        "label": "Date & time"
+      },
+      "address": {
+        "label": "Address",
+        "placeholder": "e.g. El Roble Garden, Cuernavaca"
+      },
+      "type": {
+        "label": "Event type",
+        "select_placeholder": "Select type",
+        "helper_other": "Specify the event type",
+        "other_placeholder": "Type the event category"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Event details and notes"
+      }
+    },
+    "update_button": "Update Event"
+  },
+
+  "type_picker": {
+    "title": "Select the event type",
+    "options": {
+      "wedding": "Wedding",
+      "birthday": "Birthday",
+      "quince": "Quinceañera",
+      "graduation": "Graduation",
+      "baptism": "Baptism",
+      "corporate": "Corporate Event",
+      "other": "Other"
+    }
+  },
+
+  "alerts": {
+    "event_title": "Event",
+    "event_id_missing": "Event ID was not found.",
+    "event_not_found": "Event not found.",
+    "error_title": "Error",
+    "error_loading_event": "The event could not be loaded.",
+    "error_updating_event": "The event could not be updated.",
+    "permissions_title": "Permissions",
+    "need_gallery": "Permissions are required to access the photo library",
+    "need_camera": "Permissions are required to use the camera",
+    "type_required_title": "Event type",
+    "type_required_msg": "Please enter the event type when selecting \"Other\"."
+  },
+
+  "owner_modal": {
+    "title": "Manage owner",
+    "tabs": {
+      "add": "Add owner",
+      "remove": "Remove owner"
+    },
+    "fields": {
+      "user_email_label": "User email",
+      "owner_email_remove_label": "Owner email to remove",
+      "email_placeholder": "email@example.com"
+    },
+    "buttons": {
+      "assign": "Assign as owner",
+      "remove": "Remove owner"
+    },
+    "validations": {
+      "email_invalid_title": "Invalid email",
+      "email_invalid_msg": "Enter a valid email address."
+    },
+    "errors": {
+      "id_missing_title": "Error",
+      "id_missing_msg": "Event ID was not found.",
+      "assign_title": "Error",
+      "assign_msg": "Could not assign the user as owner.",
+      "remove_title": "Error",
+      "remove_msg": "Could not remove the owner."
+    },
+    "api": {
+      "not_found_title": "Not found",
+      "not_found_user": "User was not found. Check the email and try again.",
+      "notice_title": "Notice"
+    },
+    "success": {
+      "title": "Done",
+      "assigned": "Owner assigned",
+      "removed": "Owner removed successfully."
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Control de gastos",
+  "center": {
+    "real_spent": "Gasto real",
+    "total_budget": "Presupuesto total"
+  },
+  "legend": {
+    "expenses": "Gastos",
+    "budget": "Presupuesto",
+    "real_spent": "Gasto real"
+  },
+  "tabs": {
+    "checklist": "Checklist",
+    "expenses": "Gastos",
+    "agenda": "Agenda"
+  }
+}

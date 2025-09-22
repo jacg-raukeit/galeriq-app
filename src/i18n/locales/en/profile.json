@@ -1,0 +1,73 @@
+{
+  "header": {
+    "title": "My profile",
+    "edit": "Edit",
+    "cancel": "Cancel"
+  },
+  "common": {
+    "user": "User",
+    "error": "Error",
+    "retry": "Retry",
+    "discard": "Discard",
+    "save": "Save",
+    "close": "Close",
+    "update": "Update"
+  },
+  "fields": {
+    "name": "Name",
+    "name_placeholder": "Your full name",
+    "email": "Email",
+    "email_placeholder": "you@email.com",
+    "phone": "Phone",
+    "phone_placeholder": "+1 555 123 4567",
+    "readonly_hint": "Update your information using the “Edit” button."
+  },
+  "password": {
+    "change_title": "Change password",
+    "subtitle": "Update your access password",
+    "current": "Current password",
+    "current_placeholder": "Enter your current password",
+    "new": "New password",
+    "new_placeholder": "At least 8 characters, letters and numbers",
+    "confirm": "Confirm new password",
+    "confirm_placeholder": "Repeat your new password"
+  },
+  "photo": {
+    "title": "Profile photo",
+    "pick_gallery": "Choose from gallery",
+    "take_photo": "Take a photo",
+    "delete_photo": "Delete photo"
+  },
+  "errors": {
+    "load_profile_title": "Could not load profile",
+    "email_invalid": "Invalid email",
+    "phone_invalid": "Invalid phone (digits only and optional +)",
+    "pw_current_required": "Enter your current password",
+    "pw_new_min": "At least 8 characters",
+    "pw_new_rules": "Use letters and numbers",
+    "pw_same": "New password cannot match current",
+    "pw_mismatch": "Passwords do not match",
+    "pw_change_failed": "Could not change password",
+    "pick_perm_camera": "Permission required",
+    "pick_perm_camera_msg": "Grant camera permission.",
+    "pick_perm_photos_msg": "Grant photo library permission.",
+    "pick_failed": "Could not select the image.",
+    "upload_failed": "Could not upload photo.",
+    "delete_failed": "Could not delete photo.",
+    "save_failed": "Save failed"
+  },
+  "toasts": {
+    "profile_saved": "Profile updated",
+    "photo_uploaded": "Photo updated",
+    "photo_deleted": "Photo deleted",
+    "pw_changed": "Password updated",
+    "save_error": "Save error",
+    "upload_error": "Upload error",
+    "delete_error": "Delete error",
+    "pw_change_error": "Password change error"
+  },
+  "empty": {
+    "dash": "—"
+  },
+  "error_detail_prefix": "Detail"
+}

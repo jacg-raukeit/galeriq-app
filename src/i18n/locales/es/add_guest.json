@@ -1,0 +1,37 @@
+{
+  "title": "Agregar invitado",
+  "fields": {
+    "name": "Nombre",
+    "email": "Correo",
+    "phone_opt": "Teléfono (opcional)",
+    "alias_opt": "Alias (opcional)",
+    "passes": "Número de pases",
+    "passes_suffix": "pases"
+  },
+  "buttons": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "ok": "OK",
+    "yes_exit": "Sí, salir"
+  },
+  "alerts": {
+    "missing_info_title": "Falta información",
+    "missing_info_desc": "No se encontró el eventId para este invitado.",
+    "missing_data_title": "Faltan datos",
+    "missing_data_desc": "Nombre y correo son obligatorios.",
+    "invalid_email_title": "Correo inválido",
+    "invalid_email_desc": "Por favor, escribe un correo válido.",
+    "invalid_passes_title": "Número de pases inválido",
+    "invalid_passes_desc": "Ingresa un entero mayor o igual a 1.",
+    "confirm_save_title": "Confirmar guardado",
+    "confirm_save_msg": "¿Deseas guardar este invitado con {{count}} pase(s)?",
+    "success_title": "Éxito",
+    "success_desc": "Invitado guardado correctamente.",
+    "error_title": "Error",
+    "error_422": "Datos inválidos para el backend (verifica los campos).",
+    "error_generic": "No se pudo guardar el invitado.",
+    "cancel_title": "¿Cancelar?",
+    "cancel_desc": "Perderás la información escrita. ¿Deseas continuar?",
+    "no": "No"
+  }
+}

@@ -14,6 +14,7 @@ import {
   Easing,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 
 import * as WebBrowser from 'expo-web-browser';
 
@@ -28,34 +29,38 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function FaqScreen({ navigation }) {
+  const { t } = useTranslation('faq');
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState(null);
 
-  const faqs = useMemo(
-    () => [
-      {
-        id: 0,
-        q: '¿Cómo cambio mi contraseña?',
-        a: 'Para cambiar tu contraseña, ve a Menú → Perfil, elige tu perfil, escribe tu contraseña actual y la nueva, luego toca Confirmar.',
-      },
-      {
-        id: 1,
-        q: '¿Cómo cambio el estado de mi perfil?',
-        a: 'Abre tu perfil, toca Estado, elige el nuevo estado y guarda los cambios.',
-      },
-      {
-        id: 2,
-        q: '¿Cómo exporto contactos?',
-        a: 'Ve a Contactos → Opciones → Exportar y elige tu formato preferido para descargar.',
-      },
-      {
-        id: 3,
-        q: '¿Cómo puedo eliminar mi cuenta?',
-        a: 'Ve a Configuración → Cuenta → Eliminar cuenta. Sigue los pasos de confirmación con cuidado.',
-      },
-    ],
-    []
-  );
+  const faqs = useMemo(() => {
+    const fromI18n = t('faqs', { returnObjects: true });
+    const list = Array.isArray(fromI18n) ? fromI18n : [];
+    return list.length
+      ? list.map((it, idx) => ({ id: idx, q: it.q, a: it.a }))
+      : [
+          {
+            id: 0,
+            q: '¿Cómo cambio mi contraseña?',
+            a: 'Para cambiar tu contraseña, ve a Menú → Perfil, elige tu perfil, escribe tu contraseña actual y la nueva, luego toca Confirmar.'
+          },
+          {
+            id: 1,
+            q: '¿Cómo cambio el estado de mi perfil?',
+            a: 'Abre tu perfil, toca Estado, elige el nuevo estado y guarda los cambios.'
+          },
+          {
+            id: 2,
+            q: '¿Cómo exporto contactos?',
+            a: 'Ve a Contactos → Opciones → Exportar y elige tu formato preferido para descargar.'
+          },
+          {
+            id: 3,
+            q: '¿Cómo puedo eliminar mi cuenta?',
+            a: 'Ve a Configuración → Cuenta → Eliminar cuenta. Sigue los pasos de confirmación con cuidado.'
+          }
+        ];
+  }, [t]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return faqs;
@@ -92,21 +97,20 @@ export default function FaqScreen({ navigation }) {
           </Pressable>
         </View>
 
-        <Text style={styles.title}>FAQ y Soporte</Text>
-        <Text style={styles.subtitle}>
-          ¿No encontraste la respuesta que buscabas?{'\n'}¡Comunícate con nuestro centro de soporte!
-        </Text>
+       <Text style={styles.title}>{t('title')}</Text>
+        <Text style={styles.subtitle}>{t('subtitle')}</Text>
 
         {/* Acciones: Website / Email / Terms */}
         <View style={styles.actions}>
-          <RowItem icon="globe-outline" text="Ir al sitio web" onPress={openWebsite} />
-          <RowItem icon="mail-outline" text="Email" onPress={emailSupport} />
+           <RowItem icon="globe-outline" text={t('actions.website')} onPress={openWebsite} />
+          <RowItem icon="mail-outline" text={t('actions.email')} onPress={emailSupport} />
+          <RowItem icon="heart-outline" text={t('actions.about')} onPress={() => navigation.navigate('QuienesSomos')} />
          <RowItem
   icon="document-text-outline"
-  text="Términos de Servicio"
+  text={t('actions.terms')}
   onPress={() => {
     navigation.navigate('PdfViewer', {
-      title: 'Términos y condiciones',
+     title: t('actions.terms_title'),
       localRequire: TERMS_PDF_LOCAL,
     });
   }}
@@ -118,7 +122,7 @@ export default function FaqScreen({ navigation }) {
           <Ionicons name="search" size={20} color="#fff" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar pregunta..."
+           placeholder={t('search_placeholder')}
             placeholderTextColor="#ffffffcc"
             value={query}
             onChangeText={setQuery}

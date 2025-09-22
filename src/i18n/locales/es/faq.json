@@ -1,0 +1,30 @@
+{
+  "title": "FAQ y Soporte",
+  "subtitle": "¿No encontraste la respuesta que buscabas?\n¡Comunícate con nuestro centro de soporte!",
+  "actions": {
+    "website": "Ir al sitio web",
+    "email": "Email",
+    "about": "Acerca de Galeriq",
+    "terms": "Términos de Servicio",
+    "terms_title": "Términos y condiciones"
+  },
+  "search_placeholder": "Buscar pregunta...",
+  "faqs": [
+    {
+      "q": "¿Cómo cambio mi contraseña?",
+      "a": "Para cambiar tu contraseña, ve a Menú → Perfil, elige tu perfil, escribe tu contraseña actual y la nueva, luego toca Confirmar."
+    },
+    {
+      "q": "¿Cómo cambio el estado de mi perfil?",
+      "a": "Abre tu perfil, toca Estado, elige el nuevo estado y guarda los cambios."
+    },
+    {
+      "q": "¿Cómo exporto contactos?",
+      "a": "Ve a Contactos → Opciones → Exportar y elige tu formato preferido para descargar."
+    },
+    {
+      "q": "¿Cómo puedo eliminar mi cuenta?",
+      "a": "Ve a Configuración → Cuenta → Eliminar cuenta. Sigue los pasos de confirmación con cuidado."
+    }
+  ]
+}

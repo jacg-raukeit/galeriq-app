@@ -1,0 +1,51 @@
+{
+  "brand": "Galeriq",
+  "section": {
+    "photos": "Photos"
+  },
+  "tabs": {
+    "new_album": "New album"
+  },
+  "actions": {
+    "add_photos": "Add photos",
+    "favorite": "Favorite",
+    "share": "Share",
+    "download": "Download",
+    "create": "Create",
+    "creating": "Creating...",
+    "cancel": "Cancel",
+    "change_cover": "Change cover",
+    "pick_cover": "Choose cover (optional)"
+  },
+  "alerts": {
+    "wait_title": "Hold on",
+    "wait_desc": "We’re getting your new album ready. Try again.",
+    "perm_title": "Permissions",
+    "perm_photos": "I need access to your library to upload photos.",
+    "perm_cover": "I need access to your library to choose the cover.",
+    "error_title": "Error",
+    "albums_load_failed": "Could not load albums.",
+    "photos_load_failed": "Could not load album photos.",
+    "upload_none": "No photo could be uploaded. Check token/endpoint.",
+    "upload_some_one": "1 photo uploaded.",
+    "upload_some_other": "{{count}} photos uploaded.",
+    "upload_done_title": "Done",
+    "photos_upload_failed": "Photos could not be uploaded.",
+    "cover_pick_failed": "Could not select the cover.",
+    "missing_info_title": "Missing information",
+    "missing_event_id": "eventId is required to create an album.",
+    "create_failed": "Album could not be created.",
+    "fav_failed": "Could not toggle favorite.",
+    "download_perm": "I need permission to save to your library.",
+    "download_ok_title": "Downloaded",
+    "download_ok_desc": "The photo was saved to your library.",
+    "download_failed": "Could not download the photo."
+  },
+  "modal": {
+    "create_title": "Create album",
+    "album_name_ph": "Album name"
+  },
+  "header": {
+    "share_hint": "Share"
+  }
+}

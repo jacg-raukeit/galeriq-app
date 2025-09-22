@@ -3,14 +3,16 @@ import 'intl';
 import 'intl/locale-data/jsonp/es-MX'; // Sé explícito para asegurar que carga el formato de México
 import 'intl/locale-data/jsonp/es';
 import 'react-native-gesture-handler';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react'; 
 import { LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
-
+import './src/i18n/i18n';
+import { bootstrapI18n } from './src/i18n/i18n';
 
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+
 
 import * as AuthSession from 'expo-auth-session';
 import * as Notifications from 'expo-notifications';
@@ -60,6 +62,7 @@ import InConstructionScreen from './src/screens/InConstructionScreen';
 import FeedbackScreen from './src/screens/FeedbackScreen';
 import PdfViewerScreen from './src/screens/PdfViewerScreen';
 import QuienesSomosScreen from './src/screens/QuienesSomosScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 const Stack = createStackNavigator();
 LogBox.ignoreLogs(['useInsertionEffect']);
@@ -156,6 +159,7 @@ Notifications.setNotificationHandler({
 export default function App() {
   const notificationListener = useRef();
   const responseListener = useRef();
+  const [i18nReady, setI18nReady] = useState(false);
 
   // Carga de fuentes
   const [fontsLoaded] = useFonts({
@@ -166,6 +170,13 @@ export default function App() {
     Pacifico_400Regular,
     DancingScript_700Bold,
   });
+
+  useEffect(() => {
+    (async () => {
+      await bootstrapI18n();
+      setI18nReady(true);
+    })();
+  }, []);
 
   // Canal Android para notificaciones (heads-up)
   useEffect(() => {
@@ -223,7 +234,7 @@ export default function App() {
     };
   }, []);
 
-  if (!fontsLoaded) return null;
+ if (!fontsLoaded || !i18nReady) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -239,6 +250,7 @@ export default function App() {
               <Stack.Screen name="PdfViewer" component={PdfViewerScreen} options={{ headerShown: false }} />
               <Stack.Screen name="Plans" component={PlansScreen} />
               <Stack.Screen name="InConstruction" component={InConstructionScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
               <Stack.Screen name="QuienesSomos" component={QuienesSomosScreen} />
               <Stack.Screen name="Register" component={RegisterScreen} />
               <Stack.Screen name="Events" component={EventsScreen} />

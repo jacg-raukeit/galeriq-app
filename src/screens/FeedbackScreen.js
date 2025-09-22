@@ -18,6 +18,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AppState } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 
 
@@ -30,6 +31,7 @@ const TAGS = ['Bug', 'Sugerencia', 'Idea', 'UI/UX', 'Rendimiento'];
 
 
 export default function FeedbackScreen({ navigation }) {
+  const { t } = useTranslation('feedback');
   
   const blob1 = useRef(new Animated.Value(0)).current;
   const blob2 = useRef(new Animated.Value(0)).current;
@@ -152,19 +154,19 @@ export default function FeedbackScreen({ navigation }) {
   const computedSubject = useMemo(() => {
     const tagStr = selectedTags.join(' · ');
     const starStr = rating > 0 ? `(${rating}⭐)` : '';
-    const base = subject?.trim() ? subject.trim() : 'Feedback';
+    const base = subject?.trim() ? subject.trim() : t('mail.default_subject');
     return [base, tagStr, starStr].filter(Boolean).join(' ');
-  }, [subject, selectedTags, rating]);
+  }, [subject, selectedTags, rating, t]);
 
 const openMail = async () => {
   const body =
-`Dispositivo: ${Platform.OS}
-Versión SO: ${Platform.Version}
+`${t('mail.device')}: ${Platform.OS}
+${t('mail.os_version')}: ${Platform.Version}
 
-Etiquetas: ${selectedTags.join(', ') || 'Ninguna'}
-Calificación: ${rating > 0 ? `${rating}/5` : 'Sin calificar'}
+${t('mail.tags')}: ${selectedTags.join(', ') || '—'}
+${t('mail.rating')}: ${rating > 0 ? `${rating}/5` : t('mail.not_rated')}
 
-Mensaje:
+${t('mail.message')}:
 ${message}`.slice(0, 2000);
 
   const mailto = `mailto:${encodeURIComponent(FEEDBACK_EMAIL)}?subject=${encodeURIComponent(
@@ -175,15 +177,14 @@ ${message}`.slice(0, 2000);
     const supported = await Linking.canOpenURL(mailto);
     if (supported) {
       await Linking.openURL(mailto);
-      // ✅ Marcamos que se abrió el cliente de correo
       openedMailRef.current = true;
 
-      Alert.alert('¡Gracias!', 'Se abrió tu cliente de correo para enviar el feedback 🙌');
+      Alert.alert(t('alerts.thanks_title'), t('alerts.thanks_body'));
     } else {
-      Alert.alert('No se pudo abrir el correo', 'Envíanos un email a ' + FEEDBACK_EMAIL);
+      Alert.alert(t('alerts.cannot_open_title'), t('alerts.cannot_open_body', { email: FEEDBACK_EMAIL }));
     }
   } catch (e) {
-    Alert.alert('Error', 'No fue posible abrir el cliente de correo.');
+    Alert.alert(t('alerts.error_title'), t('alerts.error_open_mail'));
   }
 };
 
@@ -191,7 +192,7 @@ ${message}`.slice(0, 2000);
 
   const onSend = () => {
     if (!message.trim()) {
-      Alert.alert('Mensaje vacío', 'Cuéntanos un poco tu idea o problema.');
+     Alert.alert(t('alerts.empty_title'), t('alerts.empty_body'));
       return;
     }
     openMail();
@@ -366,7 +367,7 @@ useFocusEffect(
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#254236" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ayúdanos a mejorar</Text>
+        <Text style={styles.headerTitle}>{t('header_title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -378,11 +379,9 @@ useFocusEffect(
             { transform: [{ scale: titleScale }], opacity: titleOpacity },
           ]}
         >
-          ¡Tu opinión importa!
+          {t('title')}
         </Animated.Text>
-        <Text style={styles.subtitle}>
-          Cuéntanos qué calificacion le darias a tu experiencia y qué mejorarías o si encontraste algun bug.
-        </Text>
+         <Text style={styles.subtitle}>{t('subtitle')}</Text>
 
         {/* Rating */}
         <View style={styles.ratingRow}>
@@ -393,12 +392,12 @@ useFocusEffect(
 
         {/* Chips de tags */}
         <View style={styles.tagsRow}>
-          {TAGS.map((t) => {
-            const active = selectedTags.includes(t);
+          {(t('tags', { returnObjects: true }) || []).map((tag) => {
+            const active = selectedTags.includes(tag);
             return (
               <TouchableOpacity
-                key={t}
-                onPress={() => toggleTag(t)}
+                 key={tag}
+                onPress={() => toggleTag(tag)}
                 style={[styles.tag, active && styles.tagActive]}
               >
                 <Ionicons
@@ -406,7 +405,7 @@ useFocusEffect(
                   size={16}
                   color={active ? '#fff' : '#254236'}
                 />
-                <Text style={[styles.tagText, active && { color: '#fff' }]}>{t}</Text>
+                <Text style={[styles.tagText, active && { color: '#fff' }]}>{tag}</Text>
               </TouchableOpacity>
             );
           })}
@@ -428,7 +427,7 @@ useFocusEffect(
         {/* Mensaje */}
         <View style={styles.inputGroup}>
           <View style={styles.labelRow}>
-            <Text style={styles.label}>Mensaje</Text>
+            <Text style={styles.label}>{t('labels.message')}</Text>
             <Text style={styles.counter}>
               {message.length} / {MAX_CHARS}
             </Text>
@@ -436,7 +435,7 @@ useFocusEffect(
           <TextInput
             value={message}
             onChangeText={(t) => t.length <= MAX_CHARS && setMessage(t)}
-            placeholder="Escribe tu feedback aquí..."
+             placeholder={t('placeholders.message')}
             placeholderTextColor="#7a9089"
             style={[styles.input, styles.textarea]}
             multiline
@@ -452,7 +451,7 @@ useFocusEffect(
           activeOpacity={0.9}
         >
           <Ionicons name="send" size={18} color="#fff" />
-          <Text style={styles.primaryBtnText}>Enviar feedback</Text>
+         <Text style={styles.primaryBtnText}>{t('buttons.send')}</Text>
         </TouchableOpacity>
 
         {/* Nota */}
@@ -469,10 +468,8 @@ useFocusEffect(
       <Animated.View style={{ transform: [{ scale: sentAnim }] }}>
         <Ionicons name="checkmark-circle" size={72} color="#57C1AE" />
       </Animated.View>
-      <Text style={styles.sentTitle}>¡Enviado!</Text>
-      <Text style={styles.sentSubtitle}>
-        Gracias por tu feedback. Pronto nos pondremos en contacto contigo.
-      </Text>
+     <Text style={styles.sentTitle}>{t('sent_modal.title')}</Text>
+      <Text style={styles.sentSubtitle}>{t('sent_modal.subtitle')}</Text>
     </View>
   </View>
 </Modal>

@@ -1,14 +1,16 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 
 export default function CreateEventButton({ onPress }) {
+  const { t } = useTranslation('events');
   return (
     <TouchableOpacity style={styles.button} onPress={onPress}>
       <View style={styles.iconWrapper}>
-        <Ionicons name="add" size={26} color="#3B2556" />
+        <Ionicons name="add-circle-outline" size={36} color="#3B2556" />
       </View>
-      <Text style={styles.text}>Crear evento</Text>
+       <Text style={styles.text}>{t('create_button')}</Text>
     </TouchableOpacity>
   );
 }
@@ -29,6 +31,7 @@ const styles = StyleSheet.create({
   },
   iconWrapper: {
     marginRight: 8,
+    marginTop: 4,
   },
   text: {
     color: '#3B2556',

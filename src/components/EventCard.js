@@ -8,11 +8,12 @@ import {
   TouchableOpacity
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 
-// Normalizador de estado
-const norm = (s) => String(s || '').toLowerCase();
+// Normalizador de strings
+const norm = (s) => String(s || '').trim().toLowerCase();
 
-// Mapa de estilos por estado (admite español e inglés)
+// Mapa de estilos por estado (admite entradas en ES o EN)
 const STATUS_STYLES = {
   // Activos (verde)
   'activo':   { backgroundColor: '#ECFDF5', textColor: '#059669' },
@@ -21,41 +22,59 @@ const STATUS_STYLES = {
   // Finalizados (rojo)
   'finished': { backgroundColor: '#FEF2F2', textColor: '#EF4444' },
   'pasado':   { backgroundColor: '#FEF2F2', textColor: '#EF4444' },
+  'finalizado': { backgroundColor: '#FEF2F2', textColor: '#EF4444' },
 
   // Borrador (gris)
   'borrador': { backgroundColor: '#E5E7EB', textColor: '#6B7280' },
+  'draft':    { backgroundColor: '#E5E7EB', textColor: '#6B7280' },
 
   // Default (gris claro)
   'default':  { backgroundColor: '#F3F4F6', textColor: '#374151' },
 };
 
-// Meses abreviados en español (3 letras)
-const MESES_ES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-
-// Fecha → { day: '23', mon: 'AUG' }
-function toDayMon(dateLike) {
-  const d = new Date(dateLike);
-  if (isNaN(d)) return { day: '--', mon: '---' };
-  const day = String(d.getDate()).padStart(2, '0');
-  const mon = MESES_ES[d.getMonth()];
-  return { day, mon };
-}
+// Mapa de claves canónicas para traducir el estado
+const STATUS_KEY_MAP = {
+  'activo': 'active',
+  'active': 'active',
+  'pasado': 'finished',
+  'finalizado': 'finished',
+  'finished': 'finished',
+  'borrador': 'draft',
+  'draft': 'draft',
+};
 
 export default function EventCard({
   title,
-  date,             // 👈 pásame la fecha cruda (string/Date)
+  date,             // fecha cruda (string/Date)
   imageUri,
   status = 'Activo',
   archived = false,
   onToggleArchive,
 }) {
+  const { t } = useTranslation('eventCard');
+
+  // 1) Estilos del estado (en base a la palabra recibida en ES/EN)
   const key = norm(status);
   const styleForStatus = STATUS_STYLES[key] || STATUS_STYLES.default;
   const { backgroundColor, textColor } = styleForStatus;
 
-  const source = typeof imageUri === 'string' ? { uri: imageUri } : imageUri;
+  // 2) Texto traducido del estado (usa clave canónica, si no, muestra tal cual)
+  const statusCanonical = STATUS_KEY_MAP[key];
+  const statusLabel = statusCanonical ? t(`status.${statusCanonical}`) : status;
 
-  const { day, mon } = useMemo(() => toDayMon(date), [date]);
+  // 3) Mes abreviado i18n
+  //    t('months', { returnObjects: true }) devuelve el array ["ENE", "FEB", ...] o ["JAN", ...]
+  const months = t('months', { returnObjects: true });
+  const { day, mon } = useMemo(() => {
+    const d = new Date(date);
+    if (isNaN(d)) return { day: '--', mon: '---' };
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mi = d.getMonth();
+    const m = Array.isArray(months) && months[mi] ? months[mi] : '---';
+    return { day: dd, mon: m };
+  }, [date, months]);
+
+  const source = typeof imageUri === 'string' ? { uri: imageUri } : imageUri;
 
   return (
     <View style={styles.card}>
@@ -75,7 +94,11 @@ export default function EventCard({
           onPress={() => onToggleArchive?.()}
           hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           accessibilityRole="button"
-          accessibilityLabel={archived ? "Desarchivar evento" : "Archivar evento"}
+          accessibilityLabel={
+            archived
+              ? t('archive.unarchive_event')
+              : t('archive.archive_event')
+          }
         >
           <Ionicons
             name={archived ? 'archive' : 'archive-outline'}
@@ -87,16 +110,16 @@ export default function EventCard({
 
       {/* Info */}
       <View style={styles.info}>
-        {/* Título + Estado en la misma fila */}
+        {/* Título + Estado */}
         <View style={styles.headerRow}>
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
 
           <View style={[styles.badge, { backgroundColor }]}>
-            <Text style={[styles.badgeText, { color: textColor }]}>{status}</Text>
+            <Text style={[styles.badgeText, { color: textColor }]}>{statusLabel}</Text>
           </View>
         </View>
 
-        {/* (Opcional) podrías agregar aquí otra fila con metadata si la necesitas) */}
+        {/* (Opcional) metadata extra */}
       </View>
     </View>
   );

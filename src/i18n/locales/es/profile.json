@@ -1,0 +1,73 @@
+{
+  "header": {
+    "title": "Mi perfil",
+    "edit": "Editar",
+    "cancel": "Cancelar"
+  },
+  "common": {
+    "user": "Usuario",
+    "error": "Error",
+    "retry": "Reintentar",
+    "discard": "Descartar",
+    "save": "Guardar",
+    "close": "Cerrar",
+    "update": "Actualizar"
+  },
+  "fields": {
+    "name": "Nombre",
+    "name_placeholder": "Tu nombre completo",
+    "email": "Correo",
+    "email_placeholder": "tu@correo.com",
+    "phone": "Teléfono",
+    "phone_placeholder": "+52 55 1234 5678",
+    "readonly_hint": "Actualiza tu información, desde el botón “Editar”."
+  },
+  "password": {
+    "change_title": "Cambiar contraseña",
+    "subtitle": "Actualiza tu contraseña de acceso",
+    "current": "Contraseña actual",
+    "current_placeholder": "Ingresa tu contraseña actual",
+    "new": "Nueva contraseña",
+    "new_placeholder": "Mínimo 8 caracteres, letras y números",
+    "confirm": "Confirmar nueva contraseña",
+    "confirm_placeholder": "Repite tu nueva contraseña"
+  },
+  "photo": {
+    "title": "Foto de perfil",
+    "pick_gallery": "Elegir de la galería",
+    "take_photo": "Tomar una foto",
+    "delete_photo": "Eliminar foto"
+  },
+  "errors": {
+    "load_profile_title": "No se pudo cargar el perfil",
+    "email_invalid": "Correo inválido",
+    "phone_invalid": "Teléfono inválido (usa solo dígitos y opcional +)",
+    "pw_current_required": "Ingresa tu contraseña actual",
+    "pw_new_min": "Mínimo 8 caracteres",
+    "pw_new_rules": "Usa letras y números",
+    "pw_same": "La nueva no puede ser igual a la actual",
+    "pw_mismatch": "Las contraseñas no coinciden",
+    "pw_change_failed": "No se pudo cambiar la contraseña",
+    "pick_perm_camera": "Permiso requerido",
+    "pick_perm_camera_msg": "Otorga permiso de cámara.",
+    "pick_perm_photos_msg": "Otorga permiso a tus fotos.",
+    "pick_failed": "No se pudo seleccionar la imagen.",
+    "upload_failed": "No se pudo subir la foto.",
+    "delete_failed": "No se pudo eliminar la foto.",
+    "save_failed": "Error al guardar"
+  },
+  "toasts": {
+    "profile_saved": "Perfil actualizado",
+    "photo_uploaded": "Foto actualizada",
+    "photo_deleted": "Foto eliminada",
+    "pw_changed": "Contraseña actualizada",
+    "save_error": "Error al guardar",
+    "upload_error": "Error al subir foto",
+    "delete_error": "Error al eliminar",
+    "pw_change_error": "Error al cambiar contraseña"
+  },
+  "empty": {
+    "dash": "—"
+  },
+  "error_detail_prefix": "Detalle"
+}

@@ -4,6 +4,7 @@ import { View, StyleSheet, Alert } from 'react-native';
 import { TextInput, Button, Text } from 'react-native-paper';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const API_URL = 'http://143.198.138.35:8000';
 
@@ -11,6 +12,8 @@ export default function AddGuestManualScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { user } = useContext(AuthContext);
+  const { t } = useTranslation('add_guest');
+
 
   const eventId = route?.params?.eventId;
   const token = user?.token || user?.accessToken || '';
@@ -26,31 +29,31 @@ export default function AddGuestManualScreen() {
 
   const handleGuardar = async () => {
     if (!eventId) {
-      Alert.alert('Falta información', 'No se encontró el eventId para este invitado.');
+      Alert.alert(t('alerts.missing_info_title'), t('alerts.missing_info_desc'));
       return;
     }
     if (!nombre || !correo) {
-      Alert.alert('Faltan datos', 'Nombre y correo son obligatorios.');
+       Alert.alert(t('alerts.missing_data_title'), t('alerts.missing_data_desc'));
       return;
     }
     if (!validateEmail(correo)) {
-      Alert.alert('Correo inválido', 'Por favor, escribe un correo válido.');
+       Alert.alert(t('alerts.invalid_email_title'), t('alerts.invalid_email_desc'));
       return;
     }
 
     const nPassesNumber = parseInt(nPasses, 10);
     if (isNaN(nPassesNumber) || nPassesNumber < 1) {
-      Alert.alert('Número de pases inválido', 'Ingresa un entero mayor o igual a 1.');
+     Alert.alert(t('alerts.invalid_passes_title'), t('alerts.invalid_passes_desc'));
       return;
     }
 
     Alert.alert(
-      'Confirmar guardado',
-      `¿Deseas guardar este invitado con ${nPassesNumber} pase(s)?`,
+      t('alerts.confirm_save_title'),
+      t('alerts.confirm_save_msg', { count: nPassesNumber }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+       { text: t('buttons.cancel'), style: 'cancel' },
         {
-          text: 'Guardar',
+          text: t('buttons.save'),
           style: 'default',
           onPress: async () => {
             try {
@@ -81,15 +84,15 @@ export default function AddGuestManualScreen() {
               }
 
               await resp.json();
-              Alert.alert('Éxito', 'Invitado guardado correctamente.', [
-                { text: 'OK', onPress: () => navigation.goBack() },
+             Alert.alert(t('alerts.success_title'), t('alerts.success_desc'), [
+                { text: t('buttons.ok'), onPress: () => navigation.goBack() },
               ]);
             } catch (error) {
               console.error('Error al guardar invitado:', error);
               const msg = String(error?.message || '').toLowerCase().includes('422')
-                ? 'Datos inválidos para el backend (verifica los campos).'
-                : 'No se pudo guardar el invitado.';
-              Alert.alert('Error', msg);
+               ? t('alerts.error_422')
+               : t('alerts.error_generic');
+              Alert.alert(t('alerts.error_title'), msg);
             } finally {
               setSaving(false);
             }
@@ -102,11 +105,11 @@ export default function AddGuestManualScreen() {
   const handleCancelar = () => {
     if (nombre || correo || telefono || alias || (nPasses && nPasses !== '1')) {
       Alert.alert(
-        '¿Cancelar?',
-        'Perderás la información escrita. ¿Deseas continuar?',
+        t('alerts.cancel_title'),
+        t('alerts.cancel_desc'),
         [
-          { text: 'No', style: 'cancel' },
-          { text: 'Sí, salir', style: 'destructive', onPress: () => navigation.goBack() },
+          { text: t('alerts.no'), style: 'cancel' },
+          { text: t('buttons.yes_exit'), style: 'destructive', onPress: () => navigation.goBack() },
         ]
       );
     } else {
@@ -116,17 +119,17 @@ export default function AddGuestManualScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Agregar invitado</Text>
+       <Text style={styles.title}>{t('title')}</Text>
 
       <TextInput
-        label="Nombre"
+        label={t('fields.name')}
         value={nombre}
         onChangeText={setNombre}
         style={styles.input}
         disabled={saving}
       />
       <TextInput
-        label="Correo"
+        label={t('fields.email')}
         value={correo}
         onChangeText={setCorreo}
         keyboardType="email-address"
@@ -135,7 +138,7 @@ export default function AddGuestManualScreen() {
         disabled={saving}
       />
       <TextInput
-        label="Teléfono (opcional)"
+        label={t('fields.phone_opt')}
         value={telefono}
         onChangeText={setTelefono}
         keyboardType="phone-pad"
@@ -143,7 +146,7 @@ export default function AddGuestManualScreen() {
         disabled={saving}
       />
       <TextInput
-        label="Alias (opcional)"
+       label={t('fields.alias_opt')}
         value={alias}
         onChangeText={setAlias}
         style={styles.input}
@@ -152,19 +155,19 @@ export default function AddGuestManualScreen() {
 
       {/* Número de pases */}
       <TextInput
-        label="Número de pases"
+        label={t('fields.passes')}
         value={nPasses}
         onChangeText={(t) => setNPasses(t.replace(/[^0-9]/g, ''))}
         keyboardType="number-pad"
         style={styles.input}
         disabled={saving}
-        right={<TextInput.Affix text="pases" />}
+        right={<TextInput.Affix text={t('fields.passes_suffix')} />}
       />
 
       <View style={{ flexDirection: 'row', marginTop: 16 }}>
         <View style={{ flex: 1, marginRight: 8 }}>
           <Button mode="contained" onPress={handleGuardar} loading={saving} disabled={saving}>
-            Guardar
+            {t('buttons.save')}
           </Button>
         </View>
         <View style={{ flex: 1, marginLeft: 8 }}>
@@ -175,7 +178,7 @@ export default function AddGuestManualScreen() {
             style={{ borderColor: 'red' }}
             disabled={saving}
           >
-            Cancelar
+           {t('buttons.cancel')}
           </Button>
         </View>
       </View>

@@ -16,6 +16,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { AuthContext } from "../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 const API_URL = "http://143.198.138.35:8000";
 
@@ -26,6 +27,7 @@ const PRIORITY_COLORS = {
 };
 
 export default function PlanningScreen({ navigation, route }) {
+  const { t, i18n } = useTranslation("planning");
   const { eventId, category: categoryParam } = route.params;
   const { user } = useContext(AuthContext);
 
@@ -100,7 +102,7 @@ export default function PlanningScreen({ navigation, route }) {
           t.id === task.id ? { ...t, is_completed: task.is_completed } : t
         )
       );
-      Alert.alert("Error", "No se pudo actualizar la tarea.");
+      Alert.alert(t("alerts.error_title"), t("alerts.toggle_failed"));
     }
   };
 
@@ -120,24 +122,15 @@ export default function PlanningScreen({ navigation, route }) {
     if (savingTask) return;
 
     if (!title?.trim()) {
-      Alert.alert(
-        "Campo obligatorio",
-        "Debes indicar un título para la tarea."
-      );
+     Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
       return;
     }
     if (!description?.trim() || !dueDate) {
-      Alert.alert(
-        "Error",
-        "Por favor, completa los campos: Descripción y Fecha límite."
-      );
+     Alert.alert(t("alerts.error_title"), t("alerts.missing_fields_msg"));
       return;
     }
     if (isExpense && !budget) {
-      Alert.alert(
-        "Falta presupuesto",
-        "Indica el budget estimado para el gasto."
-      );
+     Alert.alert(t("alerts.budget_required_title"), t("alerts.budget_required_msg"));
       return;
     }
 
@@ -177,7 +170,7 @@ export default function PlanningScreen({ navigation, route }) {
       resetForm();
     } catch (err) {
       console.error("Error al crear tarea:", err);
-      Alert.alert("Error", "No se pudo crear la tarea. Verifica los datos.");
+      Alert.alert(t("alerts.error_title"), t("alerts.create_failed"));
     } finally {
       setSavingTask(false);
     }
@@ -199,24 +192,15 @@ export default function PlanningScreen({ navigation, route }) {
     if (updatingTask || !editingTask) return;
 
     if (!title?.trim()) {
-      Alert.alert(
-        "Campo obligatorio",
-        "Debes indicar un título para la tarea."
-      );
+       Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
       return;
     }
     if (!description?.trim() || !dueDate) {
-      Alert.alert(
-        "Error",
-        "Por favor, completa los campos: Descripción y Fecha límite."
-      );
+       Alert.alert(t("alerts.error_title"), t("alerts.missing_fields_msg"));
       return;
     }
     if (isExpense && !budget) {
-      Alert.alert(
-        "Falta presupuesto",
-        "Indica el budget estimado para el gasto."
-      );
+       Alert.alert(t("alerts.budget_required_title"), t("alerts.budget_required_msg"));
       return;
     }
 
@@ -252,7 +236,7 @@ export default function PlanningScreen({ navigation, route }) {
       resetForm();
     } catch (err) {
       console.error("Error al actualizar tarea:", err);
-      Alert.alert("Error", "No se pudo actualizar la tarea.");
+      Alert.alert(t("alerts.error_title"), t("alerts.update_failed"));
     } finally {
       setUpdatingTask(false);
     }
@@ -275,11 +259,11 @@ export default function PlanningScreen({ navigation, route }) {
       }
 
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
-      Alert.alert("Éxito", "Tarea eliminada correctamente");
+       Alert.alert(t("alerts.success_title"), t("alerts.delete_success"));
       await loadTasks();
     } catch (err) {
       console.error("Error al eliminar tarea:", err);
-      Alert.alert("Error", "No se pudo eliminar la tarea.");
+     Alert.alert(t("alerts.error_title"), t("alerts.delete_failed"));
     } finally {
       setDeletingTaskId(null);
       setTimeout(() => setShowDeletingToast(false), 500);
@@ -313,9 +297,7 @@ export default function PlanningScreen({ navigation, route }) {
       </View>
 
       <View style={styles.descriptionContainer}>
-        <Text style={styles.description}>
-          Agrega tus pendientes y marca el progreso.
-        </Text>
+        <Text style={styles.description}>{t("header.description")}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
@@ -380,7 +362,7 @@ export default function PlanningScreen({ navigation, route }) {
           }}
         >
           <Ionicons name="add-circle-outline" size={28} color="#254236" />
-          <Text style={styles.addText}>Agregar tarea</Text>
+          <Text style={styles.addText}>{t("list.add_task")}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -389,7 +371,7 @@ export default function PlanningScreen({ navigation, route }) {
         <View style={styles.deletingToast}>
           <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
           <Text style={{ color: "#fff", fontWeight: "600" }}>
-            Eliminando tarea…
+            {t("toast.deleting")}
           </Text>
         </View>
       )}
@@ -407,7 +389,7 @@ export default function PlanningScreen({ navigation, route }) {
               <Ionicons name="close" size={24} color="#A861B7" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              {mode === "edit" ? "Editar tarea" : "Crear tarea"}
+              {mode === "edit" ? t("modal.edit_title") : t("modal.create_title")}
             </Text>
             <View style={{ width: 24 }} />
           </View>
@@ -415,31 +397,33 @@ export default function PlanningScreen({ navigation, route }) {
           <ScrollView contentContainerStyle={styles.modalContainer}>
             <View style={styles.labelWithIcon}>
               <Text style={styles.labelText}>
-                Título{" "}
-                <Text style={{ color: "red", fontSize: 8 }}>(obligatorio)</Text>
+                {t("modal.fields.title")}{" "}
+                <Text style={{ color: "red", fontSize: 8 }}>
+                  {t("modal.fields.title_required_badge")}
+                </Text>
               </Text>
             </View>
             <TextInput
               style={styles.input}
               value={title}
               onChangeText={setTitle}
-              placeholder="Nombre de la tarea"
+             placeholder={t("modal.fields.title_placeholder")}
               placeholderTextColor="#888"
             />
 
             <View style={styles.labelWithIcon}>
-              <Text style={styles.labelText}>Descripción</Text>
+              <Text style={styles.labelText}>{t("modal.fields.description")}</Text>
             </View>
             <TextInput
               style={styles.input}
               value={description}
               onChangeText={setDescription}
-              placeholder="Detalles..."
+               placeholder={t("modal.fields.description_placeholder")}
               placeholderTextColor="#888"
             />
 
             <View style={styles.labelWithIcon}>
-              <Text style={styles.labelText}>Fecha límite</Text>
+              <Text style={styles.labelText}>{t("modal.fields.due_date")}</Text>
             </View>
             <TouchableOpacity
               style={styles.input}
@@ -447,12 +431,12 @@ export default function PlanningScreen({ navigation, route }) {
             >
               <Text>
                 {dueDate
-                  ? dueDate.toLocaleDateString("es-ES", {
+                   ? dueDate.toLocaleDateString(i18n.language || undefined, {
                       day: "2-digit",
                       month: "long",
                       year: "numeric",
                     })
-                  : "Seleccionar fecha"}
+                 : t("modal.fields.due_date_placeholder")}
               </Text>
             </TouchableOpacity>
             {showDatePicker && (
@@ -470,7 +454,7 @@ export default function PlanningScreen({ navigation, route }) {
 
             <View>
               <View style={styles.labelWithIcon}>
-                <Text style={styles.labelText}>Prioridad</Text>
+                 <Text style={styles.labelText}>{t("modal.fields.priority")}</Text>
               </View>
               <View style={styles.pickerWrapper}>
                 <Picker
@@ -481,7 +465,7 @@ export default function PlanningScreen({ navigation, route }) {
                   {Object.keys(PRIORITY_COLORS).map((p) => (
                     <Picker.Item
                       key={p}
-                      label={p.charAt(0).toUpperCase() + p.slice(1)}
+                      label={t(`priority.options.${p}`)}
                       value={p}
                     />
                   ))}
@@ -502,7 +486,7 @@ export default function PlanningScreen({ navigation, route }) {
                   color="#A861B7"
                   style={{ marginRight: 8 }}
                 />
-                <Text style={styles.labelText}>¿Es gasto?</Text>
+                <Text style={styles.labelText}>{t("modal.fields.is_expense")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -516,13 +500,13 @@ export default function PlanningScreen({ navigation, route }) {
                     color="#A861B7"
                     style={styles.icon}
                   />
-                  <Text style={styles.labelText}>Budget</Text>
+                  <Text style={styles.labelText}>{t("modal.fields.budget")}</Text>
                 </View>
                 <TextInput
                   style={styles.input}
                   value={budget}
                   onChangeText={setBudget}
-                  placeholder="Ej. 1000.10"
+                  placeholder={t("modal.fields.budget_placeholder")}
                   keyboardType="numeric"
                   placeholderTextColor="#888"
                 />
@@ -543,7 +527,7 @@ export default function PlanningScreen({ navigation, route }) {
                 <ActivityIndicator color="#FFF" />
               ) : (
                 <Text style={styles.saveText}>
-                  {mode === "edit" ? "Guardar cambios" : "Guardar tarea"}
+                  {mode === "edit" ? t("modal.actions.save_changes") : t("modal.actions.save_task")}
                 </Text>
               )}
             </TouchableOpacity>

@@ -1,0 +1,53 @@
+{
+  "header": {
+    "description": "Agrega tus pendientes y marca el progreso."
+  },
+  "list": {
+    "add_task": "Agregar tarea"
+  },
+  "toast": {
+    "deleting": "Eliminando tarea…"
+  },
+  "modal": {
+    "create_title": "Crear tarea",
+    "edit_title": "Editar tarea",
+    "fields": {
+      "title": "Título",
+      "title_required_badge": "(obligatorio)",
+      "title_placeholder": "Nombre de la tarea",
+      "description": "Descripción",
+      "description_placeholder": "Detalles...",
+      "due_date": "Fecha límite",
+      "due_date_placeholder": "Seleccionar fecha",
+      "priority": "Prioridad",
+      "is_expense": "¿Es gasto?",
+      "budget": "Budget",
+      "budget_placeholder": "Ej. 1000.10"
+    },
+    "actions": {
+      "save_task": "Guardar tarea",
+      "save_changes": "Guardar cambios"
+    }
+  },
+  "priority": {
+    "options": {
+      "alta": "Alta",
+      "media": "Media",
+      "baja": "Baja"
+    }
+  },
+  "alerts": {
+    "error_title": "Error",
+    "success_title": "Éxito",
+    "required_title": "Campo obligatorio",
+    "title_required_msg": "Debes indicar un título para la tarea.",
+    "missing_fields_msg": "Por favor, completa los campos: Descripción y Fecha límite.",
+    "budget_required_title": "Falta presupuesto",
+    "budget_required_msg": "Indica el budget estimado para el gasto.",
+    "create_failed": "No se pudo crear la tarea. Verifica los datos.",
+    "update_failed": "No se pudo actualizar la tarea.",
+    "toggle_failed": "No se pudo actualizar la tarea.",
+    "delete_success": "Tarea eliminada correctamente",
+    "delete_failed": "No se pudo eliminar la tarea."
+  }
+}
