@@ -114,7 +114,6 @@ function routeFromDbType({ type, event_id, title, message, deepLink, ...rest }) 
       return { name: 'Notifications', params: { ...rest } };
 
     default:
-      // Fallback razonable: listado de eventos
       return { name: 'Events', params: { ...rest } };
   }
 }
@@ -161,7 +160,6 @@ export default function App() {
   const responseListener = useRef();
   const [i18nReady, setI18nReady] = useState(false);
 
-  // Carga de fuentes
   const [fontsLoaded] = useFonts({
     Montserrat_700Bold,
     Lato_700Bold,
