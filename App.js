@@ -78,27 +78,45 @@ function navigate(name, params) {
   }
 }
 
-// ======= Router: data.type → screen (usa event_id y/o deepLink) =======
-function routeFromDbType({ type, event_id, title, message, deepLink, ...rest }) {
+function normalizeNotifData(raw = {}) {
+  // Acepta tanto "type" como "tipo" (y variantes comunes), y asegura eventId numérico
+  const type =
+    raw.type ??
+    raw.tipo ??
+    raw.Type ??
+    raw.Tipo ??
+    raw.TYPE ??
+    null;
+
+  // event_id puede venir como string; forzamos a número si aplica
+  const event_id = raw.event_id != null
+    ? (Number.isNaN(Number(raw.event_id)) ? raw.event_id : Number(raw.event_id))
+    : raw.eventId != null
+      ? (Number.isNaN(Number(raw.eventId)) ? raw.eventId : Number(raw.eventId))
+      : undefined;
+
+  return { ...raw, type, event_id };
+}
+
+
+function routeFromDbType(data = {}) {
+  const { type, event_id, title, message, deepLink, ...rest } = data;
   const t = (type || '').toUpperCase();
 
   switch (t) {
     case 'CHECKLIST':
-      // Centro de planeación del evento
       return { name: 'PlanningHome', params: { eventId: event_id, ...rest } };
 
     case 'INVITATION': {
-      // Preferimos deepLink en data; si no, intentamos extraer URL del message
       const urlMatch = typeof message === 'string' ? message.match(/https?:\/\/\S+/) : null;
       const url = deepLink || (urlMatch ? urlMatch[0] : null);
-
       return url
         ? { name: '__OPEN_URL__', params: { url, fallback: { name: 'InvitationsHome', params: { eventId: event_id, ...rest } } } }
         : { name: 'InvitationsHome', params: { eventId: event_id, ...rest } };
     }
 
     case 'OWNER':
-      // Te asignaron como propietario → detalle del evento
+    case 'EVENT':
       return { name: 'EventDetail', params: { eventId: event_id, ...rest } };
 
     case 'AGENDA':
@@ -107,23 +125,23 @@ function routeFromDbType({ type, event_id, title, message, deepLink, ...rest }) 
     case 'ALBUM':
       return { name: 'Albums', params: { eventId: event_id, ...rest } };
 
-    case 'EVENT':
-      return { name: 'EventDetail', params: { eventId: event_id, ...rest } };
-
     case 'NOTIFICATION':
       return { name: 'Notifications', params: { ...rest } };
 
     default:
-      return { name: 'Events', params: { ...rest } };
+      // Si no vino tipo, te llevo a la lista pero con el eventId si existe
+      return event_id != null
+        ? { name: 'EventDetail', params: { eventId: event_id, ...rest } }
+        : { name: 'Events', params: { ...rest } };
   }
 }
 
-async function handleNotificationNavigationData(data = {}) {
-  const route = routeFromDbType(data);
 
+async function handleNotificationNavigationData(raw = {}) {
+  const data = normalizeNotifData(raw);
+  const route = routeFromDbType(data);
   if (!route?.name) return;
 
-  // Caso especial: abrir URL (invitaciones)
   if (route.name === '__OPEN_URL__') {
     const { url, fallback } = route.params || {};
     try {
@@ -136,15 +154,14 @@ async function handleNotificationNavigationData(data = {}) {
     }
   }
 
-  // Navegación normal
   navigate(route.name, route.params || {});
 }
 
 async function handleNotificationNavigationFromResponse(response) {
-  // Expo → response.notification.request.content.data
-  const data = response?.notification?.request?.content?.data || {};
-  await handleNotificationNavigationData(data);
+  const raw = response?.notification?.request?.content?.data || {};
+  await handleNotificationNavigationData(raw);
 }
+
 
 // ======= Configuración de comportamiento en Android (opcional Heads-up) =======
 Notifications.setNotificationHandler({
@@ -195,7 +212,8 @@ export default function App() {
 
     // App abierta (foreground): normalmente solo registramos
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('Notificación recibida (fg):', notification);
+  const data = notification?.request?.content?.data || {};
+  console.log('Notificación recibida (fg) - data completa:', JSON.stringify(data, null, 2));
       // Si quieres navegar también en foreground, descomenta:
       // const data = notification?.request?.content?.data || {};
       // handleNotificationNavigationData(data);

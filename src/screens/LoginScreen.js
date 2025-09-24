@@ -75,6 +75,8 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
 
   const [focusedInput, setFocusedInput] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
+
   const handleFocus = (field) => setFocusedInput(field);
   const handleBlur = () => setFocusedInput(null);
 
@@ -251,70 +253,196 @@ export default function LoginScreen() {
     } catch {}
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      await GoogleSignin.hasPlayServices();
-      const { idToken } = await GoogleSignin.signIn();
+ const handleGoogleSignIn = async () => {
+  setLoading(true);
+  setDebugInfo(null); // Limpiar info previa
+  
+  console.log('🚀 === INICIANDO GOOGLE SIGN-IN DEBUG ===');
+  console.log('📅 Timestamp:', new Date().toISOString());
+  
+  try {
+    // === VERIFICAR PLAY SERVICES ===
+    console.log('🔍 Verificando Google Play Services...');
+    await GoogleSignin.hasPlayServices();
+    console.log('✅ Google Play Services disponible');
 
-      if (idToken) {
-        let fcmToken = null;
-        if (Device.isDevice) {
-          try {
-            const { status } = await Notifications.getPermissionsAsync();
-            if (status === "granted") {
-              const tokenData = await Notifications.getDevicePushTokenAsync();
-              fcmToken = tokenData.data;
-            }
-          } catch (e) {
-            console.log(
-              "No se pudo obtener el FCM token para Google Sign-In:",
-              e
-            );
+    // === OBTENER CONFIGURACIÓN ACTUAL ===
+    console.log('⚙️ Configuración actual de GoogleSignin:');
+    const currentConfig = await GoogleSignin.getCurrentUser();
+    console.log('Usuario actual:', currentConfig ? 'Ya logueado' : 'No logueado');
+
+    // === INICIAR SIGN-IN ===
+    console.log('🔐 Iniciando proceso de sign-in...');
+    const result = await GoogleSignin.signIn();
+    
+    // === MOSTRAR RESULTADO COMPLETO ===
+    console.log('🎯 === RESULTADO COMPLETO DE GOOGLE SIGN-IN ===');
+    console.log('Objeto completo:', JSON.stringify(result, null, 2));
+    console.log('Keys disponibles:', Object.keys(result));
+    
+    // === EXTRAER DATOS ESPECÍFICOS ===
+    const { idToken, user } = result;
+    
+    console.log('🔑 === TOKENS Y DATOS ===');
+    console.log('¿Tiene idToken?:', !!idToken);
+    console.log('ID Token (primeros 50 chars):', idToken ? idToken.substring(0, 50) + '...' : 'NO TOKEN');
+    console.log('Token completo length:', idToken ? idToken.length : 0);
+    
+    console.log('👤 === INFORMACIÓN DEL USUARIO ===');
+    console.log('Usuario completo:', JSON.stringify(user, null, 2));
+    console.log('Email:', user?.email);
+    console.log('Nombre:', user?.name);
+    console.log('ID:', user?.id);
+    console.log('Foto:', user?.photo);
+    console.log('Given Name:', user?.givenName);
+    console.log('Family Name:', user?.familyName);
+
+    if (idToken) {
+      console.log('✅ Token obtenido exitosamente!');
+
+      // === OBTENER FCM TOKEN ===
+      let fcmToken = null;
+      if (Device.isDevice) {
+        try {
+          console.log('📱 Intentando obtener FCM token...');
+          const { status: existingStatus } = await Notifications.getPermissionsAsync();
+          console.log('Status actual de notificaciones:', existingStatus);
+          
+          let finalStatus = existingStatus;
+          
+          if (existingStatus !== "granted") {
+            console.log('⚠️ Solicitando permisos de notificación...');
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+            console.log('Nuevo status:', finalStatus);
           }
+          
+          if (finalStatus === "granted") {
+            const tokenData = await Notifications.getDevicePushTokenAsync();
+            fcmToken = tokenData.data;
+            console.log('📲 FCM Token obtenido:', fcmToken ? 'Sí (' + fcmToken.length + ' chars)' : 'No');
+            console.log('FCM Token completo:', fcmToken);
+          } else {
+            console.log('❌ Permisos de notificación no concedidos');
+          }
+        } catch (e) {
+          console.log('❌ Error obteniendo FCM token:', e.message);
+          console.log('Error completo:', e);
         }
-
-        const res = await fetch(`${API_BASE}/auth/google-signin/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: idToken,
-            fcm_token: fcmToken || "",
-            device_type: Platform.OS,
-          }),
-        });
-
-        if (!res.ok) {
-          throw new Error("La autenticación con el servidor falló.");
-        }
-
-        const { access_token: apiToken, user_id: userId } = await res.json();
-
-        setUser({ id: userId, token: apiToken });
-
-        if (rememberMe) {
-          await persistSession(apiToken, userId);
-        } else {
-          await clearPersistedSession();
-        }
-
-        navigation.replace("Events");
-      }
-    } catch (error) {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        console.log("Login con Google cancelado");
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        Alert.alert("Espera", "El inicio de sesión ya está en proceso.");
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert("Error", "Google Play Services no está disponible.");
       } else {
-        console.error(error);
-        Alert.alert("Error", "Ocurrió un error al iniciar sesión con Google.");
+        console.log('📱 No es un dispositivo físico, saltando FCM token');
       }
-    } finally {
-      setLoading(false);
+
+      // === PREPARAR INFO PARA MOSTRAR EN PANTALLA ===
+      const displayInfo = {
+        success: true,
+        timestamp: new Date().toISOString(),
+        user: {
+          name: user?.name || 'Sin nombre',
+          email: user?.email || 'Sin email',
+          id: user?.id || 'Sin ID',
+          photo: user?.photo || null,
+          givenName: user?.givenName || null,
+          familyName: user?.familyName || null,
+        },
+        token: {
+          hasToken: !!idToken,
+          tokenLength: idToken ? idToken.length : 0,
+          tokenPreview: idToken ? idToken.substring(0, 30) + '...' : 'NO TOKEN',
+          fullToken: idToken // Solo para debug, no mostrar en UI
+        },
+        fcm: {
+          token: fcmToken,
+          hasToken: !!fcmToken,
+          tokenLength: fcmToken ? fcmToken.length : 0
+        }
+      };
+
+      // === MOSTRAR INFO EN PANTALLA ===
+      setDebugInfo(displayInfo);
+      
+      // === DATOS PARA ENVIAR AL BACKEND ===
+      const backendPayload = {
+        token: idToken,
+        fcm_token: fcmToken || "",
+        device_type: Platform.OS,
+      };
+      
+      console.log('📦 === DATOS PARA BACKEND ===');
+      console.log('Payload completo:', JSON.stringify(backendPayload, null, 2));
+      console.log('Device type:', Platform.OS);
+      console.log('API Base URL:', API_BASE);
+      
+      console.log('🧪 === MODO PRUEBA (SIN BACKEND) ===');
+      console.log('✅ Google Sign-In funcionando correctamente!');
+      console.log('📧 Email del usuario:', user?.email);
+      console.log('🎭 Nombre del usuario:', user?.name);
+      console.log('🆔 ID del usuario:', user?.id);
+      
+      // Alert más simple ahora que mostramos en pantalla
+      Alert.alert(
+        'Google Sign-In Exitoso! 🎉', 
+        'Revisa la información mostrada en pantalla',
+        [{ text: 'OK' }]
+      );
+      
+      console.log('✅ === GOOGLE SIGN-IN COMPLETADO EXITOSAMENTE ===');
+      
+    } else {
+      console.log('❌ No se obtuvo idToken del resultado');
+      setDebugInfo({
+        success: false,
+        error: 'No se pudo obtener el token de autenticación',
+        timestamp: new Date().toISOString()
+      });
+      Alert.alert('Error', 'No se pudo obtener el token de autenticación');
     }
-  };
+
+  } catch (error) {
+    console.log('💥 === ERROR EN GOOGLE SIGN-IN ===');
+    console.log('Error type:', typeof error);
+    console.log('Error keys:', Object.keys(error));
+    console.log('Error code:', error.code);
+    console.log('Error message:', error.message);
+    console.log('Error stack:', error.stack);
+    console.log('Error completo:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    
+    // === MOSTRAR ERROR EN PANTALLA ===
+    setDebugInfo({
+      success: false,
+      error: {
+        code: error.code,
+        message: error.message,
+        type: error.constructor?.name || 'Unknown'
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      console.log('👤 Usuario canceló el login');
+      // No mostrar alert para cancelación
+    } else if (error.code === statusCodes.IN_PROGRESS) {
+      console.log('⏳ Sign-in ya está en progreso');
+      Alert.alert("Espera", "El inicio de sesión ya está en proceso.");
+    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      console.log('📱 Google Play Services no disponible');
+      Alert.alert("Error", "Google Play Services no está disponible.");
+    } else {
+      console.log('🔥 Error no manejado específicamente');
+      console.error('Error completo para debugging:', error);
+      
+      Alert.alert(
+        "Error de configuración", 
+        `Código: ${error.code || 'Sin código'}\nMensaje: ${error.message || 'Sin mensaje'}`,
+        [{ text: 'OK' }]
+      );
+    }
+  } finally {
+    console.log('🏁 === FINALIZANDO GOOGLE SIGN-IN ===');
+    setLoading(false);
+  }
+};
+
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password) {
@@ -642,6 +770,8 @@ export default function LoginScreen() {
                 <Text style={styles.buttonText}>Continuar con correo</Text>
               </TouchableOpacity>
             </>
+
+            
           ) : (
             <View style={styles.form}>
               <TextInput
@@ -718,6 +848,56 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+
+          {/* INFORMACIÓN DE DEBUG EN PANTALLA */}
+{debugInfo && (
+  <View style={styles.debugContainer}>
+    <Text style={styles.debugTitle}>🔍 Debug Info</Text>
+    
+    {debugInfo.success ? (
+      <>
+        <Text style={styles.debugSuccess}>✅ LOGIN EXITOSO</Text>
+        
+        <View style={styles.debugSection}>
+          <Text style={styles.debugSectionTitle}>👤 Usuario:</Text>
+          <Text style={styles.debugText}>Nombre: {debugInfo.user.name}</Text>
+          <Text style={styles.debugText}>Email: {debugInfo.user.email}</Text>
+          <Text style={styles.debugText}>ID: {debugInfo.user.id}</Text>
+        </View>
+        
+        <View style={styles.debugSection}>
+          <Text style={styles.debugSectionTitle}>🔑 Token:</Text>
+          <Text style={styles.debugText}>Tiene Token: {debugInfo.token.hasToken ? 'SÍ' : 'NO'}</Text>
+          <Text style={styles.debugText}>Longitud: {debugInfo.token.tokenLength}</Text>
+          <Text style={styles.debugText}>Preview: {debugInfo.token.tokenPreview}</Text>
+        </View>
+        
+        <View style={styles.debugSection}>
+          <Text style={styles.debugSectionTitle}>📱 FCM:</Text>
+          <Text style={styles.debugText}>Tiene FCM: {debugInfo.fcm.hasToken ? 'SÍ' : 'NO'}</Text>
+          <Text style={styles.debugText}>FCM Length: {debugInfo.fcm.tokenLength}</Text>
+        </View>
+      </>
+    ) : (
+      <>
+        <Text style={styles.debugError}>❌ ERROR</Text>
+        <Text style={styles.debugText}>Código: {debugInfo.error?.code || debugInfo.error}</Text>
+        <Text style={styles.debugText}>Mensaje: {debugInfo.error?.message || 'Error desconocido'}</Text>
+      </>
+    )}
+    
+    <Text style={styles.debugTime}>Timestamp: {debugInfo.timestamp}</Text>
+    
+    <TouchableOpacity 
+      style={styles.debugClearBtn}
+      onPress={() => setDebugInfo(null)}
+    >
+      <Text style={styles.debugClearText}>Limpiar</Text>
+    </TouchableOpacity>
+  </View>
+)}
+
 
           {!kbOpen && (
             <>
@@ -1216,4 +1396,67 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontWeight: "700",
   },
+
+
+
+
+  //debug google
+  debugContainer: {
+  margin: 16,
+  padding: 12,
+  backgroundColor: '#F3F4F6',
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: '#D1D5DB',
+},
+debugTitle: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  color: '#111827',
+  marginBottom: 8,
+},
+debugSuccess: {
+  fontSize: 14,
+  fontWeight: 'bold',
+  color: '#059669',
+  marginBottom: 8,
+},
+debugError: {
+  fontSize: 14,
+  fontWeight: 'bold',
+  color: '#DC2626',
+  marginBottom: 8,
+},
+debugSection: {
+  marginBottom: 8,
+},
+debugSectionTitle: {
+  fontSize: 13,
+  fontWeight: 'bold',
+  color: '#374151',
+  marginBottom: 4,
+},
+debugText: {
+  fontSize: 12,
+  color: '#6B7280',
+  marginLeft: 8,
+},
+debugTime: {
+  fontSize: 10,
+  color: '#9CA3AF',
+  marginTop: 8,
+  marginBottom: 8,
+},
+debugClearBtn: {
+  backgroundColor: '#EF4444',
+  padding: 6,
+  borderRadius: 4,
+  alignItems: 'center',
+},
+debugClearText: {
+  color: 'white',
+  fontSize: 12,
+  fontWeight: 'bold',
+},
+
 });

@@ -125,10 +125,10 @@ export default function PlanningScreen({ navigation, route }) {
      Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
       return;
     }
-    if (!description?.trim() || !dueDate) {
-     Alert.alert(t("alerts.error_title"), t("alerts.missing_fields_msg"));
-      return;
-    }
+    // if (!description?.trim() || !dueDate) {
+    //  Alert.alert(t("alerts.error_title"), t("alerts.missing_fields_msg"));
+    //   return;
+    // }
     if (isExpense && !budget) {
      Alert.alert(t("alerts.budget_required_title"), t("alerts.budget_required_msg"));
       return;
