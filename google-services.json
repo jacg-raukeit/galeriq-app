@@ -12,7 +12,20 @@
           "package_name": "galeriq.com"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1060805663067-okv6smkmdhfih3978u3jk4dsglavkjs3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "galeriq.com",
+            "certificate_hash": "a66051fec8dbf2d0c28f1c0aa0e8e94c38b48956"
+          }
+        },
+        {
+          "client_id": "1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCX63c0RaDxq1WT1_RuSvV5_0yxI_C6g_s"

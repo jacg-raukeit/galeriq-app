@@ -140,6 +140,7 @@ export default function LoginScreen() {
       webClientId:
         "1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com",
       offlineAccess: true,
+      forceCodeForRefreshToken: true,
     });
   }, []);
 
@@ -253,192 +254,204 @@ export default function LoginScreen() {
     } catch {}
   };
 
- const handleGoogleSignIn = async () => {
+
+
+
+
+const handleGoogleSignIn = async () => {
   setLoading(true);
-  setDebugInfo(null); // Limpiar info previa
+  setDebugInfo(null);
   
-  console.log('🚀 === INICIANDO GOOGLE SIGN-IN DEBUG ===');
+  console.log('🚀 Iniciando Google Sign-In');
   console.log('📅 Timestamp:', new Date().toISOString());
   
   try {
-    // === VERIFICAR PLAY SERVICES ===
+    // Verificar Play Services
     console.log('🔍 Verificando Google Play Services...');
-    await GoogleSignin.hasPlayServices();
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
     console.log('✅ Google Play Services disponible');
 
-    // === OBTENER CONFIGURACIÓN ACTUAL ===
-    console.log('⚙️ Configuración actual de GoogleSignin:');
-    const currentConfig = await GoogleSignin.getCurrentUser();
-    console.log('Usuario actual:', currentConfig ? 'Ya logueado' : 'No logueado');
+    // Configurar antes de sign-in (importante para Android)
+    GoogleSignin.configure({
+      webClientId: "1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com",
+      offlineAccess: true,
+      forceCodeForRefreshToken: true,
+    });
 
-    // === INICIAR SIGN-IN ===
-    console.log('🔐 Iniciando proceso de sign-in...');
-    const result = await GoogleSignin.signIn();
-    
-    // === MOSTRAR RESULTADO COMPLETO ===
-    console.log('🎯 === RESULTADO COMPLETO DE GOOGLE SIGN-IN ===');
-    console.log('Objeto completo:', JSON.stringify(result, null, 2));
-    console.log('Keys disponibles:', Object.keys(result));
-    
-    // === EXTRAER DATOS ESPECÍFICOS ===
-    const { idToken, user } = result;
-    
-    console.log('🔑 === TOKENS Y DATOS ===');
-    console.log('¿Tiene idToken?:', !!idToken);
-    console.log('ID Token (primeros 50 chars):', idToken ? idToken.substring(0, 50) + '...' : 'NO TOKEN');
-    console.log('Token completo length:', idToken ? idToken.length : 0);
-    
-    console.log('👤 === INFORMACIÓN DEL USUARIO ===');
-    console.log('Usuario completo:', JSON.stringify(user, null, 2));
-    console.log('Email:', user?.email);
-    console.log('Nombre:', user?.name);
-    console.log('ID:', user?.id);
-    console.log('Foto:', user?.photo);
-    console.log('Given Name:', user?.givenName);
-    console.log('Family Name:', user?.familyName);
-
-    if (idToken) {
-      console.log('✅ Token obtenido exitosamente!');
-
-      // === OBTENER FCM TOKEN ===
-      let fcmToken = null;
-      if (Device.isDevice) {
-        try {
-          console.log('📱 Intentando obtener FCM token...');
-          const { status: existingStatus } = await Notifications.getPermissionsAsync();
-          console.log('Status actual de notificaciones:', existingStatus);
-          
-          let finalStatus = existingStatus;
-          
-          if (existingStatus !== "granted") {
-            console.log('⚠️ Solicitando permisos de notificación...');
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-            console.log('Nuevo status:', finalStatus);
-          }
-          
-          if (finalStatus === "granted") {
-            const tokenData = await Notifications.getDevicePushTokenAsync();
-            fcmToken = tokenData.data;
-            console.log('📲 FCM Token obtenido:', fcmToken ? 'Sí (' + fcmToken.length + ' chars)' : 'No');
-            console.log('FCM Token completo:', fcmToken);
-          } else {
-            console.log('❌ Permisos de notificación no concedidos');
-          }
-        } catch (e) {
-          console.log('❌ Error obteniendo FCM token:', e.message);
-          console.log('Error completo:', e);
-        }
-      } else {
-        console.log('📱 No es un dispositivo físico, saltando FCM token');
-      }
-
-      // === PREPARAR INFO PARA MOSTRAR EN PANTALLA ===
-      const displayInfo = {
-        success: true,
-        timestamp: new Date().toISOString(),
-        user: {
-          name: user?.name || 'Sin nombre',
-          email: user?.email || 'Sin email',
-          id: user?.id || 'Sin ID',
-          photo: user?.photo || null,
-          givenName: user?.givenName || null,
-          familyName: user?.familyName || null,
-        },
-        token: {
-          hasToken: !!idToken,
-          tokenLength: idToken ? idToken.length : 0,
-          tokenPreview: idToken ? idToken.substring(0, 30) + '...' : 'NO TOKEN',
-          fullToken: idToken // Solo para debug, no mostrar en UI
-        },
-        fcm: {
-          token: fcmToken,
-          hasToken: !!fcmToken,
-          tokenLength: fcmToken ? fcmToken.length : 0
-        }
-      };
-
-      // === MOSTRAR INFO EN PANTALLA ===
-      setDebugInfo(displayInfo);
-      
-      // === DATOS PARA ENVIAR AL BACKEND ===
-      const backendPayload = {
-        token: idToken,
-        fcm_token: fcmToken || "",
-        device_type: Platform.OS,
-      };
-      
-      console.log('📦 === DATOS PARA BACKEND ===');
-      console.log('Payload completo:', JSON.stringify(backendPayload, null, 2));
-      console.log('Device type:', Platform.OS);
-      console.log('API Base URL:', API_BASE);
-      
-      console.log('🧪 === MODO PRUEBA (SIN BACKEND) ===');
-      console.log('✅ Google Sign-In funcionando correctamente!');
-      console.log('📧 Email del usuario:', user?.email);
-      console.log('🎭 Nombre del usuario:', user?.name);
-      console.log('🆔 ID del usuario:', user?.id);
-      
-      // Alert más simple ahora que mostramos en pantalla
-      Alert.alert(
-        'Google Sign-In Exitoso! 🎉', 
-        'Revisa la información mostrada en pantalla',
-        [{ text: 'OK' }]
-      );
-      
-      console.log('✅ === GOOGLE SIGN-IN COMPLETADO EXITOSAMENTE ===');
-      
-    } else {
-      console.log('❌ No se obtuvo idToken del resultado');
-      setDebugInfo({
-        success: false,
-        error: 'No se pudo obtener el token de autenticación',
-        timestamp: new Date().toISOString()
-      });
-      Alert.alert('Error', 'No se pudo obtener el token de autenticación');
+    // Verificar si ya hay una sesión
+    const currentUser = await GoogleSignin.getCurrentUser();
+    if (currentUser) {
+      console.log('⚠️ Usuario ya logueado, haciendo signOut primero');
+      await GoogleSignin.signOut();
     }
 
+    // Iniciar sign-in
+    console.log('🔐 Iniciando proceso de sign-in...');
+    const userInfo = await GoogleSignin.signIn();
+    
+    console.log('✅ Sign-in exitoso');
+    console.log('Usuario completo:', JSON.stringify(userInfo, null, 2));
+
+    // Obtener tokens adicionales
+    let tokens = null;
+    try {
+      tokens = await GoogleSignin.getTokens();
+      console.log('🔑 Tokens adicionales obtenidos:', tokens);
+    } catch (e) {
+      console.log('⚠️ No se pudieron obtener tokens adicionales:', e.message);
+    }
+
+    // Obtener FCM Token
+    let fcmToken = null;
+    let fcmError = null;
+    if (Device.isDevice) {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== "granted") {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        
+        if (finalStatus === "granted") {
+          const tokenData = await Notifications.getDevicePushTokenAsync();
+          fcmToken = tokenData.data;
+          console.log('📲 FCM Token obtenido:', fcmToken);
+        } else {
+          fcmError = "Permisos no concedidos";
+        }
+      } catch (e) {
+        fcmError = e.message;
+        console.log('❌ Error obteniendo FCM token:', e.message);
+      }
+    } else {
+      fcmError = "No es un dispositivo físico";
+    }
+
+    // Mostrar información completa en pantalla
+    setDebugInfo({
+      success: true,
+      timestamp: new Date().toISOString(),
+      googleUser: {
+        id: userInfo.user?.id || 'N/A',
+        email: userInfo.user?.email || 'N/A',
+        name: userInfo.user?.name || 'N/A',
+        givenName: userInfo.user?.givenName || 'N/A',
+        familyName: userInfo.user?.familyName || 'N/A',
+        photo: userInfo.user?.photo || 'N/A',
+      },
+      tokens: {
+        idToken: {
+          exists: !!userInfo.idToken,
+          length: userInfo.idToken ? userInfo.idToken.length : 0,
+          preview: userInfo.idToken ? 
+            `${userInfo.idToken.substring(0, 20)}...${userInfo.idToken.slice(-20)}` : 
+            'NO TOKEN',
+          full: userInfo.idToken || 'N/A'
+        },
+        serverAuthCode: userInfo.serverAuthCode || 'N/A',
+        accessToken: tokens?.accessToken ? 
+          `${tokens.accessToken.substring(0, 20)}...` : 
+          'N/A',
+      },
+      fcm: {
+        token: fcmToken || 'N/A',
+        error: fcmError,
+        hasToken: !!fcmToken,
+      },
+      device: {
+        platform: Platform.OS,
+        isDevice: Device.isDevice,
+      },
+      backend: {
+        url: API_BASE,
+        endpoint: '/auth/google/',
+        note: '⚠️ Backend no configurado para pruebas'
+      }
+    });
+
+    // Alert de éxito
+    Alert.alert(
+      '✅ Google Sign-In Exitoso!', 
+      `Usuario: ${userInfo.user?.email}\nToken obtenido: ${userInfo.idToken ? 'Sí' : 'No'}\n\nRevisa los detalles en pantalla`,
+      [{ text: 'OK' }]
+    );
+
+    console.log('✅ === GOOGLE SIGN-IN COMPLETADO (SIN BACKEND) ===');
+
   } catch (error) {
-    console.log('💥 === ERROR EN GOOGLE SIGN-IN ===');
-    console.log('Error type:', typeof error);
-    console.log('Error keys:', Object.keys(error));
-    console.log('Error code:', error.code);
-    console.log('Error message:', error.message);
-    console.log('Error stack:', error.stack);
+    console.log('💥 Error en Google Sign-In:', error);
     console.log('Error completo:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     
-    // === MOSTRAR ERROR EN PANTALLA ===
+    let errorMessage = "Error desconocido";
+    let errorDetails = {};
+    
+    // Analizar el tipo de error
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      errorMessage = "Usuario canceló el proceso";
+      errorDetails.userCancelled = true;
+    } else if (error.code === statusCodes.IN_PROGRESS) {
+      errorMessage = "Sign-in ya en progreso";
+      errorDetails.inProgress = true;
+    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      errorMessage = "Google Play Services no disponible";
+      errorDetails.playServices = false;
+    } else if (error.code === '12500') {
+      errorMessage = "Error 12500: SHA-1 no configurado correctamente";
+      errorDetails.sha1Issue = true;
+    } else if (error.code === '10') {
+      errorMessage = "Error 10: Developer error - SHA-1 o package name incorrecto";
+      errorDetails.developerError = true;
+      errorDetails.possibleCauses = [
+        "SHA-1 no coincide",
+        "Package name incorrecto",
+        "google-services.json desactualizado"
+      ];
+    } else if (error.code === '8') {
+      errorMessage = "Error 8: Código interno";
+      errorDetails.internal = true;
+    } else if (error.code === '16') {
+      errorMessage = "Error 16: API no habilitada";
+      errorDetails.apiNotEnabled = true;
+    } else {
+      errorMessage = error.message || "Error al iniciar sesión";
+    }
+    
+    // Mostrar información detallada del error
     setDebugInfo({
       success: false,
+      timestamp: new Date().toISOString(),
       error: {
-        code: error.code,
-        message: error.message,
-        type: error.constructor?.name || 'Unknown'
+        code: error.code || 'UNKNOWN',
+        message: errorMessage,
+        originalMessage: error.message,
+        stack: error.stack?.split('\n').slice(0, 3).join('\n'),
+        details: errorDetails,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
       },
-      timestamp: new Date().toISOString()
+      config: {
+        webClientId: "1060805663067-q0c8...gh8.apps.googleusercontent.com",
+        packageName: "galeriq.com",
+        sha1Expected: "A6:60:51:FE:C8:DB:F2:D0:C2:8F:1C:0A:A0:E8:E9:4C:38:B4:89:56"
+      },
+      suggestions: error.code === '10' ? [
+        "1. Verificar SHA-1 en Firebase Console",
+        "2. Descargar nuevo google-services.json",
+        "3. Limpiar build: cd android && ./gradlew clean",
+        "4. Reconstruir APK"
+      ] : []
     });
     
-    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-      console.log('👤 Usuario canceló el login');
-      // No mostrar alert para cancelación
-    } else if (error.code === statusCodes.IN_PROGRESS) {
-      console.log('⏳ Sign-in ya está en progreso');
-      Alert.alert("Espera", "El inicio de sesión ya está en proceso.");
-    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      console.log('📱 Google Play Services no disponible');
-      Alert.alert("Error", "Google Play Services no está disponible.");
-    } else {
-      console.log('🔥 Error no manejado específicamente');
-      console.error('Error completo para debugging:', error);
-      
+    // No mostrar alert si el usuario canceló
+    if (error.code !== statusCodes.SIGN_IN_CANCELLED) {
       Alert.alert(
-        "Error de configuración", 
-        `Código: ${error.code || 'Sin código'}\nMensaje: ${error.message || 'Sin mensaje'}`,
+        "❌ Error de Google Sign-In", 
+        `${errorMessage}\n\nCódigo: ${error.code || 'N/A'}\n\nMás detalles en pantalla`,
         [{ text: 'OK' }]
       );
     }
   } finally {
-    console.log('🏁 === FINALIZANDO GOOGLE SIGN-IN ===');
     setLoading(false);
   }
 };
