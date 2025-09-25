@@ -15,6 +15,7 @@ import {
   Keyboard,
   Modal,
   Linking,
+  ScrollView,  
 } from "react-native";
 import { BackHandler } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -31,7 +32,11 @@ import * as Notifications from "expo-notifications";
 import {
   GoogleSignin,
   statusCodes,
+  GoogleSigninButton,
+  isErrorWithCode,
+  isSuccessResponse,
 } from "@react-native-google-signin/google-signin";
+
 
 // WebBrowser.maybeCompleteAuthSession();
 
@@ -138,9 +143,9 @@ export default function LoginScreen() {
   useEffect(() => {
     GoogleSignin.configure({
       webClientId:
-        "1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com",
+      "1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com",
       offlineAccess: true,
-      forceCodeForRefreshToken: true,
+      // forceCodeForRefreshToken: true,
     });
   }, []);
 
@@ -259,223 +264,51 @@ export default function LoginScreen() {
 
 
 const handleGoogleSignIn = async () => {
-  setLoading(true);
-  setDebugInfo(null);
-  
-  console.log('🚀 Iniciando Google Sign-In');
-  console.log('📅 Timestamp:', new Date().toISOString());
-  
   try {
-    // Verificar Play Services
-    console.log('🔍 Verificando Google Play Services...');
+    // 1) Revisa Play Services (Android)
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    console.log('✅ Google Play Services disponible');
 
-    // Configurar antes de sign-in (importante para Android)
-    GoogleSignin.configure({
-      webClientId: "1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com",
-      offlineAccess: true,
-      forceCodeForRefreshToken: true,
-    });
+    // 2) Inicia sesión
+    const res = await GoogleSignin.signIn();
 
-    // Verificar si ya hay una sesión
-    const currentUser = await GoogleSignin.getCurrentUser();
-    if (currentUser) {
-      console.log('⚠️ Usuario ya logueado, haciendo signOut primero');
-      await GoogleSignin.signOut();
-    }
+    // 3) Usuario canceló
+    if (!isSuccessResponse(res)) return;
 
-    // Iniciar sign-in
-    console.log('🔐 Iniciando proceso de sign-in...');
-    const userInfo = await GoogleSignin.signIn();
-    
-    console.log('✅ Sign-in exitoso');
-    console.log('Usuario completo:', JSON.stringify(userInfo, null, 2));
+    // 4) Extrae los datos con la forma NUEVA del API
+    const { user, idToken, serverAuthCode } = res.data;
+    // user: { id, email, name, givenName, familyName, photo }
 
-    // VALIDACIÓN CRÍTICA: Verificar que tenemos los datos necesarios
-    if (!userInfo || !userInfo.user) {
-      throw new Error('No se recibieron datos del usuario de Google');
-    }
-
-    if (!userInfo.idToken) {
-      throw new Error('No se recibió idToken de Google');
-    }
-
-    // Obtener tokens adicionales de forma segura
-    let tokens = null;
-    try {
-      tokens = await GoogleSignin.getTokens();
-      console.log('🔑 Tokens adicionales obtenidos:', tokens);
-    } catch (e) {
-      console.log('⚠️ No se pudieron obtener tokens adicionales:', e.message);
-      // No es crítico, continuamos
-    }
-
-    // Obtener FCM Token de forma segura
-    let fcmToken = null;
-    let fcmError = null;
-    if (Device.isDevice) {
-      try {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-        
-        if (existingStatus !== "granted") {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
-        
-        if (finalStatus === "granted") {
-          const tokenData = await Notifications.getDevicePushTokenAsync();
-          fcmToken = tokenData.data;
-          console.log('📲 FCM Token obtenido:', fcmToken);
-        } else {
-          fcmError = "Permisos no concedidos";
-        }
-      } catch (e) {
-        fcmError = e.message;
-        console.log('❌ Error obteniendo FCM token:', e.message);
-      }
-    } else {
-      fcmError = "No es un dispositivo físico";
-    }
-
-    // Crear objeto de debug SEGURO
-    const debugData = {
-      success: true,
-      timestamp: new Date().toISOString(),
-      user: {
-        id: userInfo.user.id || 'N/A',
-        email: userInfo.user.email || 'N/A',
-        name: userInfo.user.name || 'N/A',
-        givenName: userInfo.user.givenName || 'N/A',
-        familyName: userInfo.user.familyName || 'N/A',
-        photo: userInfo.user.photo || 'N/A',
-      },
-      token: {
-        hasToken: !!userInfo.idToken,
-        tokenLength: userInfo.idToken ? userInfo.idToken.length : 0,
-        tokenPreview: userInfo.idToken ? 
-          `${userInfo.idToken.substring(0, 20)}...${userInfo.idToken.slice(-20)}` : 
-          'NO TOKEN',
-        serverAuthCode: userInfo.serverAuthCode || 'N/A',
-        accessToken: tokens?.accessToken ? 
-          `${tokens.accessToken.substring(0, 20)}...` : 
-          'N/A',
-      },
-      fcm: {
-        hasToken: !!fcmToken,
-        tokenLength: fcmToken ? fcmToken.length : 0,
-        token: fcmToken || 'N/A',
-        error: fcmError,
-      },
-      device: {
-        platform: Platform.OS,
-        isDevice: Device.isDevice,
-      },
-      backend: {
-        url: API_BASE,
-        endpoint: '/auth/google/',
-        note: '⚠️ Backend no configurado para pruebas'
-      }
-    };
-
-    // Mostrar información de debug de forma segura
-    console.log('Debug data:', debugData);
-    
-    // Actualizar estado de forma segura
-    setDebugInfo(debugData);
-
-    // Alert de éxito
+    // === EJEMPLO A: sólo mostrar datos del usuario (lo que pediste) ===
     Alert.alert(
-      '✅ Google Sign-In Exitoso!', 
-      `Usuario: ${userInfo.user?.email || 'N/A'}\nToken obtenido: ${userInfo.idToken ? 'Sí' : 'No'}\n\nRevisa los detalles en pantalla`,
-      [{ text: 'OK' }]
+      'Sesión con Google',
+      `Email: ${user.email}\nNombre: ${user.name}\nID: ${user.id}`
     );
 
-    console.log('✅ === GOOGLE SIGN-IN COMPLETADO (SIN BACKEND) ===');
+    // === EJEMPLO B (opcional): integrar con tu estado/sesión local ===
+    // setUser({ id: user.id, token: idToken || '' });
+    // await SecureStore.setItemAsync(TOKEN_KEY, idToken || '');
+    // await SecureStore.setItemAsync(USER_ID_KEY, String(user.id));
+    // navigation.replace('Events');
 
-  } catch (error) {
-    console.log('💥 Error en Google Sign-In:', error);
-    console.log('Error completo:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    
-    let errorMessage = "Error desconocido";
-    let errorDetails = {};
-    
-    // Analizar el tipo de error de forma segura
-    try {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        errorMessage = "Usuario canceló el proceso";
-        errorDetails.userCancelled = true;
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        errorMessage = "Sign-in ya en progreso";
-        errorDetails.inProgress = true;
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        errorMessage = "Google Play Services no disponible";
-        errorDetails.playServices = false;
-      } else if (error.code === '12500') {
-        errorMessage = "Error 12500: SHA-1 no configurado correctamente";
-        errorDetails.sha1Issue = true;
-      } else if (error.code === '10') {
-        errorMessage = "Error 10: Developer error - SHA-1 o package name incorrecto";
-        errorDetails.developerError = true;
-        errorDetails.possibleCauses = [
-          "SHA-1 no coincide",
-          "Package name incorrecto",
-          "google-services.json desactualizado"
-        ];
-      } else if (error.code === '8') {
-        errorMessage = "Error 8: Código interno";
-        errorDetails.internal = true;
-      } else if (error.code === '16') {
-        errorMessage = "Error 16: API no habilitada";
-        errorDetails.apiNotEnabled = true;
-      } else {
-        errorMessage = error.message || "Error al iniciar sesión";
-      }
-    } catch (parseError) {
-      console.log('Error parsing error:', parseError);
-      errorMessage = "Error al procesar la respuesta";
+    // === EJEMPLO C (opcional): llamar a tu backend si tienes /auth/google/ ===
+    // const r = await fetch(`${API_BASE}/auth/google/`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    //   body: new URLSearchParams({ id_token: idToken || '' }).toString(),
+    // });
+    // const { access_token } = await r.json();
+    // ...luego carga /me, setUser, etc., igual que en tu login por correo.
+
+  } catch (e) {
+    if (isErrorWithCode(e)) {
+      if (e.code === statusCodes.SIGN_IN_CANCELLED) return; // usuario canceló
     }
-    
-    // Crear debug info para errores de forma segura
-    const errorDebugData = {
-      success: false,
-      timestamp: new Date().toISOString(),
-      error: {
-        code: error.code || 'UNKNOWN',
-        message: errorMessage,
-        originalMessage: error.message,
-        stack: error.stack?.split('\n').slice(0, 3).join('\n'),
-        details: errorDetails,
-      },
-      config: {
-        webClientId: "1060805663067-q0c8...gh8.apps.googleusercontent.com",
-        packageName: "galeriq.com",
-        sha1Expected: "A6:60:51:FE:C8:DB:F2:D0:C2:8F:1C:0A:A0:E8:E9:4C:38:B4:89:56"
-      },
-      suggestions: error.code === '10' ? [
-        "1. Verificar SHA-1 en Firebase Console",
-        "2. Descargar nuevo google-services.json",
-        "3. Limpiar build: cd android && ./gradlew clean",
-        "4. Reconstruir APK"
-      ] : []
-    };
-    
-    // Actualizar debug info de forma segura
-    setDebugInfo(errorDebugData);
-    
-    // No mostrar alert si el usuario canceló
-    if (error.code !== statusCodes.SIGN_IN_CANCELLED) {
-      Alert.alert(
-        "❌ Error de Google Sign-In", 
-        `${errorMessage}\n\nCódigo: ${error.code || 'N/A'}\n\nMás detalles en pantalla`,
-        [{ text: 'OK' }]
-      );
-    }
-  } finally {
-    setLoading(false);
+    Alert.alert('Error', 'No se pudo iniciar sesión con Google');
+    console.log('Google Sign-In error:', e);
   }
 };
+
+
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password) {
@@ -802,6 +635,14 @@ const handleGoogleSignIn = async () => {
                 <Ionicons name="mail-outline" size={24} color="white" />
                 <Text style={styles.buttonText}>Continuar con correo</Text>
               </TouchableOpacity>
+
+
+               <GoogleSigninButton
+                style={{ width: '100%', height: 48 }}
+                size={GoogleSigninButton.Size.Wide}
+                color={GoogleSigninButton.Color.Dark}
+                onPress={handleGoogleSignIn}
+              />
             </>
 
             
@@ -886,13 +727,17 @@ const handleGoogleSignIn = async () => {
           {/* INFORMACIÓN DE DEBUG EN PANTALLA */}
 {/* INFORMACIÓN DE DEBUG EN PANTALLA */}
 {debugInfo && (
-  <View style={styles.debugContainer}>
+  <ScrollView
+    style={styles.debugContainer}
+    contentContainerStyle={{ paddingBottom: 10 }}
+    showsVerticalScrollIndicator
+  >
     <Text style={styles.debugTitle}>🔍 Debug Info</Text>
-    
+
     {debugInfo.success ? (
       <>
         <Text style={styles.debugSuccess}>✅ GOOGLE SIGN-IN EXITOSO</Text>
-        
+
         <View style={styles.debugSection}>
           <Text style={styles.debugSectionTitle}>👤 Usuario:</Text>
           <Text style={styles.debugText}>Nombre: {debugInfo.user.name}</Text>
@@ -901,7 +746,7 @@ const handleGoogleSignIn = async () => {
           <Text style={styles.debugText}>Nombre: {debugInfo.user.givenName}</Text>
           <Text style={styles.debugText}>Apellido: {debugInfo.user.familyName}</Text>
         </View>
-        
+
         <View style={styles.debugSection}>
           <Text style={styles.debugSectionTitle}>🔑 Token:</Text>
           <Text style={styles.debugText}>Tiene Token: {debugInfo.token.hasToken ? 'SÍ' : 'NO'}</Text>
@@ -910,7 +755,7 @@ const handleGoogleSignIn = async () => {
           <Text style={styles.debugText}>Server Auth Code: {debugInfo.token.serverAuthCode}</Text>
           <Text style={styles.debugText}>Access Token: {debugInfo.token.accessToken}</Text>
         </View>
-        
+
         <View style={styles.debugSection}>
           <Text style={styles.debugSectionTitle}>📱 FCM:</Text>
           <Text style={styles.debugText}>Tiene FCM: {debugInfo.fcm.hasToken ? 'SÍ' : 'NO'}</Text>
@@ -933,7 +778,6 @@ const handleGoogleSignIn = async () => {
           <Text style={styles.debugText}>Endpoint: {debugInfo.backend.endpoint}</Text>
           <Text style={styles.debugText}>Nota: {debugInfo.backend.note}</Text>
         </View>
-        
       </>
     ) : (
       <>
@@ -946,7 +790,7 @@ const handleGoogleSignIn = async () => {
         {debugInfo.error?.stack && (
           <Text style={styles.debugText}>Stack: {debugInfo.error.stack}</Text>
         )}
-        
+
         {debugInfo.config && (
           <View style={styles.debugSection}>
             <Text style={styles.debugSectionTitle}>⚙️ Configuración:</Text>
@@ -966,16 +810,16 @@ const handleGoogleSignIn = async () => {
         )}
       </>
     )}
-    
+
     <Text style={styles.debugTime}>Timestamp: {debugInfo.timestamp}</Text>
-    
-    <TouchableOpacity 
+
+    <TouchableOpacity
       style={styles.debugClearBtn}
       onPress={() => setDebugInfo(null)}
     >
       <Text style={styles.debugClearText}>Limpiar</Text>
     </TouchableOpacity>
-  </View>
+  </ScrollView>
 )}
 
 
