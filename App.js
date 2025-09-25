@@ -13,7 +13,6 @@ import { bootstrapI18n } from './src/i18n/i18n';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 
-
 import * as AuthSession from 'expo-auth-session';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -63,6 +62,7 @@ import FeedbackScreen from './src/screens/FeedbackScreen';
 import PdfViewerScreen from './src/screens/PdfViewerScreen';
 import QuienesSomosScreen from './src/screens/QuienesSomosScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ShareAppScreen from './src/screens/ShareAppScreen';
 
 const Stack = createStackNavigator();
 LogBox.ignoreLogs(['useInsertionEffect']);
@@ -78,8 +78,9 @@ function navigate(name, params) {
   }
 }
 
+// ======= Normalización de data de notificación =======
 function normalizeNotifData(raw = {}) {
-  // Acepta tanto "type" como "tipo" (y variantes comunes), y asegura eventId numérico
+  // Acepta tanto "type" como "tipo" (y variantes comunes)
   const type =
     raw.type ??
     raw.tipo ??
@@ -88,28 +89,37 @@ function normalizeNotifData(raw = {}) {
     raw.TYPE ??
     null;
 
-  // event_id puede venir como string; forzamos a número si aplica
+  // event_id puede venir como string; lo forzamos a número cuando procede
   const event_id = raw.event_id != null
     ? (Number.isNaN(Number(raw.event_id)) ? raw.event_id : Number(raw.event_id))
     : raw.eventId != null
       ? (Number.isNaN(Number(raw.eventId)) ? raw.eventId : Number(raw.eventId))
       : undefined;
 
-  return { ...raw, type, event_id };
+  // user_id tal cual (por si quieres usarlo más adelante)
+  const user_id = raw.user_id ?? raw.userId;
+
+  // deepLink puede venir snake_case
+  const deepLink = raw.deepLink ?? raw.deep_link ?? undefined;
+
+  return { ...raw, type, event_id, user_id, deepLink };
 }
 
-
+// ======= Router: data.type → screen (usa event_id y/o deepLink) =======
 function routeFromDbType(data = {}) {
   const { type, event_id, title, message, deepLink, ...rest } = data;
   const t = (type || '').toUpperCase();
 
   switch (t) {
     case 'CHECKLIST':
+      // Centro de planeación del evento
       return { name: 'PlanningHome', params: { eventId: event_id, ...rest } };
 
     case 'INVITATION': {
+      // Preferimos deepLink en data; si no, intentamos extraer URL del message
       const urlMatch = typeof message === 'string' ? message.match(/https?:\/\/\S+/) : null;
       const url = deepLink || (urlMatch ? urlMatch[0] : null);
+
       return url
         ? { name: '__OPEN_URL__', params: { url, fallback: { name: 'InvitationsHome', params: { eventId: event_id, ...rest } } } }
         : { name: 'InvitationsHome', params: { eventId: event_id, ...rest } };
@@ -117,31 +127,41 @@ function routeFromDbType(data = {}) {
 
     case 'OWNER':
     case 'EVENT':
+      // Te asignaron como propietario / algo del evento → detalle del evento
       return { name: 'EventDetail', params: { eventId: event_id, ...rest } };
 
     case 'AGENDA':
       return { name: 'Agenda', params: { eventId: event_id, ...rest } };
 
     case 'ALBUM':
+      // Ir a la lista de álbumes del evento
       return { name: 'Albums', params: { eventId: event_id, ...rest } };
+
+    case 'ALBUM_NOTIFICATION':
+      // Notificación relacionada a álbum (nueva foto, comentario, etc.)
+      return { name: 'Albums', params: { eventId: event_id, highlight: 'album', ...rest } };
+
+    case 'STAGE':
+      // Módulo de etapas: envío a Agenda con pestaña de Stages (si tu Agenda lo soporta)
+      return { name: 'Agenda', params: { eventId: event_id, initialTab: 'Stages', ...rest } };
 
     case 'NOTIFICATION':
       return { name: 'Notifications', params: { ...rest } };
 
     default:
-      // Si no vino tipo, te llevo a la lista pero con el eventId si existe
+      // Si no vino tipo, intenta llevar al detalle si viene event_id
       return event_id != null
         ? { name: 'EventDetail', params: { eventId: event_id, ...rest } }
         : { name: 'Events', params: { ...rest } };
   }
 }
 
-
 async function handleNotificationNavigationData(raw = {}) {
   const data = normalizeNotifData(raw);
   const route = routeFromDbType(data);
   if (!route?.name) return;
 
+  // Caso especial: abrir URL (invitaciones)
   if (route.name === '__OPEN_URL__') {
     const { url, fallback } = route.params || {};
     try {
@@ -154,14 +174,15 @@ async function handleNotificationNavigationData(raw = {}) {
     }
   }
 
+  // Navegación normal
   navigate(route.name, route.params || {});
 }
 
 async function handleNotificationNavigationFromResponse(response) {
+  // Expo → response.notification.request.content.data
   const raw = response?.notification?.request?.content?.data || {};
   await handleNotificationNavigationData(raw);
 }
-
 
 // ======= Configuración de comportamiento en Android (opcional Heads-up) =======
 Notifications.setNotificationHandler({
@@ -210,12 +231,12 @@ export default function App() {
     const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
     console.log('URI de redirección OAuth:', redirectUri);
 
-    // App abierta (foreground): normalmente solo registramos
+    // App abierta (foreground): por defecto solo registramos (puedes activar navegación directa)
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-  const data = notification?.request?.content?.data || {};
-  console.log('Notificación recibida (fg) - data completa:', JSON.stringify(data, null, 2));
+      const data = notification?.request?.content?.data || {};
+      console.log('Notificación recibida (fg) - data completa:', JSON.stringify(data, null, 2));
+
       // Si quieres navegar también en foreground, descomenta:
-      // const data = notification?.request?.content?.data || {};
       // handleNotificationNavigationData(data);
     });
 
@@ -250,7 +271,7 @@ export default function App() {
     };
   }, []);
 
- if (!fontsLoaded || !i18nReady) return null;
+  if (!fontsLoaded || !i18nReady) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -268,6 +289,7 @@ export default function App() {
               <Stack.Screen name="InConstruction" component={InConstructionScreen} />
               <Stack.Screen name="Settings" component={SettingsScreen} />
               <Stack.Screen name="QuienesSomos" component={QuienesSomosScreen} />
+              <Stack.Screen name="ShareApp" component={ShareAppScreen} />
               <Stack.Screen name="Register" component={RegisterScreen} />
               <Stack.Screen name="Events" component={EventsScreen} />
               <Stack.Screen name="CreateEvent" component={CreateEventScreen} />

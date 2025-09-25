@@ -292,16 +292,26 @@ const handleGoogleSignIn = async () => {
     console.log('✅ Sign-in exitoso');
     console.log('Usuario completo:', JSON.stringify(userInfo, null, 2));
 
-    // Obtener tokens adicionales
+    // VALIDACIÓN CRÍTICA: Verificar que tenemos los datos necesarios
+    if (!userInfo || !userInfo.user) {
+      throw new Error('No se recibieron datos del usuario de Google');
+    }
+
+    if (!userInfo.idToken) {
+      throw new Error('No se recibió idToken de Google');
+    }
+
+    // Obtener tokens adicionales de forma segura
     let tokens = null;
     try {
       tokens = await GoogleSignin.getTokens();
       console.log('🔑 Tokens adicionales obtenidos:', tokens);
     } catch (e) {
       console.log('⚠️ No se pudieron obtener tokens adicionales:', e.message);
+      // No es crítico, continuamos
     }
 
-    // Obtener FCM Token
+    // Obtener FCM Token de forma segura
     let fcmToken = null;
     let fcmError = null;
     if (Device.isDevice) {
@@ -329,36 +339,34 @@ const handleGoogleSignIn = async () => {
       fcmError = "No es un dispositivo físico";
     }
 
-    // Mostrar información completa en pantalla
-    setDebugInfo({
+    // Crear objeto de debug SEGURO
+    const debugData = {
       success: true,
       timestamp: new Date().toISOString(),
-      googleUser: {
-        id: userInfo.user?.id || 'N/A',
-        email: userInfo.user?.email || 'N/A',
-        name: userInfo.user?.name || 'N/A',
-        givenName: userInfo.user?.givenName || 'N/A',
-        familyName: userInfo.user?.familyName || 'N/A',
-        photo: userInfo.user?.photo || 'N/A',
+      user: {
+        id: userInfo.user.id || 'N/A',
+        email: userInfo.user.email || 'N/A',
+        name: userInfo.user.name || 'N/A',
+        givenName: userInfo.user.givenName || 'N/A',
+        familyName: userInfo.user.familyName || 'N/A',
+        photo: userInfo.user.photo || 'N/A',
       },
-      tokens: {
-        idToken: {
-          exists: !!userInfo.idToken,
-          length: userInfo.idToken ? userInfo.idToken.length : 0,
-          preview: userInfo.idToken ? 
-            `${userInfo.idToken.substring(0, 20)}...${userInfo.idToken.slice(-20)}` : 
-            'NO TOKEN',
-          full: userInfo.idToken || 'N/A'
-        },
+      token: {
+        hasToken: !!userInfo.idToken,
+        tokenLength: userInfo.idToken ? userInfo.idToken.length : 0,
+        tokenPreview: userInfo.idToken ? 
+          `${userInfo.idToken.substring(0, 20)}...${userInfo.idToken.slice(-20)}` : 
+          'NO TOKEN',
         serverAuthCode: userInfo.serverAuthCode || 'N/A',
         accessToken: tokens?.accessToken ? 
           `${tokens.accessToken.substring(0, 20)}...` : 
           'N/A',
       },
       fcm: {
+        hasToken: !!fcmToken,
+        tokenLength: fcmToken ? fcmToken.length : 0,
         token: fcmToken || 'N/A',
         error: fcmError,
-        hasToken: !!fcmToken,
       },
       device: {
         platform: Platform.OS,
@@ -369,12 +377,18 @@ const handleGoogleSignIn = async () => {
         endpoint: '/auth/google/',
         note: '⚠️ Backend no configurado para pruebas'
       }
-    });
+    };
+
+    // Mostrar información de debug de forma segura
+    console.log('Debug data:', debugData);
+    
+    // Actualizar estado de forma segura
+    setDebugInfo(debugData);
 
     // Alert de éxito
     Alert.alert(
       '✅ Google Sign-In Exitoso!', 
-      `Usuario: ${userInfo.user?.email}\nToken obtenido: ${userInfo.idToken ? 'Sí' : 'No'}\n\nRevisa los detalles en pantalla`,
+      `Usuario: ${userInfo.user?.email || 'N/A'}\nToken obtenido: ${userInfo.idToken ? 'Sí' : 'No'}\n\nRevisa los detalles en pantalla`,
       [{ text: 'OK' }]
     );
 
@@ -387,39 +401,44 @@ const handleGoogleSignIn = async () => {
     let errorMessage = "Error desconocido";
     let errorDetails = {};
     
-    // Analizar el tipo de error
-    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-      errorMessage = "Usuario canceló el proceso";
-      errorDetails.userCancelled = true;
-    } else if (error.code === statusCodes.IN_PROGRESS) {
-      errorMessage = "Sign-in ya en progreso";
-      errorDetails.inProgress = true;
-    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-      errorMessage = "Google Play Services no disponible";
-      errorDetails.playServices = false;
-    } else if (error.code === '12500') {
-      errorMessage = "Error 12500: SHA-1 no configurado correctamente";
-      errorDetails.sha1Issue = true;
-    } else if (error.code === '10') {
-      errorMessage = "Error 10: Developer error - SHA-1 o package name incorrecto";
-      errorDetails.developerError = true;
-      errorDetails.possibleCauses = [
-        "SHA-1 no coincide",
-        "Package name incorrecto",
-        "google-services.json desactualizado"
-      ];
-    } else if (error.code === '8') {
-      errorMessage = "Error 8: Código interno";
-      errorDetails.internal = true;
-    } else if (error.code === '16') {
-      errorMessage = "Error 16: API no habilitada";
-      errorDetails.apiNotEnabled = true;
-    } else {
-      errorMessage = error.message || "Error al iniciar sesión";
+    // Analizar el tipo de error de forma segura
+    try {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        errorMessage = "Usuario canceló el proceso";
+        errorDetails.userCancelled = true;
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        errorMessage = "Sign-in ya en progreso";
+        errorDetails.inProgress = true;
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        errorMessage = "Google Play Services no disponible";
+        errorDetails.playServices = false;
+      } else if (error.code === '12500') {
+        errorMessage = "Error 12500: SHA-1 no configurado correctamente";
+        errorDetails.sha1Issue = true;
+      } else if (error.code === '10') {
+        errorMessage = "Error 10: Developer error - SHA-1 o package name incorrecto";
+        errorDetails.developerError = true;
+        errorDetails.possibleCauses = [
+          "SHA-1 no coincide",
+          "Package name incorrecto",
+          "google-services.json desactualizado"
+        ];
+      } else if (error.code === '8') {
+        errorMessage = "Error 8: Código interno";
+        errorDetails.internal = true;
+      } else if (error.code === '16') {
+        errorMessage = "Error 16: API no habilitada";
+        errorDetails.apiNotEnabled = true;
+      } else {
+        errorMessage = error.message || "Error al iniciar sesión";
+      }
+    } catch (parseError) {
+      console.log('Error parsing error:', parseError);
+      errorMessage = "Error al procesar la respuesta";
     }
     
-    // Mostrar información detallada del error
-    setDebugInfo({
+    // Crear debug info para errores de forma segura
+    const errorDebugData = {
       success: false,
       timestamp: new Date().toISOString(),
       error: {
@@ -428,7 +447,6 @@ const handleGoogleSignIn = async () => {
         originalMessage: error.message,
         stack: error.stack?.split('\n').slice(0, 3).join('\n'),
         details: errorDetails,
-        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
       },
       config: {
         webClientId: "1060805663067-q0c8...gh8.apps.googleusercontent.com",
@@ -441,7 +459,10 @@ const handleGoogleSignIn = async () => {
         "3. Limpiar build: cd android && ./gradlew clean",
         "4. Reconstruir APK"
       ] : []
-    });
+    };
+    
+    // Actualizar debug info de forma segura
+    setDebugInfo(errorDebugData);
     
     // No mostrar alert si el usuario canceló
     if (error.code !== statusCodes.SIGN_IN_CANCELLED) {
@@ -455,7 +476,6 @@ const handleGoogleSignIn = async () => {
     setLoading(false);
   }
 };
-
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password) {
@@ -864,19 +884,22 @@ const handleGoogleSignIn = async () => {
 
 
           {/* INFORMACIÓN DE DEBUG EN PANTALLA */}
+{/* INFORMACIÓN DE DEBUG EN PANTALLA */}
 {debugInfo && (
   <View style={styles.debugContainer}>
     <Text style={styles.debugTitle}>🔍 Debug Info</Text>
     
     {debugInfo.success ? (
       <>
-        <Text style={styles.debugSuccess}>✅ LOGIN EXITOSO</Text>
+        <Text style={styles.debugSuccess}>✅ GOOGLE SIGN-IN EXITOSO</Text>
         
         <View style={styles.debugSection}>
           <Text style={styles.debugSectionTitle}>👤 Usuario:</Text>
           <Text style={styles.debugText}>Nombre: {debugInfo.user.name}</Text>
           <Text style={styles.debugText}>Email: {debugInfo.user.email}</Text>
           <Text style={styles.debugText}>ID: {debugInfo.user.id}</Text>
+          <Text style={styles.debugText}>Nombre: {debugInfo.user.givenName}</Text>
+          <Text style={styles.debugText}>Apellido: {debugInfo.user.familyName}</Text>
         </View>
         
         <View style={styles.debugSection}>
@@ -884,19 +907,63 @@ const handleGoogleSignIn = async () => {
           <Text style={styles.debugText}>Tiene Token: {debugInfo.token.hasToken ? 'SÍ' : 'NO'}</Text>
           <Text style={styles.debugText}>Longitud: {debugInfo.token.tokenLength}</Text>
           <Text style={styles.debugText}>Preview: {debugInfo.token.tokenPreview}</Text>
+          <Text style={styles.debugText}>Server Auth Code: {debugInfo.token.serverAuthCode}</Text>
+          <Text style={styles.debugText}>Access Token: {debugInfo.token.accessToken}</Text>
         </View>
         
         <View style={styles.debugSection}>
           <Text style={styles.debugSectionTitle}>📱 FCM:</Text>
           <Text style={styles.debugText}>Tiene FCM: {debugInfo.fcm.hasToken ? 'SÍ' : 'NO'}</Text>
           <Text style={styles.debugText}>FCM Length: {debugInfo.fcm.tokenLength}</Text>
+          <Text style={styles.debugText}>FCM Token: {debugInfo.fcm.token}</Text>
+          {debugInfo.fcm.error && (
+            <Text style={styles.debugText}>Error FCM: {debugInfo.fcm.error}</Text>
+          )}
         </View>
+
+        <View style={styles.debugSection}>
+          <Text style={styles.debugSectionTitle}>📱 Device:</Text>
+          <Text style={styles.debugText}>Platform: {debugInfo.device.platform}</Text>
+          <Text style={styles.debugText}>Is Device: {debugInfo.device.isDevice ? 'Sí' : 'No'}</Text>
+        </View>
+
+        <View style={styles.debugSection}>
+          <Text style={styles.debugSectionTitle}>🔗 Backend:</Text>
+          <Text style={styles.debugText}>URL: {debugInfo.backend.url}</Text>
+          <Text style={styles.debugText}>Endpoint: {debugInfo.backend.endpoint}</Text>
+          <Text style={styles.debugText}>Nota: {debugInfo.backend.note}</Text>
+        </View>
+        
       </>
     ) : (
       <>
         <Text style={styles.debugError}>❌ ERROR</Text>
-        <Text style={styles.debugText}>Código: {debugInfo.error?.code || debugInfo.error}</Text>
+        <Text style={styles.debugText}>Código: {debugInfo.error?.code || 'UNKNOWN'}</Text>
         <Text style={styles.debugText}>Mensaje: {debugInfo.error?.message || 'Error desconocido'}</Text>
+        {debugInfo.error?.originalMessage && (
+          <Text style={styles.debugText}>Mensaje original: {debugInfo.error.originalMessage}</Text>
+        )}
+        {debugInfo.error?.stack && (
+          <Text style={styles.debugText}>Stack: {debugInfo.error.stack}</Text>
+        )}
+        
+        {debugInfo.config && (
+          <View style={styles.debugSection}>
+            <Text style={styles.debugSectionTitle}>⚙️ Configuración:</Text>
+            <Text style={styles.debugText}>Web Client ID: {debugInfo.config.webClientId}</Text>
+            <Text style={styles.debugText}>Package: {debugInfo.config.packageName}</Text>
+            <Text style={styles.debugText}>SHA-1: {debugInfo.config.sha1Expected}</Text>
+          </View>
+        )}
+
+        {debugInfo.suggestions && debugInfo.suggestions.length > 0 && (
+          <View style={styles.debugSection}>
+            <Text style={styles.debugSectionTitle}>💡 Sugerencias:</Text>
+            {debugInfo.suggestions.map((suggestion, index) => (
+              <Text key={index} style={styles.debugText}>{suggestion}</Text>
+            ))}
+          </View>
+        )}
       </>
     )}
     

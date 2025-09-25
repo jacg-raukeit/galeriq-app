@@ -1,0 +1,28 @@
+{
+  "title": "Comparte con tus amigos la app que hace fácil organizar cualquier evento.",
+  "subtitle": "Haz clic:",
+  "buttons": {
+    "whatsapp": "WhatsApp",
+    "facebook": "Facebook",
+    "mail": "Correo",
+    "copy": "Copiar"
+  },
+  "messages": {
+    "whatsapp": "¿Ya probaste Galeriq? 🎉 Es la app con la que organizo mis eventos fácilmente.\n{{link}}",
+    "facebook": "Si estás organizando un evento especial, prueba Galeriq 🎉 gestiona a tus invitados, asigna pendientes y comparte los mejores momentos fácilmente. Descárgala aquí 👇 {{link}}",
+    "mailSubject": "Prueba Galeriq para tus eventos",
+    "mailBody": "Hola,\n\nQuiero recomendarte Galeriq ✨ Una app para planear y gestionar eventos, invitados y compartir momentos especiales de forma simple y rápida. Descárgala aquí: {{link}}",
+    "copy": "Estoy usando Galeriq 🎉 La app que facilita la organización de eventos, ¡pruébala! Te dejo el link: {{link}}"
+  },
+  "alerts": {
+    "whatsappTitle": "WhatsApp",
+    "whatsappFail": "No se pudo abrir WhatsApp en este dispositivo.",
+    "facebookTitle": "Facebook",
+    "facebookFail": "No se pudo abrir Facebook.",
+    "mailTitle": "Correo",
+    "mailFail": "No se pudo abrir el cliente de correo.",
+    "copiedTitle": "Copiado",
+    "copiedBody": "El enlace se copió al portapapeles.",
+    "toastCopied": "Enlace copiado"
+  }
+}

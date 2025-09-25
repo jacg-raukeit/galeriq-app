@@ -550,7 +550,7 @@ export default function EventsScreen() {
           style={styles.item}
           onPress={() => {
             setOpen(false);
-            navigation.navigate("InConstruction");
+            navigation.navigate("ShareApp");
           }}
           activeOpacity={0.85}
         >

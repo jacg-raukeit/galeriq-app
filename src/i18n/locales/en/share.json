@@ -1,0 +1,28 @@
+{
+  "title": "Share with friends the app that makes organizing any event easy.",
+  "subtitle": "Tap:",
+  "buttons": {
+    "whatsapp": "WhatsApp",
+    "facebook": "Facebook",
+    "mail": "Email",
+    "copy": "Copy"
+  },
+  "messages": {
+    "whatsapp": "Have you tried Galeriq yet? 🎉 It’s the app I use to organize my events easily.\n{{link}}",
+    "facebook": "If you're organizing a special event, try Galeriq 🎉 manage guests, assign tasks and easily share your best moments. Download it here 👇 {{link}}",
+    "mailSubject": "Try Galeriq for your events",
+    "mailBody": "Hi,\n\nI want to recommend Galeriq ✨ An app to plan and manage events, guests and share special moments simply and quickly. Download it here: {{link}}",
+    "copy": "I’m using Galeriq 🎉 The app that makes event planning easier—give it a try! Here’s the link: {{link}}"
+  },
+  "alerts": {
+    "whatsappTitle": "WhatsApp",
+    "whatsappFail": "WhatsApp could not be opened on this device.",
+    "facebookTitle": "Facebook",
+    "facebookFail": "Facebook could not be opened.",
+    "mailTitle": "Email",
+    "mailFail": "The email client could not be opened.",
+    "copiedTitle": "Copied",
+    "copiedBody": "The link was copied to the clipboard.",
+    "toastCopied": "Link copied"
+  }
+}

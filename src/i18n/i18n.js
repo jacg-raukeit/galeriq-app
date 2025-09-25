@@ -50,6 +50,9 @@ import feedback_en from './locales/en/feedback.json';
 import feedback_es from './locales/es/feedback.json';
 import agenda_en from './locales/en/agenda.json';
 import agenda_es from './locales/es/agenda.json';
+import share_en from './locales/en/share.json';
+import share_es from './locales/es/share.json';
+
 
 
 
@@ -84,6 +87,7 @@ const resources = {
     about: about_en,
     feedback: feedback_en,
     agenda: agenda_en,
+    share: share_en,
   },
   es: {
     profile: profile_es,
@@ -109,6 +113,7 @@ const resources = {
     about: about_es,
     feedback: feedback_es,
     agenda: agenda_es,
+    share: share_es,
   },
 };
 
@@ -117,7 +122,7 @@ i18n.use(initReactI18next).init({
   resources,
   lng: 'es',
   fallbackLng: 'es',
-  ns: ['profile', 'settings', 'events', 'eventCard', 'events_list' , 'event_detail' , 'create_event' , 'planning_home' , 'planning' , 'expenses' , 'guests' , 'add_guest' , 'add_guest_csv' , 'albums_cover' , 'albums_photos' , 'invitations_home' , 'explore_designs' , 'invite_editor' , 'notifications'  , 'faq' , 'about' , 'feedback' , 'agenda'],
+  ns: ['profile', 'settings', 'events', 'eventCard', 'events_list' , 'event_detail' , 'create_event' , 'planning_home' , 'planning' , 'expenses' , 'guests' , 'add_guest' , 'add_guest_csv' , 'albums_cover' , 'albums_photos' , 'invitations_home' , 'explore_designs' , 'invite_editor' , 'notifications'  , 'faq' , 'about' , 'feedback' , 'agenda' , 'share'],
 });
 
 export async function bootstrapI18n() {
