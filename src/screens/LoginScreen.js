@@ -264,49 +264,86 @@ export default function LoginScreen() {
 
 
 const handleGoogleSignIn = async () => {
+  setLoading(true);
   try {
-    // 1) Revisa Play Services (Android)
+    // 1) Android: verificar Play Services
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
-    // 2) Inicia sesión
+    // 2) Google Sign-In (API "Original")
     const res = await GoogleSignin.signIn();
+    if (!isSuccessResponse(res)) return; // usuario canceló
 
-    // 3) Usuario canceló
-    if (!isSuccessResponse(res)) return;
+    const { user, idToken } = res.data; // <-- idToken y user vienen en res.data
 
-    // 4) Extrae los datos con la forma NUEVA del API
-    const { user, idToken, serverAuthCode } = res.data;
-    // user: { id, email, name, givenName, familyName, photo }
-
-    // === EJEMPLO A: sólo mostrar datos del usuario (lo que pediste) ===
-    Alert.alert(
-      'Sesión con Google',
-      `Email: ${user.email}\nNombre: ${user.name}\nID: ${user.id}`
-    );
-
-    // === EJEMPLO B (opcional): integrar con tu estado/sesión local ===
-    // setUser({ id: user.id, token: idToken || '' });
-    // await SecureStore.setItemAsync(TOKEN_KEY, idToken || '');
-    // await SecureStore.setItemAsync(USER_ID_KEY, String(user.id));
-    // navigation.replace('Events');
-
-    // === EJEMPLO C (opcional): llamar a tu backend si tienes /auth/google/ ===
-    // const r = await fetch(`${API_BASE}/auth/google/`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    //   body: new URLSearchParams({ id_token: idToken || '' }).toString(),
-    // });
-    // const { access_token } = await r.json();
-    // ...luego carga /me, setUser, etc., igual que en tu login por correo.
-
-  } catch (e) {
-    if (isErrorWithCode(e)) {
-      if (e.code === statusCodes.SIGN_IN_CANCELLED) return; // usuario canceló
+    if (!idToken) {
+      Alert.alert('Error', 'No se obtuvo idToken de Google (revisa webClientId).');
+      return;
     }
-    Alert.alert('Error', 'No se pudo iniciar sesión con Google');
+
+    // (opcional) Obtener FCM token como ya lo haces en login por correo
+    let fcmToken = null;
+    try {
+      if (Device.isDevice) {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus === 'granted') {
+          const tokenData = await Notifications.getDevicePushTokenAsync();
+          fcmToken = tokenData.data;
+        }
+      }
+    } catch {}
+
+    // 3) Llamar a tu backend con JSON (idToken tiene que ir como "idToken")
+    const r = await fetch(`${API_BASE}/auth/google-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idToken, // <- clave exacta que tu backend lee con request.json().get("idToken")
+        // NOTA: Tus params fcm/device están declarados como Form en el backend.
+        // Si los mandas aquí en JSON, FastAPI no los levantará como Form.
+        // Si quieres que se registren, ajusta el backend para leerlos también desde JSON.
+       fcm_token: fcmToken,
+       device_type: Platform.OS,
+       device_name: Device.modelName,
+       device_os: Device.osVersion,
+       browser: null,
+      }),
+    });
+
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(txt || `HTTP ${r.status}`);
+    }
+
+    const { user_id, full_name, email, jwt_token, session_token } = await r.json();
+
+    // 4) Guardar sesión local y navegar a Home
+    setUser({ id: user_id, token: jwt_token }); // tu AuthContext
+    if (rememberMe) {
+      await SecureStore.setItemAsync(TOKEN_KEY, jwt_token);
+      await SecureStore.setItemAsync(USER_ID_KEY, String(user_id));
+      // Si te interesa persistir el session_token del device:
+      // await SecureStore.setItemAsync('galeriq_session_token', session_token || '');
+    } else {
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_ID_KEY);
+    }
+
+    // Redirigir al Home
+    navigation.replace('Events');
+  } catch (e) {
+    if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) return;
     console.log('Google Sign-In error:', e);
+    Alert.alert('Error', e?.message || 'No se pudo iniciar sesión con Google');
+  } finally {
+    setLoading(false);
   }
 };
+
 
 
 
@@ -637,12 +674,12 @@ const handleGoogleSignIn = async () => {
               </TouchableOpacity>
 
 
-               <GoogleSigninButton
+               {/* <GoogleSigninButton
                 style={{ width: '100%', height: 48 }}
                 size={GoogleSigninButton.Size.Wide}
                 color={GoogleSigninButton.Color.Dark}
                 onPress={handleGoogleSignIn}
-              />
+              /> */}
             </>
 
             
