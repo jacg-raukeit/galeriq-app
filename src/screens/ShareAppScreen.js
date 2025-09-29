@@ -114,7 +114,7 @@ export default function ShareAppScreen() {
             <Text style={[styles.title, { fontSize: titleSize }]}>{t("title")}</Text>
           </View>
 
-          {/* --- SECCIÓN DE CONTENIDO PRINCIPAL (FLEXIBLE) --- */}
+          {/* --- SECCIÓN DE CONTENIDO PRINCIPAL --- */}
           <View style={styles.mainContent}>
             <View
               style={[styles.previewArea, { height: previewHeight }]}
@@ -219,13 +219,12 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
   },
-  // --- CORRECCIÓN 2: Layout flexible mejorado ---
   container: {
     flex: 1,
   },
   header: {
     paddingTop: 16,
-    marginBottom: 16, // Espacio explícito para evitar solapamiento
+    marginBottom: 16,
   },
   mainContent: {
     flex: 1,
@@ -235,7 +234,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingBottom: 16,
-    marginTop: 16, // Espacio explícito para evitar solapamiento
+    marginTop: 16,
   },
   title: {
     fontWeight: "700",

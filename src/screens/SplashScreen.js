@@ -11,19 +11,15 @@ export default function SplashScreen() {
   const animRef = useRef(null);
   const { user } = useContext(AuthContext);
 
-  // Animaciones para los círculos de las esquinas (sin cambios)
   const topRightProg = useRef(new Animated.Value(0)).current;
   const bottomLeftProg = useRef(new Animated.Value(0)).current;
 
-  // NUEVO: Lógica para animar letras individualmente
   const brandName = 'Galeriq';
   const letterAnimations = useRef(brandName.split('').map(() => new Animated.Value(0))).current;
   
-  // Mantenemos la animación de escala para el contenedor de la marca
   const brandScale = useRef(new Animated.Value(0.85)).current;
 
   useEffect(() => {
-    // Animación de los círculos (sin cambios)
     Animated.stagger(120, [
       Animated.timing(topRightProg, {
         toValue: 1, duration: 600, easing: Easing.out(Easing.exp), useNativeDriver: true,
@@ -33,10 +29,8 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    // Animación paralela para la marca
     Animated.parallel([
-      // NUEVO: Animación escalonada para cada letra
-      Animated.stagger(80, // Retraso de 80ms entre cada letra
+      Animated.stagger(80, 
         letterAnimations.map(anim =>
           Animated.timing(anim, {
             toValue: 1,
@@ -46,14 +40,12 @@ export default function SplashScreen() {
           })
         )
       ),
-      // Mantenemos la animación de resorte para el tamaño
       Animated.spring(brandScale, {
         toValue: 1, damping: 9, stiffness: 120, mass: 0.8, useNativeDriver: true,
       }),
     ]).start();
   }, []);
 
-  // Lógica de navegación (sin cambios)
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (user?.token) navigation.replace('Events');
@@ -120,18 +112,17 @@ export default function SplashScreen() {
         {/* Contenedor para las letras animadas */}
         <Animated.View
           style={{
-            flexDirection: 'row', // Para que las letras se alineen horizontalmente
+            flexDirection: 'row',
             transform: [{ scale: brandScale }],
           }}
         >
           {brandName.split('').map((letter, index) => {
-            // Estilo dinámico para cada letra
             const letterStyle = {
               opacity: letterAnimations[index],
               transform: [{
                 translateY: letterAnimations[index].interpolate({
                   inputRange: [0, 1],
-                  outputRange: [10, 0], // Efecto de subir ligeramente
+                  outputRange: [10, 0],
                 }),
               }],
             };
@@ -168,7 +159,6 @@ const styles = StyleSheet.create({
     height: H * 0.3,
   },
   brand: {
-    // Se quita marginTop para evitar espacio extra entre letras
     fontSize: 32,
     fontWeight: '800',
     color: '#442D49',
