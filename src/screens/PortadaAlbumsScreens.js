@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
   },
   createBtn: {
     height: 48, borderRadius: 12, backgroundColor: '#c9b3e6',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 15,
   },
   createText: { color: '#fff', fontSize: 16, fontWeight: '700', marginLeft: 6 },
 

@@ -11,14 +11,19 @@ export default function SplashScreen() {
   const animRef = useRef(null);
   const { user } = useContext(AuthContext);
 
+  // Animaciones para los círculos de las esquinas (sin cambios)
   const topRightProg = useRef(new Animated.Value(0)).current;
   const bottomLeftProg = useRef(new Animated.Value(0)).current;
 
-  const brandOpacity = useRef(new Animated.Value(0)).current;
+  // NUEVO: Lógica para animar letras individualmente
+  const brandName = 'Galeriq';
+  const letterAnimations = useRef(brandName.split('').map(() => new Animated.Value(0))).current;
+  
+  // Mantenemos la animación de escala para el contenedor de la marca
   const brandScale = useRef(new Animated.Value(0.85)).current;
-  const brandTY = useRef(new Animated.Value(6)).current; 
 
   useEffect(() => {
+    // Animación de los círculos (sin cambios)
     Animated.stagger(120, [
       Animated.timing(topRightProg, {
         toValue: 1, duration: 600, easing: Easing.out(Easing.exp), useNativeDriver: true,
@@ -28,19 +33,27 @@ export default function SplashScreen() {
       }),
     ]).start();
 
+    // Animación paralela para la marca
     Animated.parallel([
-      Animated.timing(brandOpacity, {
-        toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true,
-      }),
+      // NUEVO: Animación escalonada para cada letra
+      Animated.stagger(80, // Retraso de 80ms entre cada letra
+        letterAnimations.map(anim =>
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 400,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          })
+        )
+      ),
+      // Mantenemos la animación de resorte para el tamaño
       Animated.spring(brandScale, {
         toValue: 1, damping: 9, stiffness: 120, mass: 0.8, useNativeDriver: true,
-      }),
-      Animated.timing(brandTY, {
-        toValue: 0, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true,
       }),
     ]).start();
   }, []);
 
+  // Lógica de navegación (sin cambios)
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (user?.token) navigation.replace('Events');
@@ -69,7 +82,7 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Círculos “cortados” en esquinas */}
+      {/* Círculos “cortados” en esquinas (sin cambios) */}
       <Animated.View
         pointerEvents="none"
         style={[
@@ -93,7 +106,7 @@ export default function SplashScreen() {
         ]}
       />
 
-      {/* Contenido central */}
+      {/* Contenido central (sin cambios) */}
       <View style={styles.centerBox}>
         <LottieView
           ref={animRef}
@@ -103,15 +116,33 @@ export default function SplashScreen() {
           style={styles.lottie}
         />
 
-        {/* Texto animado */}
+        {/* --- INICIO DE CAMBIOS EN EL JSX --- */}
+        {/* Contenedor para las letras animadas */}
         <Animated.View
           style={{
-            opacity: brandOpacity,
-            transform: [{ scale: brandScale }, { translateY: brandTY }],
+            flexDirection: 'row', // Para que las letras se alineen horizontalmente
+            transform: [{ scale: brandScale }],
           }}
         >
-          <Text style={styles.brand}>Galeriq</Text>
+          {brandName.split('').map((letter, index) => {
+            // Estilo dinámico para cada letra
+            const letterStyle = {
+              opacity: letterAnimations[index],
+              transform: [{
+                translateY: letterAnimations[index].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [10, 0], // Efecto de subir ligeramente
+                }),
+              }],
+            };
+            return (
+              <Animated.Text key={index} style={[styles.brand, letterStyle]}>
+                {letter}
+              </Animated.Text>
+            );
+          })}
         </Animated.View>
+        {/* --- FIN DE CAMBIOS EN EL JSX --- */}
       </View>
     </View>
   );
@@ -137,7 +168,7 @@ const styles = StyleSheet.create({
     height: H * 0.3,
   },
   brand: {
-    marginTop: 12,
+    // Se quita marginTop para evitar espacio extra entre letras
     fontSize: 32,
     fontWeight: '800',
     color: '#442D49',

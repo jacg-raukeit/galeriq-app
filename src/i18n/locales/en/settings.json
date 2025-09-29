@@ -3,6 +3,8 @@
   "language": "Language",
   "spanish": "Spanish",
   "english": "English",
+  "manage_notifications": "Manage Notifications",
+  "manage_notifications_description": "Notification settings can be managed from your device settings.",
   "change_notice_es": "Idioma cambiado a Español",
   "change_notice_en": "Language switched to English",
   "preview": "Preview",

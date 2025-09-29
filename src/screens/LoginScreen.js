@@ -56,8 +56,8 @@ const SLIDES = [
   },
   {
     img: require("../../src/assets/images/carousel2.jpg"),
-    title: "Invitaciones con QR",
-    subtitle: "Envía, confirma y controla accesos fácilmente.",
+    title: "Invitaciones Interactivas",
+    subtitle: "Envía, invitaciones personalizadas y más.",
   },
   {
     img: require("../../src/assets/images/carousel3.jpg"),
@@ -381,6 +381,8 @@ const handleGoogleSignIn = async () => {
           password,
           fcm_token: fcmToken || "",
           device_type: Platform.OS,
+          device_name: Device.modelName,
+          device_os: Device.osVersion,
         }).toString(),
       });
 

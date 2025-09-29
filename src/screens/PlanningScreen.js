@@ -1,4 +1,3 @@
-// src/screens/PlanningScreen.js
 import React, { useState, useEffect, useContext } from "react";
 import {
   View,
@@ -125,10 +124,6 @@ export default function PlanningScreen({ navigation, route }) {
      Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
       return;
     }
-    // if (!description?.trim() || !dueDate) {
-    //  Alert.alert(t("alerts.error_title"), t("alerts.missing_fields_msg"));
-    //   return;
-    // }
     if (isExpense && !budget) {
      Alert.alert(t("alerts.budget_required_title"), t("alerts.budget_required_msg"));
       return;
@@ -187,20 +182,28 @@ export default function PlanningScreen({ navigation, route }) {
     setBudget(task.budget != null ? String(task.budget) : "");
     setShowAdd(true);
   };
+  
+  const startView = (task) => {
+    setMode("view");
+    setEditingTask(task);
+    setTitle(task.title || "");
+    setDescription(task.description || "");
+    setDueDate(task.due_date ? new Date(task.due_date) : null);
+    setPriority(task.priority || "baja");
+    setIsExpense(!!task.is_expense);
+    setBudget(task.budget != null ? String(task.budget) : "");
+    setShowAdd(true);
+  };
 
   const handleUpdate = async () => {
     if (updatingTask || !editingTask) return;
 
     if (!title?.trim()) {
-       Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
-      return;
-    }
-    if (!description?.trim() || !dueDate) {
-       Alert.alert(t("alerts.error_title"), t("alerts.missing_fields_msg"));
+        Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
       return;
     }
     if (isExpense && !budget) {
-       Alert.alert(t("alerts.budget_required_title"), t("alerts.budget_required_msg"));
+        Alert.alert(t("alerts.budget_required_title"), t("alerts.budget_required_msg"));
       return;
     }
 
@@ -259,7 +262,7 @@ export default function PlanningScreen({ navigation, route }) {
       }
 
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
-       Alert.alert(t("alerts.success_title"), t("alerts.delete_success"));
+      // Alert.alert(t("alerts.success_title"), t("alerts.delete_success"));
       await loadTasks();
     } catch (err) {
       console.error("Error al eliminar tarea:", err);
@@ -269,22 +272,6 @@ export default function PlanningScreen({ navigation, route }) {
       setTimeout(() => setShowDeletingToast(false), 500);
     }
   };
-
-  const ExpenseCheckbox = () => (
-    <TouchableOpacity
-      style={styles.checkboxRow}
-      onPress={() => setIsExpense((prev) => !prev)}
-      activeOpacity={0.7}
-    >
-      <Ionicons
-        name={isExpense ? "checkbox-outline" : "square-outline"}
-        size={22}
-        color="#A861B7"
-        style={{ marginRight: 8 }}
-      />
-      <Text style={styles.labelText}>¿Es gasto?</Text>
-    </TouchableOpacity>
-  );
 
   return (
     <View style={styles.screen}>
@@ -332,11 +319,19 @@ export default function PlanningScreen({ navigation, route }) {
 
             <View style={styles.rowActions}>
               <TouchableOpacity
+                onPress={() => startView(task)}
+                disabled={deletingTaskId === task.id}
+                style={styles.iconBtn}
+              >
+                <Ionicons name="eye-outline" size={22} color="#3B82F6" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 onPress={() => startEdit(task)}
                 disabled={deletingTaskId === task.id}
                 style={styles.iconBtn}
               >
-                <Ionicons name="create-outline" size={22} color="#2563EB" />
+                <Ionicons name="pencil-outline" size={22} color="#2563EB" />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -366,7 +361,6 @@ export default function PlanningScreen({ navigation, route }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Toast simple de borrado */}
       {showDeletingToast && (
         <View style={styles.deletingToast}>
           <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
@@ -376,8 +370,7 @@ export default function PlanningScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* Modal crear/editar tarea */}
-      <Modal visible={showAdd} animationType="fade">
+      <Modal visible={showAdd} animationType="fade" onRequestClose={() => { setShowAdd(false); resetForm(); }}>
         <View style={styles.modalScreen}>
           <View style={styles.modalHeader}>
             <TouchableOpacity
@@ -389,62 +382,42 @@ export default function PlanningScreen({ navigation, route }) {
               <Ionicons name="close" size={24} color="#A861B7" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              {mode === "edit" ? t("modal.edit_title") : t("modal.create_title")}
+              {mode === 'edit'
+                ? t("modal.edit_title")
+                : mode === 'view'
+                ? t("modal.view_title")
+                : t("modal.create_title")}
             </Text>
             <View style={{ width: 24 }} />
           </View>
 
           <ScrollView contentContainerStyle={styles.modalContainer}>
-            <View style={styles.labelWithIcon}>
-              <Text style={styles.labelText}>
-                {t("modal.fields.title")}{" "}
-                <Text style={{ color: "red", fontSize: 8 }}>
-                  {t("modal.fields.title_required_badge")}
+            <Text style={styles.labelText}>{t("modal.fields.title")}</Text>
+            {mode === 'view' ? (
+              <Text style={styles.readOnlyField}>{title}</Text>
+            ) : (
+              <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder={t("modal.fields.title_placeholder")} placeholderTextColor="#888" />
+            )}
+
+            <Text style={styles.labelText}>{t("modal.fields.description")}</Text>
+            {mode === 'view' ? (
+              <Text style={styles.readOnlyField}>{description || t("modal.fields.no_description")}</Text>
+            ) : (
+              <TextInput style={styles.input} value={description} onChangeText={setDescription} placeholder={t("modal.fields.description_placeholder")} placeholderTextColor="#888" />
+            )}
+
+            <Text style={styles.labelText}>{t("modal.fields.due_date")}</Text>
+            {mode === 'view' ? (
+                <Text style={styles.readOnlyField}>
+                    {dueDate ? dueDate.toLocaleDateString(i18n.language || undefined, { day: "2-digit", month: "long", year: "numeric" }) : t("modal.fields.no_due_date")}
                 </Text>
-              </Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              value={title}
-              onChangeText={setTitle}
-             placeholder={t("modal.fields.title_placeholder")}
-              placeholderTextColor="#888"
-            />
-
-            <View style={styles.labelWithIcon}>
-              <Text style={styles.labelText}>{t("modal.fields.description")}</Text>
-            </View>
-            <TextInput
-              style={styles.input}
-              value={description}
-              onChangeText={setDescription}
-               placeholder={t("modal.fields.description_placeholder")}
-              placeholderTextColor="#888"
-            />
-
-            <View style={styles.labelWithIcon}>
-              <Text style={styles.labelText}>{t("modal.fields.due_date")}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.input}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text>
-                {dueDate
-                   ? dueDate.toLocaleDateString(i18n.language || undefined, {
-                      day: "2-digit",
-                      month: "long",
-                      year: "numeric",
-                    })
-                 : t("modal.fields.due_date_placeholder")}
-              </Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={dueDate || new Date()}
-                mode="date"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                minimumDate={new Date()}
+            ) : (
+              <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
+                <Text>{dueDate ? dueDate.toLocaleDateString(i18n.language || undefined, { day: "2-digit", month: "long", year: "numeric" }) : t("modal.fields.due_date_placeholder")}</Text>
+              </TouchableOpacity>
+            )}
+            {showDatePicker && mode !== 'view' && (
+              <DateTimePicker value={dueDate || new Date()} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"} minimumDate={new Date()}
                 onChange={(_, date) => {
                   setShowDatePicker(false);
                   if (date) setDueDate(date);
@@ -452,85 +425,56 @@ export default function PlanningScreen({ navigation, route }) {
               />
             )}
 
-            <View>
-              <View style={styles.labelWithIcon}>
-                 <Text style={styles.labelText}>{t("modal.fields.priority")}</Text>
-              </View>
+            <Text style={styles.labelText}>{t("modal.fields.priority")}</Text>
+            {mode === 'view' ? (
+                <Text style={styles.readOnlyField}>{t(`priority.options.${priority}`)}</Text>
+            ) : (
               <View style={styles.pickerWrapper}>
-                <Picker
-                  selectedValue={priority}
-                  onValueChange={setPriority}
-                  style={styles.picker}
-                >
+                <Picker selectedValue={priority} onValueChange={setPriority} style={styles.picker}>
                   {Object.keys(PRIORITY_COLORS).map((p) => (
-                    <Picker.Item
-                      key={p}
-                      label={t(`priority.options.${p}`)}
-                      value={p}
-                    />
+                    <Picker.Item key={p} label={t(`priority.options.${p}`)} value={p} />
                   ))}
                 </Picker>
               </View>
-            </View>
-
-            {/* Checkbox de gasto */}
+            )}
+            
             <View style={{ marginTop: 16 }}>
               <TouchableOpacity
                 style={styles.checkboxRow}
-                onPress={() => setIsExpense((prev) => !prev)}
-                activeOpacity={0.7}
+                onPress={() => mode !== 'view' && setIsExpense((prev) => !prev)}
+                activeOpacity={mode === 'view' ? 1 : 0.7}
               >
-                <Ionicons
-                  name={isExpense ? "checkbox-outline" : "square-outline"}
-                  size={22}
-                  color="#A861B7"
-                  style={{ marginRight: 8 }}
-                />
+                <Ionicons name={isExpense ? "checkbox-outline" : "square-outline"} size={22} color="#A861B7" style={{ marginRight: 8 }} />
                 <Text style={styles.labelText}>{t("modal.fields.is_expense")}</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Budget solo si es gasto */}
             {isExpense && (
               <>
-                <View style={styles.labelWithIcon}>
-                  <Ionicons
-                    name="cash-outline"
-                    size={20}
-                    color="#A861B7"
-                    style={styles.icon}
-                  />
-                  <Text style={styles.labelText}>{t("modal.fields.budget")}</Text>
-                </View>
-                <TextInput
-                  style={styles.input}
-                  value={budget}
-                  onChangeText={setBudget}
-                  placeholder={t("modal.fields.budget_placeholder")}
-                  keyboardType="numeric"
-                  placeholderTextColor="#888"
-                />
+                <Text style={styles.labelText}>{t("modal.fields.budget")}</Text>
+                {mode === 'view' ? (
+                    <Text style={styles.readOnlyField}>{budget ? `$${parseFloat(budget).toFixed(2)}` : t("modal.fields.no_budget")}</Text>
+                ) : (
+                  <TextInput style={styles.input} value={budget} onChangeText={setBudget} placeholder={t("modal.fields.budget_placeholder")} keyboardType="numeric" placeholderTextColor="#888" />
+                )}
               </>
             )}
 
-            <TouchableOpacity
-              style={[
-                styles.saveButton,
-                (!title?.trim() || savingTask || updatingTask) && {
-                  backgroundColor: "#ccc",
-                },
-              ]}
-              onPress={mode === "edit" ? handleUpdate : handleSave}
-              disabled={!title?.trim() || savingTask || updatingTask}
-            >
-              {savingTask || updatingTask ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.saveText}>
-                  {mode === "edit" ? t("modal.actions.save_changes") : t("modal.actions.save_task")}
-                </Text>
-              )}
-            </TouchableOpacity>
+            {mode !== 'view' && (
+              <TouchableOpacity
+                style={[ styles.saveButton, (!title?.trim() || savingTask || updatingTask) && { backgroundColor: "#ccc" } ]}
+                onPress={mode === "edit" ? handleUpdate : handleSave}
+                disabled={!title?.trim() || savingTask || updatingTask}
+              >
+                {savingTask || updatingTask ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.saveText}>
+                    {mode === "edit" ? t("modal.actions.save_changes") : t("modal.actions.save_task")}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
           </ScrollView>
         </View>
       </Modal>
@@ -547,18 +491,19 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: { fontSize: 25, fontWeight: "600", color: "#254236" },
-  container: { padding: 16 },
+  container: { padding: 16, paddingBottom: 48 },
   descriptionContainer: {
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
   description: { fontSize: 18, fontWeight: "600", color: "#815485" },
-
   taskRowWrap: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   taskRow: {
     flexDirection: "row",
@@ -566,11 +511,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     flex: 1,
   },
-  taskLabel: { marginLeft: 12, fontSize: 12 },
-
+  taskLabel: { marginLeft: 12, fontSize: 16, flexShrink: 1 },
   rowActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   iconBtn: { padding: 6 },
-
   addButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -582,47 +525,54 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   addText: { marginLeft: 8, fontSize: 16, color: "#254236", fontWeight: "500" },
-
   modalScreen: { flex: 1, backgroundColor: "#F9FAFB" },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
     backgroundColor: "#FFF",
   },
   modalTitle: { fontSize: 18, fontWeight: "600" },
-  modalContainer: { padding: 16 },
-  labelWithIcon: { flexDirection: "row", alignItems: "center", marginTop: 16 },
-  icon: { marginRight: 8 },
-  labelText: { fontSize: 17, fontWeight: "600" },
+  modalContainer: { padding: 16, paddingBottom: 48 },
+  labelText: { fontSize: 17, fontWeight: "600", color: '#374151', marginBottom: 4, marginTop: 16 },
   input: {
-    marginTop: 8,
     backgroundColor: "#FFF",
     borderRadius: 6,
-    padding: 10,
+    padding: 12,
     borderWidth: 1,
-    borderColor: "#EEE",
+    borderColor: "#D1D5DB",
+    fontSize: 14,
+  },
+  readOnlyField: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 6,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    color: '#374151',
+    fontSize: 14,
+    minHeight: 45,
+    justifyContent: 'center',
   },
   pickerWrapper: {
-    marginTop: 8,
     backgroundColor: "#FFF",
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#EEE",
+    borderColor: "#D1D5DB",
   },
   picker: { width: "100%", color: "#111827" },
   saveButton: {
-    marginTop: 24,
+    marginTop: 32,
     backgroundColor: "#AF64BC",
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: "center",
   },
   saveText: { color: "#FFF", fontWeight: "600", fontSize: 16 },
-
   checkboxRow: { flexDirection: "row", alignItems: "center" },
-
   deletingToast: {
     position: "absolute",
     bottom: 18,
@@ -633,10 +583,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
 });

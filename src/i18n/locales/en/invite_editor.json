@@ -38,7 +38,7 @@
   "sizePanel": {
     "textSize": "Text size: {{size}}",
     "stickerTitle": "Sticker size & rotation",
-    "basePx": "Base (px)",
+    "basePx": "Base",
     "scale": "Scale",
     "rotation": "Rotation",
     "selectHint": "Select an element to edit its size."

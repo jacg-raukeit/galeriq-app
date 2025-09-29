@@ -385,7 +385,7 @@ export default function EventsScreen() {
                 >
                   <EventCard
                     title={evt.event_name}
-                    date={evt.event_date} // 👈 pásala cruda
+                    date={evt.event_date}
                     imageUri={evt.event_cover}
                     status={getDisplayStatus(evt)}
                     archived={false}
@@ -538,7 +538,7 @@ export default function EventsScreen() {
           style={styles.item}
           onPress={() => {
             setOpen(false);
-            navigation.navigate("Plans");
+            navigation.navigate("InConstruction");
           }}
           activeOpacity={0.85}
         >

@@ -607,7 +607,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
                       activeOpacity={0.7}
                     >
                       <Ionicons
-                        name="create-outline"
+                        name="pencil-outline"
                         size={22}
                         color="#254236"
                       />

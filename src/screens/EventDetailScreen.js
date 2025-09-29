@@ -676,7 +676,7 @@ export default function EventDetailScreen() {
         </Animated.View>
       )}
 
-      {/* TAB BAR (no se toca) */}
+      {/* TAB BAR  */}
       <SafeAreaView style={styles.tabSafeArea}>
         <View style={styles.tabBar}>
           {roleLoading ? (
@@ -704,7 +704,7 @@ export default function EventDetailScreen() {
         </View>
       </SafeAreaView>
 
-      {/* ====== MODALES (sin cambios de UX) ====== */}
+      {/* ====== MODALES ====== */}
       {isOwner && (
         <Modal visible={editVisible} animationType="slide">
           <View style={styles.modalHeader}>

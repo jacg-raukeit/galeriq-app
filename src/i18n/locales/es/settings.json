@@ -3,6 +3,8 @@
   "language": "Idioma",
   "spanish": "Español",
   "english": "Inglés",
+  "manage_notifications": "Gestionar Notificaciones",
+  "manage_notifications_description": "La configuración de notificaciones se puede gestionar desde la configuración de su dispositivo.",
   "change_notice_es": "Idioma cambiado a Español",
   "change_notice_en": "Language switched to English",
   "preview": "Vista previa",

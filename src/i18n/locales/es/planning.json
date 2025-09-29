@@ -11,6 +11,7 @@
   "modal": {
     "create_title": "Crear tarea",
     "edit_title": "Editar tarea",
+    "view_title": "Detalles de la Tarea",
     "fields": {
       "title": "Título",
       "title_required_badge": "(obligatorio)",
@@ -22,7 +23,11 @@
       "priority": "Prioridad",
       "is_expense": "¿Es gasto?",
       "budget": "Budget",
-      "budget_placeholder": "Ej. 1000.10"
+      "budget_placeholder": "Ej. 1000.10",
+      "no_description": "Sin descripción",
+      "no_due_date": "No se ha establecido una fecha",
+      "no_budget": "No se ha establecido un presupuesto"
+      
     },
     "actions": {
       "save_task": "Guardar tarea",
@@ -50,4 +55,6 @@
     "delete_success": "Tarea eliminada correctamente",
     "delete_failed": "No se pudo eliminar la tarea."
   }
+  
+  
 }
