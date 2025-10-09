@@ -10,6 +10,8 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
+  KeyboardAvoidingView,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { Picker } from "@react-native-picker/picker";
@@ -95,7 +97,6 @@ export default function PlanningScreen({ navigation, route }) {
       }
     } catch (err) {
       console.error("Error al actualizar tarea:", err);
-      // rollback
       setTasks((prev) =>
         prev.map((t) =>
           t.id === task.id ? { ...t, is_completed: task.is_completed } : t
@@ -121,11 +122,14 @@ export default function PlanningScreen({ navigation, route }) {
     if (savingTask) return;
 
     if (!title?.trim()) {
-     Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
+      Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
       return;
     }
     if (isExpense && !budget) {
-     Alert.alert(t("alerts.budget_required_title"), t("alerts.budget_required_msg"));
+      Alert.alert(
+        t("alerts.budget_required_title"),
+        t("alerts.budget_required_msg")
+      );
       return;
     }
 
@@ -182,7 +186,7 @@ export default function PlanningScreen({ navigation, route }) {
     setBudget(task.budget != null ? String(task.budget) : "");
     setShowAdd(true);
   };
-  
+
   const startView = (task) => {
     setMode("view");
     setEditingTask(task);
@@ -199,11 +203,14 @@ export default function PlanningScreen({ navigation, route }) {
     if (updatingTask || !editingTask) return;
 
     if (!title?.trim()) {
-        Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
+      Alert.alert(t("alerts.required_title"), t("alerts.title_required_msg"));
       return;
     }
     if (isExpense && !budget) {
-        Alert.alert(t("alerts.budget_required_title"), t("alerts.budget_required_msg"));
+      Alert.alert(
+        t("alerts.budget_required_title"),
+        t("alerts.budget_required_msg")
+      );
       return;
     }
 
@@ -266,7 +273,7 @@ export default function PlanningScreen({ navigation, route }) {
       await loadTasks();
     } catch (err) {
       console.error("Error al eliminar tarea:", err);
-     Alert.alert(t("alerts.error_title"), t("alerts.delete_failed"));
+      Alert.alert(t("alerts.error_title"), t("alerts.delete_failed"));
     } finally {
       setDeletingTaskId(null);
       setTimeout(() => setShowDeletingToast(false), 500);
@@ -274,7 +281,7 @@ export default function PlanningScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#254236" />
@@ -370,8 +377,15 @@ export default function PlanningScreen({ navigation, route }) {
         </View>
       )}
 
-      <Modal visible={showAdd} animationType="fade" onRequestClose={() => { setShowAdd(false); resetForm(); }}>
-        <View style={styles.modalScreen}>
+      <Modal
+        visible={showAdd}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowAdd(false);
+          resetForm();
+        }}
+      >
+        <SafeAreaView style={styles.modalScreen}>
           <View style={styles.modalHeader}>
             <TouchableOpacity
               onPress={() => {
@@ -382,42 +396,89 @@ export default function PlanningScreen({ navigation, route }) {
               <Ionicons name="close" size={24} color="#A861B7" />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              {mode === 'edit'
+              {mode === "edit"
                 ? t("modal.edit_title")
-                : mode === 'view'
+                : mode === "view"
                 ? t("modal.view_title")
                 : t("modal.create_title")}
             </Text>
             <View style={{ width: 24 }} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalContainer}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          >
+
+          <ScrollView 
+              contentContainerStyle={styles.modalContainer}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             <Text style={styles.labelText}>{t("modal.fields.title")}</Text>
-            {mode === 'view' ? (
+            {mode === "view" ? (
               <Text style={styles.readOnlyField}>{title}</Text>
             ) : (
-              <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder={t("modal.fields.title_placeholder")} placeholderTextColor="#888" />
+              <TextInput
+                style={styles.input}
+                value={title}
+                onChangeText={setTitle}
+                placeholder={t("modal.fields.title_placeholder")}
+                placeholderTextColor="#888"
+              />
             )}
 
-            <Text style={styles.labelText}>{t("modal.fields.description")}</Text>
-            {mode === 'view' ? (
-              <Text style={styles.readOnlyField}>{description || t("modal.fields.no_description")}</Text>
+            <Text style={styles.labelText}>
+              {t("modal.fields.description")}
+            </Text>
+            {mode === "view" ? (
+              <Text style={styles.readOnlyField}>
+                {description || t("modal.fields.no_description")}
+              </Text>
             ) : (
-              <TextInput style={styles.input} value={description} onChangeText={setDescription} placeholder={t("modal.fields.description_placeholder")} placeholderTextColor="#888" />
+              <TextInput
+                style={styles.input}
+                value={description}
+                onChangeText={setDescription}
+                placeholder={t("modal.fields.description_placeholder")}
+                placeholderTextColor="#888"
+              />
             )}
 
             <Text style={styles.labelText}>{t("modal.fields.due_date")}</Text>
-            {mode === 'view' ? (
-                <Text style={styles.readOnlyField}>
-                    {dueDate ? dueDate.toLocaleDateString(i18n.language || undefined, { day: "2-digit", month: "long", year: "numeric" }) : t("modal.fields.no_due_date")}
-                </Text>
+            {mode === "view" ? (
+              <Text style={styles.readOnlyField}>
+                {dueDate
+                  ? dueDate.toLocaleDateString(i18n.language || undefined, {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                    })
+                  : t("modal.fields.no_due_date")}
+              </Text>
             ) : (
-              <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-                <Text>{dueDate ? dueDate.toLocaleDateString(i18n.language || undefined, { day: "2-digit", month: "long", year: "numeric" }) : t("modal.fields.due_date_placeholder")}</Text>
+              <TouchableOpacity
+                style={styles.input}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text>
+                  {dueDate
+                    ? dueDate.toLocaleDateString(i18n.language || undefined, {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : t("modal.fields.due_date_placeholder")}
+                </Text>
               </TouchableOpacity>
             )}
-            {showDatePicker && mode !== 'view' && (
-              <DateTimePicker value={dueDate || new Date()} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"} minimumDate={new Date()}
+            {showDatePicker && mode !== "view" && (
+              <DateTimePicker
+                value={dueDate || new Date()}
+                mode="date"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                minimumDate={new Date()}
                 onChange={(_, date) => {
                   setShowDatePicker(false);
                   if (date) setDueDate(date);
@@ -426,43 +487,76 @@ export default function PlanningScreen({ navigation, route }) {
             )}
 
             <Text style={styles.labelText}>{t("modal.fields.priority")}</Text>
-            {mode === 'view' ? (
-                <Text style={styles.readOnlyField}>{t(`priority.options.${priority}`)}</Text>
+            {mode === "view" ? (
+              <Text style={styles.readOnlyField}>
+                {t(`priority.options.${priority}`)}
+              </Text>
             ) : (
               <View style={styles.pickerWrapper}>
-                <Picker selectedValue={priority} onValueChange={setPriority} style={styles.picker}>
+                <Picker
+                  selectedValue={priority}
+                  onValueChange={setPriority}
+                  style={styles.picker}
+                >
                   {Object.keys(PRIORITY_COLORS).map((p) => (
-                    <Picker.Item key={p} label={t(`priority.options.${p}`)} value={p} />
+                    <Picker.Item
+                      key={p}
+                      label={t(`priority.options.${p}`)}
+                      value={p}
+                    />
                   ))}
                 </Picker>
               </View>
             )}
-            
+
             <View style={{ marginTop: 16 }}>
               <TouchableOpacity
                 style={styles.checkboxRow}
-                onPress={() => mode !== 'view' && setIsExpense((prev) => !prev)}
-                activeOpacity={mode === 'view' ? 1 : 0.7}
+                onPress={() => mode !== "view" && setIsExpense((prev) => !prev)}
+                activeOpacity={mode === "view" ? 1 : 0.7}
               >
-                <Ionicons name={isExpense ? "checkbox-outline" : "square-outline"} size={22} color="#A861B7" style={{ marginRight: 8 }} />
-                <Text style={styles.labelText}>{t("modal.fields.is_expense")}</Text>
+                <Ionicons
+                  name={isExpense ? "checkbox-outline" : "square-outline"}
+                  size={22}
+                  color="#A861B7"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.labelText}>
+                  {t("modal.fields.is_expense")}
+                </Text>
               </TouchableOpacity>
             </View>
 
             {isExpense && (
               <>
                 <Text style={styles.labelText}>{t("modal.fields.budget")}</Text>
-                {mode === 'view' ? (
-                    <Text style={styles.readOnlyField}>{budget ? `$${parseFloat(budget).toFixed(2)}` : t("modal.fields.no_budget")}</Text>
+                {mode === "view" ? (
+                  <Text style={styles.readOnlyField}>
+                    {budget
+                      ? `$${parseFloat(budget).toFixed(2)}`
+                      : t("modal.fields.no_budget")}
+                  </Text>
                 ) : (
-                  <TextInput style={styles.input} value={budget} onChangeText={setBudget} placeholder={t("modal.fields.budget_placeholder")} keyboardType="numeric" placeholderTextColor="#888" />
+                  <TextInput
+                    style={styles.input}
+                    value={budget}
+                    onChangeText={setBudget}
+                    placeholder={t("modal.fields.budget_placeholder")}
+                    keyboardType="numeric"
+                    placeholderTextColor="#888"
+                  />
                 )}
               </>
             )}
 
-            {mode !== 'view' && (
+            {mode !== "view" && (
               <TouchableOpacity
-                style={[ styles.saveButton, (!title?.trim() || savingTask || updatingTask) && { backgroundColor: "#ccc" } ]}
+                style={[
+                  styles.saveButton,
+                  (!title?.trim() || savingTask || updatingTask) && {
+                    backgroundColor: "#ccc",
+                  },
+                ]}
                 onPress={mode === "edit" ? handleUpdate : handleSave}
                 disabled={!title?.trim() || savingTask || updatingTask}
               >
@@ -470,20 +564,27 @@ export default function PlanningScreen({ navigation, route }) {
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={styles.saveText}>
-                    {mode === "edit" ? t("modal.actions.save_changes") : t("modal.actions.save_task")}
+                    {mode === "edit"
+                      ? t("modal.actions.save_changes")
+                      : t("modal.actions.save_task")}
                   </Text>
                 )}
               </TouchableOpacity>
             )}
           </ScrollView>
-        </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F9FAFB", marginTop: 25 },
+  screen: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+    marginTop: Platform.OS === "android" ? 25 : 0,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -503,7 +604,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: "#F3F4F6",
   },
   taskRow: {
     flexDirection: "row",
@@ -531,13 +632,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     padding: 16,
+    paddingTop: Platform.OS === "ios" ? 16 : 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
     backgroundColor: "#FFF",
   },
   modalTitle: { fontSize: 18, fontWeight: "600" },
   modalContainer: { padding: 16, paddingBottom: 48 },
-  labelText: { fontSize: 17, fontWeight: "600", color: '#374151', marginBottom: 4, marginTop: 16 },
+  labelText: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 4,
+    marginTop: 16,
+  },
   input: {
     backgroundColor: "#FFF",
     borderRadius: 6,
@@ -547,15 +655,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   readOnlyField: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: "#F3F4F6",
     borderRadius: 6,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    color: '#374151',
+    borderColor: "#E5E7EB",
+    color: "#374151",
     fontSize: 14,
     minHeight: 45,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   pickerWrapper: {
     backgroundColor: "#FFF",

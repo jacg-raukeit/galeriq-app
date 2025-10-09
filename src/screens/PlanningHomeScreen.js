@@ -216,6 +216,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
           id: c.id ?? idx,
           category_id: c.id ?? null,
           name: cname,
+          budget_category: c.budget_category ?? null,
           tasks: catTasks,
         };
       });
@@ -951,7 +952,7 @@ const styles = StyleSheet.create({
 
   tabBar: {
     position: "absolute",
-    bottom: 12,
+    bottom: 29,
     left: 16,
     right: 16,
     flexDirection: "row",

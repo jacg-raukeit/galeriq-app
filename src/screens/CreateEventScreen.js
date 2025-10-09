@@ -1,5 +1,4 @@
-// src/screens/CreateEventScreen.js
-
+// src/screens/CreateEventScreen.js 
 import React, { useState, useContext } from 'react';
 import {
   View,
@@ -12,6 +11,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -55,12 +55,19 @@ export default function CreateEventScreen({ navigation }) {
   const [showDatePicker, setShowDatePicker]   = useState(false);
   const [showTimePicker, setShowTimePicker]   = useState(false);
 
+  const [iosDateModalVisible, setIosDateModalVisible] = useState(false);
+  const [iosTimeModalVisible, setIosTimeModalVisible] = useState(false);
+  const [tempDateIOS, setTempDateIOS] = useState(new Date());
+  const [tempTimeIOS, setTempTimeIOS] = useState(new Date());
+
   const [location, setLocation]               = useState('');
   const [tempImageUri, setTempImageUri]       = useState(null);
   const [status, setStatus]                   = useState(STATUS_OPTIONS[0].value);
   const [budget, setBudget] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+
+  const [successVisible, setSuccessVisible] = useState(false);
 
   const pad = n => String(n).padStart(2, '0');
   const formattedDate =
@@ -112,7 +119,7 @@ export default function CreateEventScreen({ navigation }) {
     }
   };
 
-  const onChangeDate = (_, selected) => {
+  const onChangeDateAndroid = (_, selected) => {
     setShowDatePicker(false);
     if (selected) {
       const newDate = new Date(selected);
@@ -122,13 +129,42 @@ export default function CreateEventScreen({ navigation }) {
     }
   };
 
-  const onChangeTime = (_, selectedTime) => {
+  const onChangeTimeAndroid = (_, selectedTime) => {
     setShowTimePicker(false);
     if (selectedTime) {
       const newDate = new Date(date);
       newDate.setHours(selectedTime.getHours(), selectedTime.getMinutes(), selectedTime.getSeconds());
       setDate(newDate);
     }
+  };
+
+  const openIOSDateModal = () => {
+    setTempDateIOS(new Date(date));
+    setIosDateModalVisible(true);
+  };
+
+  const confirmIOSDate = () => {
+    const merged = new Date(date);
+    merged.setFullYear(tempDateIOS.getFullYear(), tempDateIOS.getMonth(), tempDateIOS.getDate());
+    setDate(merged);
+    setIosDateModalVisible(false);
+    setTempTimeIOS(new Date(merged));
+    setIosTimeModalVisible(true);
+  };
+
+  const cancelIOSDate = () => {
+    setIosDateModalVisible(false);
+  };
+
+  const confirmIOSTime = () => {
+    const updated = new Date(date);
+    updated.setHours(tempTimeIOS.getHours(), tempTimeIOS.getMinutes(), 0, 0);
+    setDate(updated);
+    setIosTimeModalVisible(false);
+  };
+
+  const cancelIOSTime = () => {
+    setIosTimeModalVisible(false);
   };
 
   const handleSubmit = async () => {
@@ -143,8 +179,8 @@ export default function CreateEventScreen({ navigation }) {
     }
 
     const cleanBudget = budget?.trim()
-  ? budget.trim().replace(/\./g, '').replace(',', '.')
-  : '';
+      ? budget.trim().replace(/\./g, '').replace(',', '.')
+      : '';
 
     try {
       setSubmitting(true);
@@ -162,7 +198,7 @@ export default function CreateEventScreen({ navigation }) {
         budget:            cleanBudget,
       });
 
-      navigation.replace('EventCreated');
+      setSuccessVisible(true);
     } catch (e) {
       console.error(e);
       Alert.alert(t('errors.title'), t('errors.create_failed'));
@@ -181,6 +217,20 @@ export default function CreateEventScreen({ navigation }) {
         { text: t('cancel_create.accept'), onPress: () => navigation.goBack() },
       ]
     );
+  };
+
+  const openDateFlow = () => {
+    if (submitting) return;
+    if (Platform.OS === 'ios') {
+      openIOSDateModal();
+    } else {
+      setShowDatePicker(true);
+    }
+  };
+
+  const goToEvents = () => {
+    setSuccessVisible(false);
+    navigation.navigate('Events');
   };
 
   return (
@@ -250,49 +300,114 @@ export default function CreateEventScreen({ navigation }) {
         <Text style={styles.label}>{t('labels.datetime')}</Text>
         <TouchableOpacity
           style={[styles.dateButton, submitting && { opacity: 0.7 }]}
-          onPress={() => !submitting && setShowDatePicker(true)}
+          onPress={openDateFlow}
           disabled={submitting}
         >
           <Ionicons name="calendar-outline" size={20} color="#4B5563" />
           <Text style={styles.dateText}>{formattedDate}</Text>
         </TouchableOpacity>
-        {showDatePicker && (
+
+        {/* ANDROID: pickers nativos */}
+        {Platform.OS === 'android' && showDatePicker && (
           <DateTimePicker
             value={date}
             mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            display="default"
             minimumDate={new Date()}
-            onChange={onChangeDate}
+            onChange={onChangeDateAndroid}
           />
         )}
-        {showTimePicker && (
+        {Platform.OS === 'android' && showTimePicker && (
           <DateTimePicker
             value={date}
             mode="time"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={onChangeTime}
+            display="default"
+            onChange={onChangeTimeAndroid}
           />
+        )}
+
+        {/* iOS: MODAL FECHA */}
+        {Platform.OS === 'ios' && (
+          <Modal
+            visible={iosDateModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={cancelIOSDate}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>{t('labels.select_date')}</Text>
+                <DateTimePicker
+                  value={tempDateIOS}
+                  mode="date"
+                  display="spinner"
+                  minimumDate={new Date()}
+                  onChange={(_, d) => d && setTempDateIOS(d)}
+                  style={styles.pickerIOS}
+                />
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={[styles.modalBtn, styles.btnCancel]} onPress={cancelIOSDate}>
+                    <Text style={styles.btnCancelText}>{t('common.cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, styles.btnAccept]} onPress={confirmIOSDate}>
+                    <Text style={styles.btnAcceptText}>{t('common.accept')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
+
+        {/* iOS: MODAL HORA */}
+        {Platform.OS === 'ios' && (
+          <Modal
+            visible={iosTimeModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={cancelIOSTime}
+          >
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>{t('labels.select_time')}</Text>
+                <DateTimePicker
+                  value={tempTimeIOS}
+                  mode="time"
+                  display="spinner"
+                  onChange={(_, d) => d && setTempTimeIOS(d)}
+                  style={styles.pickerIOS}
+                />
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={[styles.modalBtn, styles.btnCancel]} onPress={cancelIOSTime}>
+                    <Text style={styles.btnCancelText}>{t('common.cancel')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalBtn, styles.btnAccept]} onPress={confirmIOSTime}>
+                    <Text style={styles.btnAcceptText}>{t('common.accept')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         )}
 
         <Text style={styles.label}>{t('labels.location')}</Text>
         <TextInput
           style={styles.input}
-         placeholder={t('placeholders.location')}
+          placeholder={t('placeholders.location')}
           value={location}
           editable={!submitting}
           onChangeText={setLocation}
         />
 
         {/* Presupuesto */}
-<Text style={styles.label}>{t('labels.budget')}</Text>
-<TextInput
-  style={styles.input}
-  placeholder={t('placeholders.budget')}
-  value={budget}
-  keyboardType="numeric"
-  editable={!submitting}
-  onChangeText={(t) => setBudget(t.replace(/[^\d.,]/g, ''))}
-/>
+        <Text style={styles.label}>{t('labels.budget')}</Text>
+        <TextInput
+          style={styles.input}
+          placeholder={t('placeholders.budget')}
+          value={budget}
+          keyboardType="numeric"
+          editable={!submitting}
+          onChangeText={(v) => setBudget(v.replace(/[^\d.,]/g, ''))}
+        />
 
         <Text style={styles.label}>{t('labels.cover')}</Text>
         <TouchableOpacity
@@ -309,30 +424,9 @@ export default function CreateEventScreen({ navigation }) {
           <Image source={{ uri: tempImageUri }} style={styles.previewImage} />
         )}
 
-        {/* Estado */}
-        <Text style={styles.label}>{t('labels.status')}</Text>
-        <Dropdown
-         data={STATUS_OPTIONS.map(o => ({ ...o, label: t(`status.options.${o.value}`) }))}
-          labelField="label"
-          valueField="value"
-         placeholder={t('placeholders.status')}
-          value={status}
-          disable={submitting}
-          onChange={item => setStatus(item.value)}
-          style={[styles.dropdown, status && styles.dropdownFilled, submitting && { opacity: 0.7 }]}
-          placeholderStyle={styles.placeholder}
-          selectedTextStyle={styles.selectedText}
-          iconStyle={styles.icon}
-          containerStyle={styles.containerStyle}
-          itemContainerStyle={styles.itemContainer}
-          activeColor="#EDE9FE"
-        />
 
         <TouchableOpacity
-          style={[
-            styles.submitButton,
-            submitting && styles.submitButtonDisabled,
-          ]}
+          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={submitting}
           accessibilityRole="button"
@@ -345,6 +439,38 @@ export default function CreateEventScreen({ navigation }) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* MODAL DE ÉXITO */}
+      <Modal
+        visible={successVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSuccessVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.successCard}>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={56}
+              color="#10B981"
+              style={{ alignSelf: 'center', marginBottom: 8 }}
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            />
+            <Text style={styles.modalTitle}>{t('success.title')}</Text>
+            <Text style={styles.successMessage}>{t('success.message')}</Text>
+            <View style={[styles.modalActions, { justifyContent: 'center' }]}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.btnAccept, { minWidth: 120 }]}
+                onPress={goToEvents}
+                accessibilityRole="button"
+              >
+                <Text style={styles.btnAcceptText}>{t('success.accept')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -386,9 +512,7 @@ const styles = StyleSheet.create({
     marginTop: 24, backgroundColor: '#6B21A8', paddingVertical: 14,
     borderRadius: 8, alignItems: 'center', marginBottom: 19,
   },
-  submitButtonDisabled: {
-    opacity: 0.7,
-  },
+  submitButtonDisabled: { opacity: 0.7 },
   submitText:    { color: '#FFF', fontWeight: '600' },
 
   title: {
@@ -408,20 +532,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
-  dropdownFilled: {
-    borderColor: '#6B21A8',
-  },
-  placeholder: {
-    fontSize: 14,
-    color: '#9CA3AF',
-  },
-  selectedText: {
-    fontSize: 14,
-    color: '#1F2937',
-  },
-  icon: {
-    tintColor: '#6B21A8',
-  },
+  dropdownFilled: { borderColor: '#6B21A8' },
+  placeholder: { fontSize: 14, color: '#9CA3AF' },
+  selectedText: { fontSize: 14, color: '#1F2937' },
+  icon: { tintColor: '#6B21A8' },
   containerStyle: {
     marginTop: 4,
     borderRadius: 8,
@@ -429,7 +543,42 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     overflow: 'hidden',
   },
-  itemContainer: {
-    paddingVertical: 8,
+  itemContainer: { paddingVertical: 8 },
+
+  modalBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center', alignItems: 'center', padding: 16,
+  },
+  modalCard: {
+    width: '100%', maxWidth: 420,
+    backgroundColor: '#FFF', borderRadius: 12, padding: 16,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, elevation: 6,
+  },
+  modalTitle: {
+    fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 8, textAlign: 'center',
+  },
+  pickerIOS: { alignSelf: 'center' },
+  modalActions: {
+    flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8,
+  },
+  modalBtn: {
+    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, marginLeft: 8,
+  },
+  btnCancel: { backgroundColor: '#F3F4F6' },
+  btnCancelText: { color: '#374151', fontWeight: '600' },
+  btnAccept: { backgroundColor: '#6B21A8' },
+  btnAcceptText: { color: '#FFF', fontWeight: '700' },
+
+  successCard: {
+    width: '100%', maxWidth: 420,
+    backgroundColor: '#FFF', borderRadius: 12, padding: 20,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, elevation: 6,
+  },
+  successMessage: {
+    textAlign: 'center',
+    color: '#374151',
+    fontSize: 14,
+    marginTop: 4,
+    marginBottom: 12,
   },
 });

@@ -11,17 +11,20 @@ import {
   ActivityIndicator,
   Image,
   Platform,
-  Animated,
-  Easing,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-
 import { Image as ExpoImage } from 'expo-image';
+
 const { width, height } = Dimensions.get('window');
+
+const TOKEN_KEY = 'galeriq_token';
+const USER_ID_KEY = 'galeriq_user_id';
+const API_BASE = 'http://143.198.138.35:8000';
 
 const BG_IMAGES = [
   require('../../src/assets/images/carousel1.jpg'),
@@ -31,8 +34,8 @@ const BG_IMAGES = [
 ];
 
 export function BackgroundSlideshow({
-  interval = 3500,      
-  transition = 900,     
+  interval = 3500,
+  transition = 900,
 }) {
   const [ready, setReady] = useState(false);
   const [idx, setIdx] = useState(0);
@@ -42,9 +45,7 @@ export function BackgroundSlideshow({
     let mounted = true;
     (async () => {
       try {
-        await Promise.all(
-          BG_IMAGES.map(src => ExpoImage.prefetch(src))
-        );
+        await Promise.all(BG_IMAGES.map(src => ExpoImage.prefetch(src)));
       } catch {}
       if (mounted) setReady(true);
     })();
@@ -88,6 +89,7 @@ export function BackgroundSlideshow({
     </View>
   );
 }
+
 export default function RegisterScreen() {
   const navigation = useNavigation();
   const { setUser } = useContext(AuthContext);
@@ -122,6 +124,15 @@ export default function RegisterScreen() {
     termsAccepted &&
     !loading;
 
+  const persistSession = async (token, userId) => {
+    try {
+      await SecureStore.setItemAsync(TOKEN_KEY, token);
+      await SecureStore.setItemAsync(USER_ID_KEY, String(userId));
+    } catch (e) {
+      console.log('Error guardando sesión en registro:', e);
+    }
+  };
+
   const pickProfileImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -152,7 +163,8 @@ export default function RegisterScreen() {
         plan_id: 1,
         role_id: 2,
       };
-      const regRes = await fetch('http://143.198.138.35:8000/register/', {
+
+      const regRes = await fetch(`${API_BASE}/register/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -168,7 +180,7 @@ export default function RegisterScreen() {
         throw new Error(detail);
       }
 
-      const loginRes = await fetch('http://143.198.138.35:8000/login/', {
+      const loginRes = await fetch(`${API_BASE}/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ email, password }).toString(),
@@ -176,7 +188,7 @@ export default function RegisterScreen() {
       if (!loginRes.ok) throw new Error('Login tras registro falló');
       const { access_token: token } = await loginRes.json();
 
-      let profileRes = await fetch('http://143.198.138.35:8000/me', {
+      let profileRes = await fetch(`${API_BASE}/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!profileRes.ok) throw new Error('No se pudo cargar perfil');
@@ -189,19 +201,21 @@ export default function RegisterScreen() {
         const type = match ? `image/${match[1]}` : 'image/jpeg';
         formData.append('profile_image', { uri: profileImageUri, name: filename, type });
 
-        await fetch(`http://143.198.138.35:8000/users/${profile.user_id}/profile-pic`, {
+        await fetch(`${API_BASE}/users/${profile.user_id}/profile-pic`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
 
-        profileRes = await fetch('http://143.198.138.35:8000/me', {
+        profileRes = await fetch(`${API_BASE}/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         profile = await profileRes.json();
       }
 
       setUser({ id: profile.user_id, token });
+      await persistSession(token, profile.user_id);
+
       navigation.replace('Events');
     } catch (e) {
       console.error(e);
@@ -218,7 +232,7 @@ export default function RegisterScreen() {
   return (
     <View style={styles.container}>
       {/* Slideshow de fondo */}
-      <BackgroundSlideshow interval={3000} fadeDuration={700} />
+      <BackgroundSlideshow interval={3000} transition={700} />
 
       {/* KeyboardAwareScrollView para evitar que el teclado tape inputs */}
       <KeyboardAwareScrollView
@@ -248,7 +262,7 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Full name */}
+          {/* Nombre completo */}
           <View style={styles.inputWrap}>
             <Ionicons name="person-outline" size={18} color="#6B7280" style={styles.inputIcon} />
             <TextInput
@@ -279,7 +293,7 @@ export default function RegisterScreen() {
             <Text style={styles.errorText}>Ingresa un correo válido.</Text>
           )}
 
-          {/* Phone */}
+          {/* Telefono */}
           <View style={[styles.inputWrap, !phoneValid && phone.length > 0 ? styles.inputError : null]}>
             <Ionicons name="call-outline" size={18} color="#6B7280" style={styles.inputIcon} />
             <TextInput
@@ -296,7 +310,7 @@ export default function RegisterScreen() {
             <Text style={styles.errorText}>El teléfono debe tener al menos 10 dígitos.</Text>
           )}
 
-          {/* Password with eye */}
+          {/* Contraseña */}
           <View style={[styles.inputWrap, passScore <= 1 && password.length > 0 ? styles.inputError : null]}>
             <Ionicons name="lock-closed-outline" size={18} color="#6B7280" style={styles.inputIcon} />
             <TextInput
@@ -312,7 +326,7 @@ export default function RegisterScreen() {
               <Ionicons
                 name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                 size={20}
-                color={showPassword ? '#6B21A8' : '#6B7280'} 
+                color={showPassword ? '#6B21A8' : '#6B7280'}
               />
             </TouchableOpacity>
           </View>

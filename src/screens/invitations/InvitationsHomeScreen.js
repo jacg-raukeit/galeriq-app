@@ -48,8 +48,10 @@ export default function InvitationsHomeScreen() {
     return Array.isArray(events) && events.length > 0 ? events[0] : null;
   }, [eventParam, eventId, events]);
 
-  const eventName = currentEvent?.event_name ?? t("placeholders.event_name_default");
-  const eventType = currentEvent?.event_type ?? t("placeholders.event_type_default");
+  const eventName =
+    currentEvent?.event_name ?? t("placeholders.event_name_default");
+  const eventType =
+    currentEvent?.event_type ?? t("placeholders.event_type_default");
   const eventDescription =
     currentEvent?.event_description ?? t("placeholders.event_desc_default");
   const eventDateISO = currentEvent?.event_date ?? null;
@@ -70,7 +72,7 @@ export default function InvitationsHomeScreen() {
     return `${capitalize(fecha)} · ${hora}`;
   }, [eventDateISO, t]);
 
-  const [role, setRole] = useState(null); // 1=owner, 2=invitado
+  const [role, setRole] = useState(null);
   const [roleLoading, setRoleLoading] = useState(true);
   const bearer = useMemo(() => user?.token || user?.access_token || "", [user]);
 
@@ -157,18 +159,16 @@ export default function InvitationsHomeScreen() {
   const isOwner = role === 1;
 
   const ready = !!currentEvent && !roleLoading;
-  const titleText = ready
-    ? isGuest
-       ? t("titles.guest")
-      : t("titles.owner")
-    : "";
+  const titleText = ready ? (isGuest ? t("titles.guest") : t("titles.owner")) : "";
 
   const [invitationUrl, setInvitationUrl] = useState(null);
   const [loadingInvite, setLoadingInvite] = useState(false);
+  const [guestPasses, setGuestPasses] = useState(null);
 
   const fetchInvitation = useCallback(async () => {
     if (!currentEvent?.event_id) {
       setInvitationUrl(null);
+      setGuestPasses(null);
       return;
     }
     try {
@@ -185,18 +185,28 @@ export default function InvitationsHomeScreen() {
           console.warn("Error al obtener invitación:", res.status, txt);
         }
         setInvitationUrl(null);
+        setGuestPasses(null);
         return;
       }
       const json = await res.json();
+
       if (json?.url_invitation) {
         const bust = json.url_invitation.includes("?") ? "&" : "?";
         setInvitationUrl(`${json.url_invitation}${bust}t=${Date.now()}`);
       } else {
         setInvitationUrl(null);
       }
+
+      if (json?.n_passes !== undefined && json?.n_passes !== null) {
+        const n = Number(json.n_passes);
+        setGuestPasses(Number.isFinite(n) ? n : null);
+      } else {
+        setGuestPasses(null);
+      }
     } catch (e) {
       console.warn("Error al obtener invitación:", e);
       setInvitationUrl(null);
+      setGuestPasses(null);
     } finally {
       setLoadingInvite(false);
     }
@@ -213,6 +223,19 @@ export default function InvitationsHomeScreen() {
   }, [ready, route.params?.refreshToken, fetchInvitation]);
 
   if (!ready) return null;
+
+  const passText = (n) => {
+    if (n === 0)
+      return t("guest.no_passes", "No tienes pases asignados");
+    const label =
+      n === 1
+        ? t("guest.pass_singular", "pase")
+        : t("guest.pass_plural", "pases");
+    return t("guest.passes_count", "Tienes {{count}} {{label}}", {
+      count: n,
+      label,
+    });
+  };
 
   return (
     <ScrollView
@@ -249,7 +272,7 @@ export default function InvitationsHomeScreen() {
             resizeMode="cover"
             borderRadius={16}
             onError={() => {
-             Alert.alert(
+              Alert.alert(
                 t("alerts.invite_image_fail_title"),
                 t("alerts.invite_image_fail_msg")
               );
@@ -264,7 +287,7 @@ export default function InvitationsHomeScreen() {
             resizeMode="cover"
           >
             <View style={styles.previewOverlay}>
-               <Text style={styles.p5}>{t("preview.invite_prefix")}</Text>
+              <Text style={styles.p5}>{t("preview.invite_prefix")}</Text>
               <Text style={styles.p1}>{eventName}</Text>
               <Text numberOfLines={2} style={styles.p2}>
                 {String(eventType).toUpperCase()}
@@ -277,6 +300,16 @@ export default function InvitationsHomeScreen() {
           </ImageBackground>
         )}
       </View>
+
+      {/* Pases para invitados */}
+      {isGuest && guestPasses !== null && (
+        <View style={styles.passesBox}>
+          <View style={styles.passesIconWrap}>
+            <Ionicons name="ticket-outline" size={18} color="#6B21A8" />
+          </View>
+          <Text style={styles.passesText}>{passText(guestPasses)}</Text>
+        </View>
+      )}
 
       {/* Acciones y CTA solo para owner */}
       {isOwner && (
@@ -303,7 +336,7 @@ export default function InvitationsHomeScreen() {
               })
             }
           >
-           <Text style={styles.ctaText}>{t("cta.create_invitation")}</Text>
+            <Text style={styles.ctaText}>{t("cta.create_invitation")}</Text>
           </TouchableOpacity>
         </>
       )}
@@ -403,6 +436,34 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   p5: { color: "#4B5563", fontSize: 14, fontWeight: "700", opacity: 0.8 },
+
+  
+  passesBox: {
+    marginTop: 6,
+    marginHorizontal: 16,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#F1E7FF",
+  },
+  passesIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: "#F3E8FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  passesText: {
+    fontWeight: "700",
+    color: "#111827",
+    fontSize: 14,
+    flex: 1,
+  },
 
   grid: {
     paddingHorizontal: 16,

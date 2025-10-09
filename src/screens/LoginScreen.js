@@ -15,7 +15,7 @@ import {
   Keyboard,
   Modal,
   Linking,
-  ScrollView,  
+  ScrollView,
 } from "react-native";
 import { BackHandler } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -36,7 +36,6 @@ import {
   isErrorWithCode,
   isSuccessResponse,
 } from "@react-native-google-signin/google-signin";
-
 
 // WebBrowser.maybeCompleteAuthSession();
 
@@ -110,7 +109,7 @@ export default function LoginScreen() {
   const passRef = useRef(null);
 
   const [supportOpen, setSupportOpen] = useState(false);
-  const supportAnim = useRef(new Animated.Value(0)).current; 
+  const supportAnim = useRef(new Animated.Value(0)).current;
 
   const openSupport = () => {
     setSupportOpen(true);
@@ -143,7 +142,7 @@ export default function LoginScreen() {
   useEffect(() => {
     GoogleSignin.configure({
       webClientId:
-      "1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com",
+        "1060805663067-q0c8jp11ito6nqm65osmtca42hhbsgh8.apps.googleusercontent.com",
       offlineAccess: true,
       // forceCodeForRefreshToken: true,
     });
@@ -235,7 +234,7 @@ export default function LoginScreen() {
       toValue: showEmailForm ? 1 : 0,
       duration: 420,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: false, 
+      useNativeDriver: false,
     }).start();
   }, [showEmailForm]);
 
@@ -259,93 +258,97 @@ export default function LoginScreen() {
     } catch {}
   };
 
-
-
-
-
-const handleGoogleSignIn = async () => {
-  setLoading(true);
-  try {
-    // 1) Android: verificar Play Services
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-
-    // 2) Google Sign-In (API "Original")
-    const res = await GoogleSignin.signIn();
-    if (!isSuccessResponse(res)) return; // usuario canceló
-
-    const { user, idToken } = res.data; // <-- idToken y user vienen en res.data
-
-    if (!idToken) {
-      Alert.alert('Error', 'No se obtuvo idToken de Google (revisa webClientId).');
-      return;
-    }
-
-    // (opcional) Obtener FCM token como ya lo haces en login por correo
-    let fcmToken = null;
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
     try {
-      if (Device.isDevice) {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-        if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
-        if (finalStatus === 'granted') {
-          const tokenData = await Notifications.getDevicePushTokenAsync();
-          fcmToken = tokenData.data;
-        }
+      // 1) Android: verificar Play Services
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true,
+      });
+
+      // 2) Google Sign-In (API "Original")
+      const res = await GoogleSignin.signIn();
+      if (!isSuccessResponse(res)) return; // usuario canceló
+
+      const { user, idToken } = res.data; // <-- idToken y user vienen en res.data
+
+      if (!idToken) {
+        Alert.alert(
+          "Error",
+          "No se obtuvo idToken de Google (revisa webClientId)."
+        );
+        return;
       }
-    } catch {}
 
-    // 3) Llamar a tu backend con JSON (idToken tiene que ir como "idToken")
-    const r = await fetch(`${API_BASE}/auth/google-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        idToken, // <- clave exacta que tu backend lee con request.json().get("idToken")
-        // NOTA: Tus params fcm/device están declarados como Form en el backend.
-        // Si los mandas aquí en JSON, FastAPI no los levantará como Form.
-        // Si quieres que se registren, ajusta el backend para leerlos también desde JSON.
-       fcm_token: fcmToken,
-       device_type: Platform.OS,
-       device_name: Device.modelName,
-       device_os: Device.osVersion,
-       browser: null,
-      }),
-    });
+      // (opcional) Obtener FCM token como ya lo haces en login por correo
+      let fcmToken = null;
+      try {
+        if (Device.isDevice) {
+          const { status: existingStatus } =
+            await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
+          if (existingStatus !== "granted") {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+          }
+          if (finalStatus === "granted") {
+            const tokenData = await Notifications.getDevicePushTokenAsync();
+            fcmToken = tokenData.data;
+          }
+        }
+      } catch {}
 
-    if (!r.ok) {
-      const txt = await r.text();
-      throw new Error(txt || `HTTP ${r.status}`);
+      // 3) Llamar a tu backend con JSON (idToken tiene que ir como "idToken")
+      const r = await fetch(`${API_BASE}/auth/google-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idToken, // <- clave exacta que tu backend lee con request.json().get("idToken")
+          // NOTA: Tus params fcm/device están declarados como Form en el backend.
+          // Si los mandas aquí en JSON, FastAPI no los levantará como Form.
+          // Si quieres que se registren, ajusta el backend para leerlos también desde JSON.
+          fcm_token: fcmToken,
+          device_type: Platform.OS,
+          device_name: Device.modelName,
+          device_os: Device.osVersion,
+          browser: null,
+        }),
+      });
+
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(txt || `HTTP ${r.status}`);
+      }
+
+      const { user_id, full_name, email, jwt_token, session_token } =
+        await r.json();
+
+      // 4) Guardar sesión local y navegar a Home
+      setUser({ id: user_id, token: jwt_token }); // tu AuthContext
+      if (rememberMe) {
+        await SecureStore.setItemAsync(TOKEN_KEY, jwt_token);
+        await SecureStore.setItemAsync(USER_ID_KEY, String(user_id));
+        // Si te interesa persistir el session_token del device:
+        // await SecureStore.setItemAsync('galeriq_session_token', session_token || '');
+      } else {
+        await SecureStore.deleteItemAsync(TOKEN_KEY);
+        await SecureStore.deleteItemAsync(USER_ID_KEY);
+      }
+
+      // Redirigir al Home
+      navigation.replace("Events");
+    } catch (e) {
+      if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED)
+        return;
+      console.log("Google Sign-In error:", e);
+      Alert.alert(
+        "Error",
+        e?.message || "No se pudo iniciar sesión con Google"
+      );
+    } finally {
+      setLoading(false);
     }
-
-    const { user_id, full_name, email, jwt_token, session_token } = await r.json();
-
-    // 4) Guardar sesión local y navegar a Home
-    setUser({ id: user_id, token: jwt_token }); // tu AuthContext
-    if (rememberMe) {
-      await SecureStore.setItemAsync(TOKEN_KEY, jwt_token);
-      await SecureStore.setItemAsync(USER_ID_KEY, String(user_id));
-      // Si te interesa persistir el session_token del device:
-      // await SecureStore.setItemAsync('galeriq_session_token', session_token || '');
-    } else {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-      await SecureStore.deleteItemAsync(USER_ID_KEY);
-    }
-
-    // Redirigir al Home
-    navigation.replace('Events');
-  } catch (e) {
-    if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) return;
-    console.log('Google Sign-In error:', e);
-    Alert.alert('Error', e?.message || 'No se pudo iniciar sesión con Google');
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-
+  };
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password) {
@@ -515,9 +518,10 @@ const handleGoogleSignIn = async () => {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        const wa = `https://wa.me/${SUPPORT_WHATSAPP.replace(/\D/g, "")}?text=${encodeURIComponent(
-          SUPPORT_DEFAULT_MSG
-        )}`;
+        const wa = `https://wa.me/${SUPPORT_WHATSAPP.replace(
+          /\D/g,
+          ""
+        )}?text=${encodeURIComponent(SUPPORT_DEFAULT_MSG)}`;
         await Linking.openURL(wa);
       }
       closeSupport();
@@ -569,6 +573,11 @@ const handleGoogleSignIn = async () => {
     <View style={{ flex: 1, backgroundColor: "#FFF" }}>
       {/* Zona superior (fuera del panel) */}
       <KeyboardAwareScrollView
+        scrollEnabled={Platform.OS !== "ios"}
+        bounces={Platform.OS !== "ios"}
+        alwaysBounceVertical={false}
+        overScrollMode="never"
+
         enableOnAndroid
         extraScrollHeight={Platform.OS === "android" ? 80 : 40}
         keyboardOpeningTime={0}
@@ -577,7 +586,7 @@ const handleGoogleSignIn = async () => {
           styles.topScroll,
           { paddingTop: insets.top + 16, paddingBottom: bottomPad },
         ]}
-        enableAutomaticScroll
+        enableAutomaticScroll={Platform.OS !== "ios"}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.marca}>Galeriq</Text>
@@ -609,7 +618,10 @@ const handleGoogleSignIn = async () => {
           </Animated.View>
           <View style={styles.dots}>
             {SLIDES.map((_, i) => (
-              <View key={i} style={[styles.dot, i === current && styles.dotActive]} />
+              <View
+                key={i}
+                style={[styles.dot, i === current && styles.dotActive]}
+              />
             ))}
           </View>
         </View>
@@ -661,7 +673,9 @@ const handleGoogleSignIn = async () => {
                 ) : (
                   <>
                     <Ionicons name="logo-google" size={24} color="#DB4437" />
-                    <Text style={styles.buttonTextGoogle}>Continuar con Google</Text>
+                    <Text style={styles.buttonTextGoogle}>
+                      Continuar con Google
+                    </Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -675,16 +689,13 @@ const handleGoogleSignIn = async () => {
                 <Text style={styles.buttonText}>Continuar con correo</Text>
               </TouchableOpacity>
 
-
-               {/* <GoogleSigninButton
+              {/* <GoogleSigninButton
                 style={{ width: '100%', height: 48 }}
                 size={GoogleSigninButton.Size.Wide}
                 color={GoogleSigninButton.Color.Dark}
                 onPress={handleGoogleSignIn}
               /> */}
             </>
-
-            
           ) : (
             <View style={styles.form}>
               <TextInput
@@ -705,12 +716,16 @@ const handleGoogleSignIn = async () => {
               <View
                 style={[
                   styles.passwordContainer,
-                  focusedInput === "password" && styles.passwordContainerFocused,
+                  focusedInput === "password" &&
+                    styles.passwordContainerFocused,
                 ]}
               >
                 <TextInput
                   ref={passRef}
-                  style={[styles.input, { flex: 1, marginBottom: 0, borderWidth: 0 }]}
+                  style={[
+                    styles.input,
+                    { flex: 1, marginBottom: 0, borderWidth: 0 },
+                  ]}
                   placeholder="Contraseña"
                   placeholderTextColor="#6B7280"
                   secureTextEntry={!showPassword}
@@ -748,7 +763,11 @@ const handleGoogleSignIn = async () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.button, styles.loginBtn, loading && styles.buttonDisabled]}
+                style={[
+                  styles.button,
+                  styles.loginBtn,
+                  loading && styles.buttonDisabled,
+                ]}
                 onPress={handleEmailLogin}
                 disabled={loading}
                 activeOpacity={0.9}
@@ -756,125 +775,193 @@ const handleGoogleSignIn = async () => {
                 {loading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={[styles.buttonText, { marginLeft: 0 }]}>Iniciar sesión</Text>
+                  <Text style={[styles.buttonText, { marginLeft: 0 }]}>
+                    Iniciar sesión
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
           )}
 
-
           {/* INFORMACIÓN DE DEBUG EN PANTALLA */}
-{/* INFORMACIÓN DE DEBUG EN PANTALLA */}
-{debugInfo && (
-  <ScrollView
-    style={styles.debugContainer}
-    contentContainerStyle={{ paddingBottom: 10 }}
-    showsVerticalScrollIndicator
-  >
-    <Text style={styles.debugTitle}>🔍 Debug Info</Text>
+          {debugInfo && (
+            <ScrollView
+              style={styles.debugContainer}
+              contentContainerStyle={{ paddingBottom: 10 }}
+              showsVerticalScrollIndicator
+            >
+              <Text style={styles.debugTitle}>🔍 Debug Info</Text>
 
-    {debugInfo.success ? (
-      <>
-        <Text style={styles.debugSuccess}>✅ GOOGLE SIGN-IN EXITOSO</Text>
+              {debugInfo.success ? (
+                <>
+                  <Text style={styles.debugSuccess}>
+                    ✅ GOOGLE SIGN-IN EXITOSO
+                  </Text>
 
-        <View style={styles.debugSection}>
-          <Text style={styles.debugSectionTitle}>👤 Usuario:</Text>
-          <Text style={styles.debugText}>Nombre: {debugInfo.user.name}</Text>
-          <Text style={styles.debugText}>Email: {debugInfo.user.email}</Text>
-          <Text style={styles.debugText}>ID: {debugInfo.user.id}</Text>
-          <Text style={styles.debugText}>Nombre: {debugInfo.user.givenName}</Text>
-          <Text style={styles.debugText}>Apellido: {debugInfo.user.familyName}</Text>
-        </View>
+                  <View style={styles.debugSection}>
+                    <Text style={styles.debugSectionTitle}>👤 Usuario:</Text>
+                    <Text style={styles.debugText}>
+                      Nombre: {debugInfo.user.name}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Email: {debugInfo.user.email}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      ID: {debugInfo.user.id}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Nombre: {debugInfo.user.givenName}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Apellido: {debugInfo.user.familyName}
+                    </Text>
+                  </View>
 
-        <View style={styles.debugSection}>
-          <Text style={styles.debugSectionTitle}>🔑 Token:</Text>
-          <Text style={styles.debugText}>Tiene Token: {debugInfo.token.hasToken ? 'SÍ' : 'NO'}</Text>
-          <Text style={styles.debugText}>Longitud: {debugInfo.token.tokenLength}</Text>
-          <Text style={styles.debugText}>Preview: {debugInfo.token.tokenPreview}</Text>
-          <Text style={styles.debugText}>Server Auth Code: {debugInfo.token.serverAuthCode}</Text>
-          <Text style={styles.debugText}>Access Token: {debugInfo.token.accessToken}</Text>
-        </View>
+                  <View style={styles.debugSection}>
+                    <Text style={styles.debugSectionTitle}>🔑 Token:</Text>
+                    <Text style={styles.debugText}>
+                      Tiene Token: {debugInfo.token.hasToken ? "SÍ" : "NO"}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Longitud: {debugInfo.token.tokenLength}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Preview: {debugInfo.token.tokenPreview}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Server Auth Code: {debugInfo.token.serverAuthCode}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Access Token: {debugInfo.token.accessToken}
+                    </Text>
+                  </View>
 
-        <View style={styles.debugSection}>
-          <Text style={styles.debugSectionTitle}>📱 FCM:</Text>
-          <Text style={styles.debugText}>Tiene FCM: {debugInfo.fcm.hasToken ? 'SÍ' : 'NO'}</Text>
-          <Text style={styles.debugText}>FCM Length: {debugInfo.fcm.tokenLength}</Text>
-          <Text style={styles.debugText}>FCM Token: {debugInfo.fcm.token}</Text>
-          {debugInfo.fcm.error && (
-            <Text style={styles.debugText}>Error FCM: {debugInfo.fcm.error}</Text>
+                  <View style={styles.debugSection}>
+                    <Text style={styles.debugSectionTitle}>📱 FCM:</Text>
+                    <Text style={styles.debugText}>
+                      Tiene FCM: {debugInfo.fcm.hasToken ? "SÍ" : "NO"}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      FCM Length: {debugInfo.fcm.tokenLength}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      FCM Token: {debugInfo.fcm.token}
+                    </Text>
+                    {debugInfo.fcm.error && (
+                      <Text style={styles.debugText}>
+                        Error FCM: {debugInfo.fcm.error}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={styles.debugSection}>
+                    <Text style={styles.debugSectionTitle}>📱 Device:</Text>
+                    <Text style={styles.debugText}>
+                      Platform: {debugInfo.device.platform}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Is Device: {debugInfo.device.isDevice ? "Sí" : "No"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.debugSection}>
+                    <Text style={styles.debugSectionTitle}>🔗 Backend:</Text>
+                    <Text style={styles.debugText}>
+                      URL: {debugInfo.backend.url}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Endpoint: {debugInfo.backend.endpoint}
+                    </Text>
+                    <Text style={styles.debugText}>
+                      Nota: {debugInfo.backend.note}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.debugError}>❌ ERROR</Text>
+                  <Text style={styles.debugText}>
+                    Código: {debugInfo.error?.code || "UNKNOWN"}
+                  </Text>
+                  <Text style={styles.debugText}>
+                    Mensaje: {debugInfo.error?.message || "Error desconocido"}
+                  </Text>
+                  {debugInfo.error?.originalMessage && (
+                    <Text style={styles.debugText}>
+                      Mensaje original: {debugInfo.error.originalMessage}
+                    </Text>
+                  )}
+                  {debugInfo.error?.stack && (
+                    <Text style={styles.debugText}>
+                      Stack: {debugInfo.error.stack}
+                    </Text>
+                  )}
+
+                  {debugInfo.config && (
+                    <View style={styles.debugSection}>
+                      <Text style={styles.debugSectionTitle}>
+                        ⚙️ Configuración:
+                      </Text>
+                      <Text style={styles.debugText}>
+                        Web Client ID: {debugInfo.config.webClientId}
+                      </Text>
+                      <Text style={styles.debugText}>
+                        Package: {debugInfo.config.packageName}
+                      </Text>
+                      <Text style={styles.debugText}>
+                        SHA-1: {debugInfo.config.sha1Expected}
+                      </Text>
+                    </View>
+                  )}
+
+                  {debugInfo.suggestions &&
+                    debugInfo.suggestions.length > 0 && (
+                      <View style={styles.debugSection}>
+                        <Text style={styles.debugSectionTitle}>
+                          💡 Sugerencias:
+                        </Text>
+                        {debugInfo.suggestions.map((suggestion, index) => (
+                          <Text key={index} style={styles.debugText}>
+                            {suggestion}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
+                </>
+              )}
+
+              <Text style={styles.debugTime}>
+                Timestamp: {debugInfo.timestamp}
+              </Text>
+
+              <TouchableOpacity
+                style={styles.debugClearBtn}
+                onPress={() => setDebugInfo(null)}
+              >
+                <Text style={styles.debugClearText}>Limpiar</Text>
+              </TouchableOpacity>
+            </ScrollView>
           )}
-        </View>
-
-        <View style={styles.debugSection}>
-          <Text style={styles.debugSectionTitle}>📱 Device:</Text>
-          <Text style={styles.debugText}>Platform: {debugInfo.device.platform}</Text>
-          <Text style={styles.debugText}>Is Device: {debugInfo.device.isDevice ? 'Sí' : 'No'}</Text>
-        </View>
-
-        <View style={styles.debugSection}>
-          <Text style={styles.debugSectionTitle}>🔗 Backend:</Text>
-          <Text style={styles.debugText}>URL: {debugInfo.backend.url}</Text>
-          <Text style={styles.debugText}>Endpoint: {debugInfo.backend.endpoint}</Text>
-          <Text style={styles.debugText}>Nota: {debugInfo.backend.note}</Text>
-        </View>
-      </>
-    ) : (
-      <>
-        <Text style={styles.debugError}>❌ ERROR</Text>
-        <Text style={styles.debugText}>Código: {debugInfo.error?.code || 'UNKNOWN'}</Text>
-        <Text style={styles.debugText}>Mensaje: {debugInfo.error?.message || 'Error desconocido'}</Text>
-        {debugInfo.error?.originalMessage && (
-          <Text style={styles.debugText}>Mensaje original: {debugInfo.error.originalMessage}</Text>
-        )}
-        {debugInfo.error?.stack && (
-          <Text style={styles.debugText}>Stack: {debugInfo.error.stack}</Text>
-        )}
-
-        {debugInfo.config && (
-          <View style={styles.debugSection}>
-            <Text style={styles.debugSectionTitle}>⚙️ Configuración:</Text>
-            <Text style={styles.debugText}>Web Client ID: {debugInfo.config.webClientId}</Text>
-            <Text style={styles.debugText}>Package: {debugInfo.config.packageName}</Text>
-            <Text style={styles.debugText}>SHA-1: {debugInfo.config.sha1Expected}</Text>
-          </View>
-        )}
-
-        {debugInfo.suggestions && debugInfo.suggestions.length > 0 && (
-          <View style={styles.debugSection}>
-            <Text style={styles.debugSectionTitle}>💡 Sugerencias:</Text>
-            {debugInfo.suggestions.map((suggestion, index) => (
-              <Text key={index} style={styles.debugText}>{suggestion}</Text>
-            ))}
-          </View>
-        )}
-      </>
-    )}
-
-    <Text style={styles.debugTime}>Timestamp: {debugInfo.timestamp}</Text>
-
-    <TouchableOpacity
-      style={styles.debugClearBtn}
-      onPress={() => setDebugInfo(null)}
-    >
-      <Text style={styles.debugClearText}>Limpiar</Text>
-    </TouchableOpacity>
-  </ScrollView>
-)}
-
 
           {!kbOpen && (
             <>
               <View style={styles.footer}>
                 {!showEmailForm ? (
                   <>
-                    <Text style={styles.footerText}>¿No tienes una cuenta? </Text>
-                    <TouchableOpacity onPress={() => navigation.navigate("Register")}>
+                    <Text style={styles.footerText}>
+                      ¿No tienes una cuenta?{" "}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate("Register")}
+                    >
                       <Text style={styles.footerLink}>Regístrate</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
                   <>
-                    <Text style={styles.footerText}>¿Olvidaste tu contraseña? </Text>
+                    <Text style={styles.footerText}>
+                      ¿Olvidaste tu contraseña?{" "}
+                    </Text>
                     <TouchableOpacity onPress={() => setForgotOpen(true)}>
                       <Text style={styles.footerLink}>Recuperar</Text>
                     </TouchableOpacity>
@@ -914,12 +1001,22 @@ const handleGoogleSignIn = async () => {
         animationType="fade"
         onRequestClose={() => setForgotOpen(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { marginTop: insets.top + 40 }]}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => {
+            Keyboard.dismiss();
+            setForgotOpen(false);
+          }}
+        >
+          <View
+            style={[styles.modalCard, { marginTop: insets.top + 60 }]}
+            onStartShouldSetResponder={() => true}
+          >
             <Text style={styles.modalTitle}>Recuperar contraseña</Text>
             <Text style={styles.modalHint}>
-              Escribe el correo asociado a tu cuenta y te enviaremos un enlace para
-              restablecerla.
+              Escribe el correo asociado a tu cuenta y te enviaremos un enlace
+              para restablecerla.
             </Text>
 
             <TextInput
@@ -943,7 +1040,11 @@ const handleGoogleSignIn = async () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalBtn, styles.primaryBtn, forgotSending && styles.buttonDisabled]}
+                style={[
+                  styles.modalBtn,
+                  styles.primaryBtn,
+                  forgotSending && styles.buttonDisabled,
+                ]}
                 onPress={handleForgotSubmit}
                 disabled={forgotSending}
               >
@@ -955,7 +1056,7 @@ const handleGoogleSignIn = async () => {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* Modal de Soporte */}
@@ -966,29 +1067,48 @@ const handleGoogleSignIn = async () => {
           animationType="none"
           onRequestClose={closeSupport}
         >
-          <Animated.View style={[styles.supportBackdrop, { opacity: backdropOpacity }]}>
-            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={closeSupport} />
+          <Animated.View
+            style={[styles.supportBackdrop, { opacity: backdropOpacity }]}
+          >
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={1}
+              onPress={closeSupport}
+            />
           </Animated.View>
 
           <Animated.View
-            style={[styles.supportSheet, { transform: [{ translateY: sheetTranslateY }] }]}
+            style={[
+              styles.supportSheet,
+              { transform: [{ translateY: sheetTranslateY }] },
+            ]}
           >
             <View style={styles.supportHandle} />
             <Text style={styles.supportTitle}>¿Cómo deseas contactarnos?</Text>
 
             <View style={styles.supportOptions}>
-              <TouchableOpacity style={styles.supportOption} onPress={openWhatsApp} activeOpacity={0.9}>
+              <TouchableOpacity
+                style={styles.supportOption}
+                onPress={openWhatsApp}
+                activeOpacity={0.9}
+              >
                 <View style={styles.supportIconWrap}>
                   <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.supportOptTitle}>WhatsApp</Text>
-                  <Text style={styles.supportOptText}>Abrir chat con soporte</Text>
+                  <Text style={styles.supportOptText}>
+                    Abrir chat con soporte
+                  </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#6B7280" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.supportOption} onPress={openEmail} activeOpacity={0.9}>
+              <TouchableOpacity
+                style={styles.supportOption}
+                onPress={openEmail}
+                activeOpacity={0.9}
+              >
                 <View style={styles.supportIconWrap}>
                   <Ionicons name="mail-outline" size={24} color="#6B21A8" />
                 </View>
@@ -999,7 +1119,11 @@ const handleGoogleSignIn = async () => {
                 <Ionicons name="chevron-forward" size={20} color="#6B7280" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.supportOption} onPress={openPhone} activeOpacity={0.9}>
+              <TouchableOpacity
+                style={styles.supportOption}
+                onPress={openPhone}
+                activeOpacity={0.9}
+              >
                 <View style={styles.supportIconWrap}>
                   <Ionicons name="call-outline" size={24} color="#10B981" />
                 </View>
@@ -1011,7 +1135,11 @@ const handleGoogleSignIn = async () => {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.supportCloseBtn} onPress={closeSupport} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.supportCloseBtn}
+              onPress={closeSupport}
+              activeOpacity={0.85}
+            >
               <Text style={styles.supportCloseTxt}>Cerrar</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -1246,7 +1374,7 @@ const styles = StyleSheet.create({
 
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: "rgba(0,0,0,0.95)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1360,66 +1488,61 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-
-
-
-  //debug google
   debugContainer: {
-  margin: 16,
-  padding: 12,
-  backgroundColor: '#F3F4F6',
-  borderRadius: 8,
-  borderWidth: 1,
-  borderColor: '#D1D5DB',
-},
-debugTitle: {
-  fontSize: 16,
-  fontWeight: 'bold',
-  color: '#111827',
-  marginBottom: 8,
-},
-debugSuccess: {
-  fontSize: 14,
-  fontWeight: 'bold',
-  color: '#059669',
-  marginBottom: 8,
-},
-debugError: {
-  fontSize: 14,
-  fontWeight: 'bold',
-  color: '#DC2626',
-  marginBottom: 8,
-},
-debugSection: {
-  marginBottom: 8,
-},
-debugSectionTitle: {
-  fontSize: 13,
-  fontWeight: 'bold',
-  color: '#374151',
-  marginBottom: 4,
-},
-debugText: {
-  fontSize: 12,
-  color: '#6B7280',
-  marginLeft: 8,
-},
-debugTime: {
-  fontSize: 10,
-  color: '#9CA3AF',
-  marginTop: 8,
-  marginBottom: 8,
-},
-debugClearBtn: {
-  backgroundColor: '#EF4444',
-  padding: 6,
-  borderRadius: 4,
-  alignItems: 'center',
-},
-debugClearText: {
-  color: 'white',
-  fontSize: 12,
-  fontWeight: 'bold',
-},
-
+    margin: 16,
+    padding: 12,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+  },
+  debugTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  debugSuccess: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#059669",
+    marginBottom: 8,
+  },
+  debugError: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#DC2626",
+    marginBottom: 8,
+  },
+  debugSection: {
+    marginBottom: 8,
+  },
+  debugSectionTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#374151",
+    marginBottom: 4,
+  },
+  debugText: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginLeft: 8,
+  },
+  debugTime: {
+    fontSize: 10,
+    color: "#9CA3AF",
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  debugClearBtn: {
+    backgroundColor: "#EF4444",
+    padding: 6,
+    borderRadius: 4,
+    alignItems: "center",
+  },
+  debugClearText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
 });

@@ -1,6 +1,6 @@
 // App.js
 import 'intl';
-import 'intl/locale-data/jsonp/es-MX'; // Sé explícito para asegurar que carga el formato de México
+import 'intl/locale-data/jsonp/es-MX';
 import 'intl/locale-data/jsonp/es';
 import 'react-native-gesture-handler';
 import React, { useEffect, useRef, useState } from 'react'; 
@@ -16,7 +16,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import * as AuthSession from 'expo-auth-session';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import * as Linking from 'expo-linking'; // abrir URLs de invitaciones
+import * as Linking from 'expo-linking';
 
 import { useFonts } from 'expo-font';
 import { Montserrat_700Bold } from '@expo-google-fonts/montserrat';
@@ -26,11 +26,9 @@ import { Lobster_400Regular } from '@expo-google-fonts/lobster';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
 import { DancingScript_700Bold } from '@expo-google-fonts/dancing-script';
 
-// Contexts
 import { AuthProvider } from './src/context/AuthContext';
 import { EventsProvider } from './src/context/EventsContext';
 
-// Screens
 import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
@@ -67,7 +65,6 @@ import ShareAppScreen from './src/screens/ShareAppScreen';
 const Stack = createStackNavigator();
 LogBox.ignoreLogs(['useInsertionEffect']);
 
-// ======= Navegación global para listeners =======
 export const navigationRef = createNavigationContainerRef();
 
 function navigate(name, params) {
@@ -80,7 +77,6 @@ function navigate(name, params) {
 
 // ======= Normalización de data de notificación =======
 function normalizeNotifData(raw = {}) {
-  // Acepta tanto "type" como "tipo" (y variantes comunes)
   const type =
     raw.type ??
     raw.tipo ??

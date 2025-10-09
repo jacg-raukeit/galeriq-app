@@ -57,6 +57,12 @@
     "accept": "Aceptar"
   },
 
+  "success": {
+    "title": "¡Evento creado!",
+    "message": "Tu evento se creó correctamente.",
+    "accept": "Aceptar"
+  },
+
   "status": {
     "options": {
       "active": "Activo",

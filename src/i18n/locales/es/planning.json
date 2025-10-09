@@ -22,7 +22,7 @@
       "due_date_placeholder": "Seleccionar fecha",
       "priority": "Prioridad",
       "is_expense": "¿Es gasto?",
-      "budget": "Budget",
+      "budget": "Presupuesto estimado",
       "budget_placeholder": "Ej. 1000.10",
       "no_description": "Sin descripción",
       "no_due_date": "No se ha establecido una fecha",

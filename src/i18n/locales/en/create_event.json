@@ -57,6 +57,12 @@
     "accept": "OK"
   },
 
+  "success": {
+    "title": "Event created!",
+    "message": "Your event was created successfully.",
+    "accept": "OK"
+  },
+
   "status": {
     "options": {
       "active": "Active",

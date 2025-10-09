@@ -12,6 +12,7 @@ import {
   Pressable,
   Alert,
   Modal,
+  Platform,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
@@ -293,7 +294,7 @@ export default function EventsScreen() {
 
   return (
     <View style={styles.screen}>
-      {/* HEADER */}
+     
       {/* HEADER */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerSide}>
@@ -316,7 +317,7 @@ export default function EventsScreen() {
             onPress={() => setFilterVisible(true)}
             activeOpacity={0.85}
           >
-            {/* Usa el mismo tamaño que el de menú para que no “salte” */}
+            
             <Ionicons
               name="funnel-outline"
               size={24}
@@ -329,7 +330,7 @@ export default function EventsScreen() {
 
       <Text style={styles.titleSection}>{t("section_title")}</Text>
 
-      {/* NUEVO: Chip mostrando filtro activo (solo si no es "Todos") */}
+      {/* Chip mostrando filtro activo (solo si no es "Todos") */}
       {filterMode !== "all" && (
         <View style={styles.filterChipRow}>
           <View style={styles.filterChip}>
@@ -413,7 +414,7 @@ export default function EventsScreen() {
                   >
                     <EventCard
                       title={evt.event_name}
-                      date={evt.event_date} // 👈 igual aquí
+                      date={evt.event_date}
                       imageUri={evt.event_cover}
                       status={getDisplayStatus(evt)}
                       archived={true}
@@ -662,7 +663,7 @@ export default function EventsScreen() {
         <View style={styles.expiredBackdrop}>
           <View style={styles.expiredCard}>
            <Text style={styles.expiredTitle}>{t("session_expired.title")}</Text>
-+            <Text style={styles.expiredText}>{t("session_expired.text")}</Text>
+            <Text style={styles.expiredText}>{t("session_expired.text")}</Text>
 
             <View style={{ height: 10 }} />
 
@@ -744,7 +745,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     marginLeft: 16,
     fontWeight: "800",
-    marginTop: 2,
+    marginTop: Platform.OS === 'ios' ? 12 : 2,
     color: "#111827",
   },
 

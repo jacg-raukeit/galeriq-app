@@ -55,20 +55,16 @@ export default function AgendaScreen({ navigation, route }) {
   const EXTRA_SAFE_SPACE = 28;
   const CONTENT_BOTTOM_INSET = TAB_BAR_HEIGHT + EXTRA_SAFE_SPACE;
 
-  // === Vistas: Día | Evento | Álbumes
   const [viewMode, setViewMode] = useState(t("tabs.day"));
 
-  // Datos
   const [stages, setStages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Modales y edición
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedStage, setSelectedStage] = useState(null);
 
-  // Form
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -79,12 +75,10 @@ export default function AgendaScreen({ navigation, route }) {
   const [createAlbum, setCreateAlbum] = useState(false);
   const [submittingStage, setSubmittingStage] = useState(false);
 
-  // Pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
-  // Estética tarjetas que NO son álbum
   const colors = ["#FFECDC", "#EDDCF4", "#BA8FD8", "#FAB08C"];
 
   const todayYMD = toLocalYMD(new Date());
@@ -113,7 +107,9 @@ export default function AgendaScreen({ navigation, route }) {
         })
         .map((s) => ({
           ...s,
-          color: s.is_album ? "#FFFFFF" : colors[Math.floor(Math.random() * colors.length)],
+          color: s.is_album
+            ? "#FFFFFF"
+            : colors[Math.floor(Math.random() * colors.length)],
         }));
 
       setStages(normalized);
@@ -132,25 +128,21 @@ export default function AgendaScreen({ navigation, route }) {
   const filteredStages = useMemo(() => {
     if (!stages?.length) return [];
 
-   if (viewMode === t("tabs.day")) {
-      // timeline completo (pasado/futuro)
+    if (viewMode === t("tabs.day")) {
       return stages;
     }
 
     if (viewMode === t("tabs.event")) {
-      // solo el día del evento
       return stages.filter((s) => s._ymd === eventDayYMD);
     }
 
-   if (viewMode === t("tabs.albums")) {
-      // solo etapas marcadas como álbum
+    if (viewMode === t("tabs.albums")) {
       return stages.filter((s) => Boolean(s.is_album));
     }
 
     return stages;
   }, [stages, viewMode, eventDayYMD]);
 
-  // === Agrupar por día (para encabezados “Hoy, mar., 19 ago”)
   const groupedByDay = useMemo(() => {
     const map = new Map();
     for (const s of filteredStages) {
@@ -163,8 +155,29 @@ export default function AgendaScreen({ navigation, route }) {
     return keys.map((k) => ({ ymd: k, items: map.get(k) }));
   }, [filteredStages]);
 
-   const daysShort = t("date.daysShort", { returnObjects: true }) || ["dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."];
-  const monthsShort = t("date.monthsShort", { returnObjects: true }) || ["en.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
+  const daysShort = t("date.daysShort", { returnObjects: true }) || [
+    "dom.",
+    "lun.",
+    "mar.",
+    "mié.",
+    "jue.",
+    "vie.",
+    "sáb.",
+  ];
+  const monthsShort = t("date.monthsShort", { returnObjects: true }) || [
+    "en.",
+    "feb.",
+    "mar.",
+    "abr.",
+    "may.",
+    "jun.",
+    "jul.",
+    "ago.",
+    "sep.",
+    "oct.",
+    "nov.",
+    "dic.",
+  ];
   const formatDayHeader = (ymd) => {
     const d = new Date(`${ymd}T00:00:00`);
     const dow = daysShort[d.getDay()];
@@ -210,10 +223,14 @@ export default function AgendaScreen({ navigation, route }) {
         end_time: allDay ? "23:59:59" : toUtcTime(endTime, date),
         description,
         location,
-        ...(isEditing ? {} : { is_album: Boolean(createAlbum), all_day: Boolean(allDay) }),
+        ...(isEditing
+          ? {}
+          : { is_album: Boolean(createAlbum), all_day: Boolean(allDay) }),
       };
 
-      const url = isEditing ? `${API}/stages/${selectedStage.id}` : `${API}/stages/${eventId}`;
+      const url = isEditing
+        ? `${API}/stages/${selectedStage.id}`
+        : `${API}/stages/${eventId}`;
       const method = isEditing ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -292,7 +309,7 @@ export default function AgendaScreen({ navigation, route }) {
       </View>
 
       <Text style={styles.titleSection}>{t("sectionTitle")}</Text>
-      <Text style={styles.dateText}>{formattedDate}</Text>
+      <Text style={styles.dateText}>{`Dia del evento: ${formattedDate}`}</Text>
 
       {/* Tabs: Día | Evento | Álbumes */}
       <View style={styles.tabs}>
@@ -302,7 +319,9 @@ export default function AgendaScreen({ navigation, route }) {
             style={[styles.tab, viewMode === m && styles.tabActive]}
             onPress={() => setViewMode(m)}
           >
-            <Text style={[styles.tabText, viewMode === m && styles.tabTextActive]}>
+            <Text
+              style={[styles.tabText, viewMode === m && styles.tabTextActive]}
+            >
               {m}
             </Text>
           </TouchableOpacity>
@@ -311,11 +330,18 @@ export default function AgendaScreen({ navigation, route }) {
 
       {/* Lista / Timeline */}
       <ScrollView
-        contentContainerStyle={[styles.list, { paddingBottom: CONTENT_BOTTOM_INSET }]}
+        contentContainerStyle={[
+          styles.list,
+          { paddingBottom: CONTENT_BOTTOM_INSET },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {loading ? (
-          <ActivityIndicator size="large" color="#6F4C8C" style={{ marginTop: 20 }} />
+          <ActivityIndicator
+            size="large"
+            color="#6F4C8C"
+            style={{ marginTop: 20 }}
+          />
         ) : filteredStages.length === 0 ? (
           <Text style={styles.emptyText}>{emptyMsg}</Text>
         ) : (
@@ -334,14 +360,18 @@ export default function AgendaScreen({ navigation, route }) {
                     activeOpacity={0.85}
                   >
                     <Text style={styles.time}>
-                      {stage.all_day ? t("timeline.allDay") : formatTime(stage.start_time)}
+                      {stage.all_day
+                        ? t("timeline.allDay")
+                        : formatTime(stage.start_time)}
                     </Text>
 
                     {/* Card: blanca + ícono cámara si es álbum */}
                     <View
                       style={[
                         styles.cardBase,
-                        isAlbum ? styles.cardAlbum : { backgroundColor: stage.color },
+                        isAlbum
+                          ? styles.cardAlbum
+                          : { backgroundColor: stage.color },
                       ]}
                     >
                       <View style={styles.cardLeft}>
@@ -354,11 +384,14 @@ export default function AgendaScreen({ navigation, route }) {
                       <View style={styles.cardRight}>
                         <Text style={styles.cardTitle}>{stage.title}</Text>
                         {!!stage.description && (
-                          <Text style={styles.cardSubtitle}>{stage.description}</Text>
+                          <Text style={styles.cardSubtitle}>
+                            {stage.description}
+                          </Text>
                         )}
                         {!stage.all_day && !!stage.end_time && (
                           <Text style={styles.cardTimeRange}>
-                            {formatTime(stage.start_time)} - {formatTime(stage.end_time)}
+                            {formatTime(stage.start_time)} -{" "}
+                            {formatTime(stage.end_time)}
                           </Text>
                         )}
                       </View>
@@ -406,7 +439,7 @@ export default function AgendaScreen({ navigation, route }) {
           }}
         >
           <Ionicons name="list-outline" size={20} color={"#254236"} />
-         <Text style={styles.tabText}>{t("bottombar.checklist")}</Text>
+          <Text style={styles.tabText}>{t("bottombar.checklist")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -417,9 +450,14 @@ export default function AgendaScreen({ navigation, route }) {
           <Text style={styles.tabText}>{t("bottombar.expenses")}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.tabButton, styles.tabActiveBottom]} disabled>
+        <TouchableOpacity
+          style={[styles.tabButton, styles.tabActiveBottom]}
+          disabled
+        >
           <Ionicons name="calendar-outline" size={20} color={"#FFF"} />
-          <Text style={[styles.tabText, styles.tabTextActive]}>{t("bottombar.agenda")}</Text>
+          <Text style={[styles.tabText, styles.tabTextActive]}>
+            {t("bottombar.agenda")}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -452,45 +490,70 @@ export default function AgendaScreen({ navigation, route }) {
                 {selectedStage && (
                   <>
                     <Text style={styles.detailText}>
-                     <Text style={{ fontWeight: "700" }}>{t("detail.labels.title")}</Text> {selectedStage.title}
+                      <Text style={{ fontWeight: "700" }}>
+                        {t("detail.labels.title")}
+                      </Text>{" "}
+                      {selectedStage.title}
                     </Text>
                     <Text style={styles.detailText}>
-                      <Text style={{ fontWeight: "700" }}>{t("detail.labels.date")}</Text> {selectedStage._ymd}
+                      <Text style={{ fontWeight: "700" }}>
+                        {t("detail.labels.date")}
+                      </Text>{" "}
+                      {selectedStage._ymd}
                     </Text>
                     <Text style={styles.detailText}>
-                       <Text style={{ fontWeight: "700" }}>{t("detail.labels.time")}</Text>{" "}
+                      <Text style={{ fontWeight: "700" }}>
+                        {t("detail.labels.time")}
+                      </Text>{" "}
                       {selectedStage.all_day
-                       ? t("timeline.allDay")
-                        : `${formatTime(selectedStage.start_time)} - ${formatTime(
-                            selectedStage.end_time
-                          )}`}
+                        ? t("timeline.allDay")
+                        : `${formatTime(
+                            selectedStage.start_time
+                          )} - ${formatTime(selectedStage.end_time)}`}
                     </Text>
                     {selectedStage.description ? (
                       <Text style={styles.detailText}>
-                        <Text style={{ fontWeight: "700" }}>{t("detail.labels.description")}</Text> {selectedStage.description}
+                        <Text style={{ fontWeight: "700" }}>
+                          {t("detail.labels.description")}
+                        </Text>{" "}
+                        {selectedStage.description}
                       </Text>
                     ) : null}
                     {selectedStage.location ? (
                       <Text style={styles.detailText}>
-                        <Text style={{ fontWeight: "700" }}>{t("detail.labels.location")}</Text> {selectedStage.location}
+                        <Text style={{ fontWeight: "700" }}>
+                          {t("detail.labels.location")}
+                        </Text>{" "}
+                        {selectedStage.location}
                       </Text>
                     ) : null}
                     <Text style={styles.detailText}>
-                      <Text style={{ fontWeight: "700" }}>{t("detail.labels.isAlbum")}</Text>{" "}
-                      {selectedStage.is_album ? t("detail.yes") : t("detail.no")}
+                      <Text style={{ fontWeight: "700" }}>
+                        {t("detail.labels.isAlbum")}
+                      </Text>{" "}
+                      {selectedStage.is_album
+                        ? t("detail.yes")
+                        : t("detail.no")}
                     </Text>
                   </>
                 )}
 
                 <View style={styles.modalButtonsColumn}>
-                  <TouchableOpacity style={styles.customButton} onPress={startEditing}>
-                    <Text style={styles.buttonText}>{t("detail.buttons.update")}</Text>
+                  <TouchableOpacity
+                    style={styles.customButton}
+                    onPress={startEditing}
+                  >
+                    <Text style={styles.buttonText}>
+                      {t("detail.buttons.update")}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.customButton, styles.deleteButton]}
                     onPress={handleDelete}
                   >
-                    <Text style={styles.buttonText}>{t("detail.buttons.delete")}</Text>
+                    <Text style={styles.buttonText}>
+                      {t("detail.buttons.delete")}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -500,10 +563,12 @@ export default function AgendaScreen({ navigation, route }) {
       </Modal>
 
       {/* Crear/Editar */}
+
       <Modal
         visible={modalVisible}
-        animationType="slide"
-        transparent={false}
+        animationType="fade"
+        transparent={true}
+        statusBarTranslucent
         onRequestClose={() => {
           if (!submittingStage) {
             setModalVisible(false);
@@ -511,175 +576,300 @@ export default function AgendaScreen({ navigation, route }) {
           }
         }}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: "#FDF6F7" }}>
-          <ScrollView contentContainerStyle={{ padding: 16 }}>
-            <Text style={styles.modalTitle}>
-              {isEditing ? t("form.editTitle") : t("form.createTitle")}
-            </Text>
-           <Text style={styles.modalOptionsObligatorio}>
-              {t("form.requiredNote")}
-            </Text>
-
-            {/* Título */}
-            <Text style={styles.modalOptions}>
-              {t("form.fields.stageTitle")} <Text style={styles.requiredText}>(*)</Text>
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t("form.fields.stageTitlePlaceholder")}
-              value={title}
-              editable={!submittingStage}
-              onChangeText={setTitle}
-            />
-
-            {/* Descripción */}
-            <Text style={styles.modalOptions}>{t("form.fields.description")}</Text>
-            <TextInput
-              style={[styles.input, { height: 80 }]}
-               placeholder={t("form.fields.descriptionPlaceholder")}
-              value={description}
-              editable={!submittingStage}
-              onChangeText={setDescription}
-              multiline
-            />
-
-            {/* Fecha */}
-            <Text style={styles.modalOptions}>
-              {t("form.fields.date")} <Text style={styles.requiredText}>(*)</Text>
-            </Text>
-            <TouchableOpacity
-              style={[styles.input, submittingStage && { opacity: 0.6 }]}
-              onPress={() => !submittingStage && setShowDatePicker(true)}
-              disabled={submittingStage}
-              activeOpacity={0.7}
-            >
-              <Text>{date || t("form.fields.datePlaceholder")}</Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={date ? new Date(date) : new Date()}
-                mode="date"
-                display="default"
-                onChange={(e, selected) => {
-                  setShowDatePicker(false);
-                  if (selected) setDate(selected.toISOString().split("T")[0]);
-                }}
-              />
-            )}
-
-            {/* Horas (si no es todo el día) */}
-            {!allDay && (
-              <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <TouchableOpacity
-                    style={[styles.input, submittingStage && { opacity: 0.6 }]}
-                    onPress={() => !submittingStage && setShowStartPicker(true)}
-                    disabled={submittingStage}
-                  >
-                    <Text>{startTime ? formatTime(startTime) : t("form.fields.start")}</Text>
-                  </TouchableOpacity>
-                  {showStartPicker && (
-                    <DateTimePicker
-                      value={startTime ? new Date(`1970-01-01T${startTime}`) : new Date()}
-                      mode="time"
-                      display="default"
-                      onChange={(e, selected) => {
-                        setShowStartPicker(false);
-                        if (selected) setStartTime(selected.toTimeString().split(" ")[0]);
-                      }}
-                    />
-                  )}
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <TouchableOpacity
-                    style={[styles.input, submittingStage && { opacity: 0.6 }]}
-                    onPress={() => !submittingStage && setShowEndPicker(true)}
-                    disabled={submittingStage}
-                  >
-                    <Text>{endTime ? formatTime(endTime) : t("form.fields.end")}</Text>
-                  </TouchableOpacity>
-                  {showEndPicker && (
-                    <DateTimePicker
-                      value={endTime ? new Date(`1970-01-01T${endTime}`) : new Date()}
-                      mode="time"
-                      display="default"
-                      onChange={(e, selected) => {
-                        setShowEndPicker(false);
-                        if (selected) setEndTime(selected.toTimeString().split(" ")[0]);
-                      }}
-                    />
-                  )}
-                </View>
-              </View>
-            )}
-
-            {/* ¿Todo el día? (solo al crear) */}
-            {!isEditing && (
+        <View style={styles.modalBackdrop}>
+          <View style={styles.formSheet}>
+            {/* Header del popup */}
+            <View style={styles.detailSheetHeader}>
+              <Text style={styles.detailHeaderTitle}>
+                {isEditing ? t("form.editTitle") : t("form.createTitle")}
+              </Text>
               <TouchableOpacity
-                style={[styles.checkboxRow, submittingStage && { opacity: 0.6 }]}
-                onPress={() => !submittingStage && setAllDay((v) => !v)}
-                activeOpacity={0.7}
-                disabled={submittingStage}
-              >
-                <Text style={styles.modalOptions}>{t("form.fields.allDay")}</Text>
-                <Ionicons
-                  name={allDay ? "checkbox" : "square-outline"}
-                  size={22}
-                  color={allDay ? "#6F4C8C" : "#6B5E70"}
-                />
-              </TouchableOpacity>
-            )}
-
-            {/* ¿Crear álbum? (solo al crear) */}
-            {!isEditing && (
-              <View style={[styles.switchRow, submittingStage && { opacity: 0.6 }]}>
-                <Text style={styles.modalOptions}>{t("form.fields.createAlbum")}</Text>
-                <Switch
-                  value={createAlbum}
-                  onValueChange={(v) => !submittingStage && setCreateAlbum(v)}
-                  disabled={submittingStage}
-                  trackColor={{ false: "#d4d4d8", true: "#C7A7E0" }}
-                  thumbColor={createAlbum ? "#6F4C8C" : "#f4f3f4"}
-                />
-              </View>
-            )}
-
-            {/* Botones */}
-            <View style={styles.modalButtonsRow}>
-              <TouchableOpacity
-                style={[styles.customButton2, styles.cancelButton, submittingStage && { opacity: 0.6 }]}
                 onPress={() => {
                   if (!submittingStage) {
                     setModalVisible(false);
                     setIsEditing(false);
                   }
                 }}
+                hitSlop={{ top: 10, left: 10, bottom: 10, right: 10 }}
                 disabled={submittingStage}
               >
-                <Text style={styles.buttonText}>{t("form.buttons.cancel")}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.customButton2,
-                  styles.saveButton,
-                  (!isFormValid || submittingStage) && styles.disabledButton,
-                ]}
-                onPress={handleSubmit}
-                disabled={!isFormValid || submittingStage}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !isFormValid || submittingStage, busy: submittingStage }}
-              >
-                {submittingStage ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Text style={styles.buttonText}>{isEditing ? t("form.buttons.saveEdit") : t("form.buttons.saveCreate")}</Text>
-                )}
+                <Ionicons name="close" size={22} color="#254236" />
               </TouchableOpacity>
             </View>
-          </ScrollView>
-        </SafeAreaView>
+
+            <ScrollView
+              contentContainerStyle={styles.formSheetContent}
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.formCard}>
+                <Text style={styles.modalOptionsObligatorio}>
+                  {t("form.requiredNote")}
+                </Text>
+
+                {/* Título */}
+                <Text style={styles.modalOptions}>
+                  {t("form.fields.stageTitle")}{" "}
+                  <Text style={styles.requiredText}>(*)</Text>
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t("form.fields.stageTitlePlaceholder")}
+                  value={title}
+                  editable={!submittingStage}
+                  onChangeText={setTitle}
+                />
+
+                {/* Descripción */}
+                <Text style={styles.modalOptions}>
+                  {t("form.fields.description")}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { height: 80, textAlignVertical: "top" },
+                  ]}
+                  placeholder={t("form.fields.descriptionPlaceholder")}
+                  value={description}
+                  editable={!submittingStage}
+                  onChangeText={setDescription}
+                  multiline
+                />
+
+                {/* Fecha */}
+                <Text style={styles.modalOptions}>
+                  {t("form.fields.date")}{" "}
+                  <Text style={styles.requiredText}>(*)</Text>
+                </Text>
+                <TouchableOpacity
+                  style={[styles.input, submittingStage && { opacity: 0.6 }]}
+                  onPress={() => !submittingStage && setShowDatePicker(true)}
+                  disabled={submittingStage}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ color: date ? "#6F4C8C" : "#B0B0B0" }}>
+                    {date || t("form.fields.datePlaceholder")}
+                  </Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={date ? new Date(`${date}T12:00:00`) : new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(e, selected) => {
+                      if (Platform.OS === "android") {
+                        setShowDatePicker(false);
+                      }
+                      if (e.type === "set" && selected) {
+                        setDate(selected.toISOString().split("T")[0]);
+                        if (Platform.OS === "ios") {
+                          setShowDatePicker(false);
+                        }
+                      } else if (e.type === "dismissed") {
+                        setShowDatePicker(false);
+                      }
+                    }}
+                  />
+                )}
+
+                {/* Horas (si no es todo el día) */}
+                {!allDay && (
+                  <View
+                    style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.modalOptions}>
+                        {t("form.fields.start")}{" "}
+                        <Text style={styles.requiredText}>(*)</Text>
+                      </Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.input,
+                          submittingStage && { opacity: 0.6 },
+                        ]}
+                        onPress={() =>
+                          !submittingStage && setShowStartPicker(true)
+                        }
+                        disabled={submittingStage}
+                      >
+                        <Text
+                          style={{ color: startTime ? "#6F4C8C" : "#B0B0B0" }}
+                        >
+                          {startTime
+                            ? formatTime(startTime)
+                            : t("form.fields.start")}
+                        </Text>
+                      </TouchableOpacity>
+                      {showStartPicker && (
+                        <DateTimePicker
+                          value={
+                            startTime
+                              ? new Date(`1970-01-01T${startTime}`)
+                              : new Date()
+                          }
+                          mode="time"
+                          display="default"
+                          // is24Hour={true}
+                          onChange={(e, selected) => {
+                            if (Platform.OS === "android") {
+                              setShowStartPicker(false);
+                            }
+                            if (e.type === "set" && selected) {
+                              setStartTime(
+                                selected.toTimeString().split(" ")[0]
+                              );
+                              if (Platform.OS === "ios") {
+                                setShowStartPicker(false);
+                              }
+                            } else if (e.type === "dismissed") {
+                              setShowStartPicker(false);
+                            }
+                          }}
+                        />
+                      )}
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.modalOptions}>
+                        {t("form.fields.end")}{" "}
+                        <Text style={styles.requiredText}>(*)</Text>
+                      </Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.input,
+                          submittingStage && { opacity: 0.6 },
+                        ]}
+                        onPress={() =>
+                          !submittingStage && setShowEndPicker(true)
+                        }
+                        disabled={submittingStage}
+                      >
+                        <Text
+                          style={{ color: endTime ? "#6F4C8C" : "#B0B0B0" }}
+                        >
+                          {endTime ? formatTime(endTime) : t("form.fields.end")}
+                        </Text>
+                      </TouchableOpacity>
+                      {showEndPicker && (
+                        <DateTimePicker
+                          value={
+                            endTime
+                              ? new Date(`1970-01-01T${endTime}`)
+                              : new Date()
+                          }
+                          mode="time"
+                          display="default"
+                          // is24Hour={true}
+                          onChange={(e, selected) => {
+                            if (Platform.OS === "android") {
+                              setShowEndPicker(false);
+                            }
+                            if (e.type === "set" && selected) {
+                              setEndTime(selected.toTimeString().split(" ")[0]);
+                              if (Platform.OS === "ios") {
+                                setShowEndPicker(false);
+                              }
+                            } else if (e.type === "dismissed") {
+                              setShowEndPicker(false);
+                            }
+                          }}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
+
+                {/* ¿Todo el día? (solo al crear) */}
+                {!isEditing && (
+                  <TouchableOpacity
+                    style={[
+                      styles.checkboxRow,
+                      submittingStage && { opacity: 0.6 },
+                    ]}
+                    onPress={() => !submittingStage && setAllDay((v) => !v)}
+                    activeOpacity={0.7}
+                    disabled={submittingStage}
+                  >
+                    <Text style={styles.modalOptions}>
+                      {t("form.fields.allDay")}
+                    </Text>
+                    <Ionicons
+                      name={allDay ? "checkbox" : "square-outline"}
+                      size={22}
+                      color={allDay ? "#6F4C8C" : "#6B5E70"}
+                    />
+                  </TouchableOpacity>
+                )}
+
+                {/* ¿Crear álbum? (solo al crear) */}
+                {!isEditing && (
+                  <View
+                    style={[
+                      styles.switchRow,
+                      submittingStage && { opacity: 0.6 },
+                    ]}
+                  >
+                    <Text style={styles.modalOptions}>
+                      {t("form.fields.createAlbum")}
+                    </Text>
+                    <Switch
+                      value={createAlbum}
+                      onValueChange={(v) =>
+                        !submittingStage && setCreateAlbum(v)
+                      }
+                      disabled={submittingStage}
+                      trackColor={{ false: "#d4d4d8", true: "#C7A7E0" }}
+                      thumbColor={createAlbum ? "#6F4C8C" : "#f4f3f4"}
+                    />
+                  </View>
+                )}
+
+                {/* Botones */}
+                <View style={styles.modalButtonsColumn}>
+                  <TouchableOpacity
+                    style={[
+                      styles.customButton,
+                      styles.saveButton,
+                      (!isFormValid || submittingStage) &&
+                        styles.disabledButton,
+                    ]}
+                    onPress={handleSubmit}
+                    disabled={!isFormValid || submittingStage}
+                  >
+                    {submittingStage ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text style={styles.buttonText}>
+                        {isEditing
+                          ? t("form.buttons.saveEdit")
+                          : t("form.buttons.saveCreate")}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.customButton,
+                      styles.cancelButton2,
+                      submittingStage && { opacity: 0.6 },
+                    ]}
+                    onPress={() => {
+                      if (!submittingStage) {
+                        setModalVisible(false);
+                        setIsEditing(false);
+                      }
+                    }}
+                    disabled={submittingStage}
+                  >
+                    <Text style={styles.buttonText}>
+                      {t("form.buttons.cancel")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -707,7 +897,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dateText: {
-    fontSize: 16,
+    fontSize: 10,
     color: "#254236",
     marginHorizontal: 16,
     marginBottom: 12,
@@ -784,7 +974,7 @@ const styles = StyleSheet.create({
 
   tabBar: {
     position: "absolute",
-    bottom: 12,
+    bottom: -10,
     left: 16,
     right: 16,
     flexDirection: "row",
@@ -810,14 +1000,16 @@ const styles = StyleSheet.create({
 
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "#EBD6FB",
+    backgroundColor: "rgba(235, 214, 251, 0.95)",
     justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   detailSheet: {
     width: "90%",
     maxWidth: 420,
     maxHeight: "80%",
+    alignSelf: "center",
     backgroundColor: "#FDF6F7",
     borderRadius: 20,
     paddingVertical: 14,
@@ -866,7 +1058,13 @@ const styles = StyleSheet.create({
     color: "#AF8EC1",
   },
   modalOptionsObligatorio: { fontSize: 10, color: "red" },
-  modalOptions: { marginTop: 6, marginBottom: 4, color: "#6B5E70", fontWeight: "700" },
+  modalOptions: {
+    marginTop: 6,
+    marginBottom: 4,
+    color: "#6B5E70",
+    fontWeight: "700",
+    fontSize: 12,
+  },
   input: {
     borderWidth: 1,
     borderColor: "#CCC",
@@ -926,7 +1124,49 @@ const styles = StyleSheet.create({
   },
   cancelButton: { backgroundColor: "#D9534F" },
   saveButton: { backgroundColor: "#AF8DC2" },
-  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16, textAlign: "center" },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+    textAlign: "center",
+  },
   requiredText: { color: "red", fontSize: 12, fontWeight: "400" },
   disabledButton: { backgroundColor: "#CCC" },
+
+  formSheet: {
+    width: "92%",
+    maxWidth: 440,
+    maxHeight: "88%",
+    alignSelf: "center",
+    backgroundColor: "#FDF6F7",
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  formSheetContent: {
+    paddingHorizontal: 4,
+    paddingBottom: 6,
+  },
+  formCard: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  inputTouchable: {
+    justifyContent: "center",
+  },
+  cancelButton2: {
+    backgroundColor: "#D9534F",
+  },
 });

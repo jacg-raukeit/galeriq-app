@@ -54,9 +54,9 @@
       "descriptionPlaceholder": "Descripción de la actividad",
       "date": "Fecha",
       "dateRequired": "Fecha (*)",
-      "datePlaceholder": "Selecciona fecha",
-      "start": "Inicio",
-      "end": "Fin",
+      "datePlaceholder": "Selecciona la fecha de la actividad",
+      "start": "Hora de Inicio",
+      "end": "Hora de Fin",
       "allDay": "¿Todo el día?",
       "createAlbum": "¿Crear álbum?"
     },

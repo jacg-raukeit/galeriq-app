@@ -28,7 +28,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { AuthContext } from "../context/AuthContext";
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from "react-i18next";
 
 const API_BASE = "http://143.198.138.35:8000";
 const ME_URL = `${API_BASE}/me`;
@@ -57,7 +57,16 @@ function FieldReadOnly({ icon, label, value }) {
   );
 }
 
-function FieldEditable({ icon, label, value, onChangeText, keyboardType = "default", placeholder, error }) {
+function FieldEditable({
+  icon,
+  label,
+  value,
+  onChangeText,
+  keyboardType = "default",
+  placeholder,
+  error,
+  maxLength,
+}) {
   return (
     <View style={styles.fieldRow}>
       <View style={styles.fieldIconWrap}>
@@ -65,7 +74,12 @@ function FieldEditable({ icon, label, value, onChangeText, keyboardType = "defau
       </View>
       <View style={styles.fieldBody}>
         <Text style={styles.fieldLabel}>{label}</Text>
-        <View style={[styles.inputBox, error && { borderColor: "#fecaca", backgroundColor: "#fff1f2" }]}>
+        <View
+          style={[
+            styles.inputBox,
+            error && { borderColor: "#fecaca", backgroundColor: "#fff1f2" },
+          ]}
+        >
           <TextInput
             style={styles.inputText}
             value={value}
@@ -75,6 +89,7 @@ function FieldEditable({ icon, label, value, onChangeText, keyboardType = "defau
             keyboardType={keyboardType}
             autoCapitalize={label === "Nombre" ? "words" : "none"}
             autoCorrect={label === "Nombre"}
+            maxLength={maxLength}
           />
         </View>
         {!!error && <Text style={styles.errorInline}>{error}</Text>}
@@ -88,14 +103,25 @@ function Skeleton() {
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 1200, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 1200, useNativeDriver: true }),
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmer, {
+          toValue: 0,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
       ])
     );
     loop.start();
     return () => loop.stop();
   }, [shimmer]);
-  const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] });
+  const opacity = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 1],
+  });
 
   return (
     <View style={{ paddingHorizontal: 18 }}>
@@ -110,7 +136,7 @@ function Skeleton() {
 }
 
 export default function MiPerfilScreen() {
-  const { t, i18n } = useTranslation('profile');
+  const { t, i18n } = useTranslation("profile");
   const navigation = useNavigation();
   const { user } = useContext(AuthContext);
 
@@ -135,13 +161,25 @@ export default function MiPerfilScreen() {
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetAnim = useRef(new Animated.Value(0)).current;
-  const sheetBackdrop = sheetAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-  const sheetTranslate = sheetAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] });
+  const sheetBackdrop = sheetAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+  const sheetTranslate = sheetAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [60, 0],
+  });
 
   const [pwOpen, setPwOpen] = useState(false);
   const pwAnim = useRef(new Animated.Value(0)).current;
-  const pwBackdrop = pwAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
-  const pwTranslate = pwAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 0] });
+  const pwBackdrop = pwAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+  const pwTranslate = pwAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [60, 0],
+  });
 
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -154,6 +192,7 @@ export default function MiPerfilScreen() {
   const [errOldPw, setErrOldPw] = useState("");
   const [errNewPw, setErrNewPw] = useState("");
   const [errConfirmPw, setErrConfirmPw] = useState("");
+  const [previewVisible, setPreviewVisible] = useState(false);
 
   const bearer = useMemo(() => user?.token || user?.access_token || "", [user]);
 
@@ -177,7 +216,11 @@ export default function MiPerfilScreen() {
         email: data?.email || "",
         phone: data?.phone || data?.phone_number || "",
       });
-      if (data?.profile_image && typeof data.profile_image === "string" && data.profile_image.length > 0) {
+      if (
+        data?.profile_image &&
+        typeof data.profile_image === "string" &&
+        data.profile_image.length > 0
+      ) {
         setAvatarUri(data.profile_image);
       } else {
         setAvatarUri(FALLBACK_AVATAR);
@@ -188,7 +231,11 @@ export default function MiPerfilScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
-      Animated.timing(headerFade, { toValue: 1, duration: 450, useNativeDriver: true }).start();
+      Animated.timing(headerFade, {
+        toValue: 1,
+        duration: 450,
+        useNativeDriver: true,
+      }).start();
     }
   }, [bearer, headerFade]);
 
@@ -197,7 +244,7 @@ export default function MiPerfilScreen() {
   }, [fetchMe]);
 
   useEffect(() => {
-    navigation?.setOptions?.({ title: t('header.title') });
+    navigation?.setOptions?.({ title: t("header.title") });
   }, [i18n.language]);
 
   const onRefresh = useCallback(() => {
@@ -207,35 +254,75 @@ export default function MiPerfilScreen() {
 
   const showSaveBar = () => {
     Animated.parallel([
-      Animated.timing(saveBarY, { toValue: 0, duration: 220, useNativeDriver: true }),
-      Animated.timing(saveBarOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.timing(saveBarY, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(saveBarOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
   const hideSaveBar = () => {
     Animated.parallel([
-      Animated.timing(saveBarY, { toValue: 50, duration: 180, useNativeDriver: true }),
-      Animated.timing(saveBarOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(saveBarY, {
+        toValue: 50,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(saveBarOpacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
 
   const openSheet = () => {
     setSheetOpen(true);
-    Animated.timing(sheetAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+    Animated.timing(sheetAnim, {
+      toValue: 1,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
   };
   const closeSheet = () => {
-    Animated.timing(sheetAnim, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => setSheetOpen(false));
+    Animated.timing(sheetAnim, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => setSheetOpen(false));
   };
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     Animated.parallel([
-      Animated.timing(toastY, { toValue: 0, duration: 220, useNativeDriver: true }),
-      Animated.timing(toastOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.timing(toastY, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
     ]).start(() => {
       setTimeout(() => {
         Animated.parallel([
-          Animated.timing(toastY, { toValue: -60, duration: 220, useNativeDriver: true }),
-          Animated.timing(toastOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+          Animated.timing(toastY, {
+            toValue: -60,
+            duration: 220,
+            useNativeDriver: true,
+          }),
+          Animated.timing(toastOpacity, {
+            toValue: 0,
+            duration: 220,
+            useNativeDriver: true,
+          }),
         ]).start();
       }, 1600);
     });
@@ -257,14 +344,31 @@ export default function MiPerfilScreen() {
     let ok = true;
     setErrEmail("");
     setErrPhone("");
-    if (!/^\S+@\S+\.\S+$/.test(edit.email.trim())) {
-      setErrEmail(t('errors.email_invalid'));
+
+    if (!edit.full_name || edit.full_name.trim().length === 0) {
+      Alert.alert(
+        t("common.error"),
+        t("errors.name_required") || "El nombre es obligatorio"
+      );
       ok = false;
     }
-    if (edit.phone && !/^\+?\d{7,15}$/.test(edit.phone.replace(/\s/g, ""))) {
-      setErrPhone(t('errors.phone_invalid'));
+
+    if (!edit.email || edit.email.trim().length === 0) {
+      setErrEmail(t("errors.email_required") || "El correo es obligatorio");
+      ok = false;
+    } else if (!/^\S+@\S+\.\S+$/.test(edit.email.trim())) {
+      setErrEmail(t("errors.email_invalid"));
       ok = false;
     }
+
+    if (!edit.phone || edit.phone.trim().length === 0) {
+      setErrPhone(t("errors.phone_required") || "El teléfono es obligatorio");
+      ok = false;
+    } else if (!/^\+?[\d\s\-]{7,14}$/.test(edit.phone.replace(/\s/g, ""))) {
+      setErrPhone(t("errors.phone_invalid"));
+      ok = false;
+    }
+
     return ok;
   };
 
@@ -287,15 +391,15 @@ export default function MiPerfilScreen() {
       });
       if (!res.ok) {
         const txt = await res.text();
-        throw new Error(`${t('errors.save_failed')} (${res.status}): ${txt}`);
+        throw new Error(`${t("errors.save_failed")} (${res.status}): ${txt}`);
       }
       const updated = await res.json();
       setMe(updated);
       setEditing(false);
-      showToast(t('toasts.profile_saved'));
+      showToast(t("toasts.profile_saved"));
     } catch (e) {
-      Alert.alert(t('common.error'), e.message || t('errors.save_failed'));
-     showToast(t('toasts.save_error'), "error");
+      Alert.alert(t("common.error"), e.message || t("errors.save_failed"));
+      showToast(t("toasts.save_error"), "error");
     } finally {
       setSaving(false);
     }
@@ -303,31 +407,50 @@ export default function MiPerfilScreen() {
 
   const pickImage = async (fromCamera = false) => {
     try {
-      closeSheet();
       if (fromCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== "granted") {
-         return Alert.alert(t('errors.pick_perm_camera'), t('errors.pick_perm_camera_msg'));
+          return Alert.alert(
+            t("errors.pick_perm_camera"),
+            t("errors.pick_perm_camera_msg")
+          );
         }
       } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const { status } =
+          await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
-         return Alert.alert(t('errors.pick_perm_camera'), t('errors.pick_perm_photos_msg'));
+          return Alert.alert(
+            t("errors.pick_perm_camera"),
+            t("errors.pick_perm_photos_msg")
+          );
         }
       }
 
       const result = fromCamera
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.8,
+          });
 
-      if (result.canceled) return;
+      if (result.canceled) {
+        closeSheet();
+        return;
+      }
 
       const asset = result.assets?.[0];
-      if (!asset?.uri) return;
+      if (!asset?.uri) {
+        closeSheet();
+        return;
+      }
 
+      closeSheet();
       await uploadPhoto(asset.uri);
     } catch (e) {
-       Alert.alert(t('common.error'), t('errors.pick_failed'));
+      Alert.alert(t("common.error"), t("errors.pick_failed"));
     }
   };
 
@@ -351,21 +474,20 @@ export default function MiPerfilScreen() {
         method: "POST",
         headers: {
           ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
-          
         },
         body: form,
       });
       if (!res.ok) {
         const txt = await res.text();
-        throw new Error(`${t('errors.upload_failed')} (${res.status}): ${txt}`);
+        throw new Error(`${t("errors.upload_failed")} (${res.status}): ${txt}`);
       }
       const updated = await res.json();
       setMe(updated);
       if (updated?.profile_image) setAvatarUri(updated.profile_image);
-      showToast(t('toasts.photo_uploaded'));
+      showToast(t("toasts.photo_uploaded"));
     } catch (e) {
-      Alert.alert(t('common.error'), e.message || t('errors.upload_failed'));
-      showToast(t('toasts.upload_error'), "error");
+      Alert.alert(t("common.error"), e.message || t("errors.upload_failed"));
+      showToast(t("toasts.upload_error"), "error");
     } finally {
       setSaving(false);
     }
@@ -384,15 +506,15 @@ export default function MiPerfilScreen() {
       });
       if (!res.ok) {
         const txt = await res.text();
-        throw new Error(`${t('errors.delete_failed')} (${res.status}): ${txt}`);
+        throw new Error(`${t("errors.delete_failed")} (${res.status}): ${txt}`);
       }
       const updated = await res.json();
       setMe(updated);
       setAvatarUri(FALLBACK_AVATAR);
-      showToast(t('toasts.photo_deleted'));
+      showToast(t("toasts.photo_deleted"));
     } catch (e) {
-      Alert.alert(t('common.error'), e.message || t('errors.delete_failed'));
-      showToast(t('toasts.delete_error'), "error");
+      Alert.alert(t("common.error"), e.message || t("errors.delete_failed"));
+      showToast(t("toasts.delete_error"), "error");
     } finally {
       setSaving(false);
     }
@@ -412,10 +534,18 @@ export default function MiPerfilScreen() {
 
   const openPw = () => {
     setPwOpen(true);
-    Animated.timing(pwAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+    Animated.timing(pwAnim, {
+      toValue: 1,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
   };
   const closePw = () => {
-    Animated.timing(pwAnim, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
+    Animated.timing(pwAnim, {
+      toValue: 0,
+      duration: 220,
+      useNativeDriver: true,
+    }).start(() => {
       setPwOpen(false);
       setOldPw("");
       setNewPw("");
@@ -431,27 +561,29 @@ export default function MiPerfilScreen() {
 
   const validatePw = () => {
     let ok = true;
-    setErrOldPw(""); setErrNewPw(""); setErrConfirmPw("");
+    setErrOldPw("");
+    setErrNewPw("");
+    setErrConfirmPw("");
     if (!oldPw || oldPw.length < 1) {
-      setErrOldPw(t('errors.pw_current_required'));
+      setErrOldPw(t("errors.pw_current_required"));
       ok = false;
     }
     if (!newPw || newPw.length < 8) {
-       setErrNewPw(t('errors.pw_new_min'));
+      setErrNewPw(t("errors.pw_new_min"));
       ok = false;
     } else if (!/[A-Za-z]/.test(newPw) || !/\d/.test(newPw)) {
-      setErrNewPw(t('errors.pw_new_rules'));
+      setErrNewPw(t("errors.pw_new_rules"));
       ok = false;
     } else if (newPw === oldPw) {
-      setErrNewPw(t('errors.pw_same'));
+      setErrNewPw(t("errors.pw_same"));
       ok = false;
     }
     if (confirmPw !== newPw) {
-      setErrConfirmPw(t('errors.pw_mismatch'));
+      setErrConfirmPw(t("errors.pw_mismatch"));
       ok = false;
     }
     return ok;
-    };
+  };
 
   const changePassword = async () => {
     if (!validatePw()) return;
@@ -471,18 +603,26 @@ export default function MiPerfilScreen() {
 
       const text = await res.text();
       let data = {};
-      try { data = JSON.parse(text || "{}"); } catch { data = {}; }
+      try {
+        data = JSON.parse(text || "{}");
+      } catch {
+        data = {};
+      }
 
       if (!res.ok) {
-        const msg = data?.detail || data?.message || text || t('errors.pw_change_failed');
+        const msg =
+          data?.detail || data?.message || text || t("errors.pw_change_failed");
         throw new Error(msg);
       }
 
-      showToast(t('toasts.pw_changed'));
+      showToast(t("toasts.pw_changed"));
       closePw();
     } catch (e) {
-      Alert.alert(t('errors.pw_change_failed'), e.message || t('errors.pw_change_failed'));
-+      showToast(t('toasts.pw_change_error'), "error");
+      Alert.alert(
+        t("errors.pw_change_failed"),
+        e.message || t("errors.pw_change_failed")
+      );
+      +showToast(t("toasts.pw_change_error"), "error");
     } finally {
       setPwLoading(false);
     }
@@ -525,10 +665,13 @@ export default function MiPerfilScreen() {
       </Animated.View>
 
       <Animated.View style={[styles.header, { opacity: headerFade }]}>
-        <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => navigation.goBack()}
+        >
           <Ionicons name="chevron-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('header.title')}</Text>
+        <Text style={styles.headerTitle}>{t("header.title")}</Text>
         {!loading && !error && (
           <TouchableOpacity
             onPress={() => setEditing((v) => !v)}
@@ -540,14 +683,18 @@ export default function MiPerfilScreen() {
               size={20}
               color="#6B21A8"
             />
-           <Text style={styles.editTxt}>{editing ? t('header.cancel') : t('header.edit')}</Text>
+            <Text style={styles.editTxt}>
+              {editing ? t("header.cancel") : t("header.edit")}
+            </Text>
           </TouchableOpacity>
         )}
       </Animated.View>
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 150 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         keyboardShouldPersistTaps="handled"
       >
         {loading ? (
@@ -555,10 +702,12 @@ export default function MiPerfilScreen() {
         ) : error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={22} color="#dc2626" />
-            <Text style={styles.errorText}>{t('errors.load_profile_title')}</Text>
+            <Text style={styles.errorText}>
+              {t("errors.load_profile_title")}
+            </Text>
             <Text style={styles.errorSub}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={fetchMe}>
-             <Text style={styles.retryTxt}>{t('common.retry')}</Text>
+              <Text style={styles.retryTxt}>{t("common.retry")}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -566,26 +715,30 @@ export default function MiPerfilScreen() {
             {/* Avatar + nombre */}
             <View style={styles.topCard}>
               <View style={styles.avatarWrap}>
-                <View style={styles.avatarClip}>
+                <TouchableOpacity
+                  style={styles.avatarClip}
+                  onPress={() => setPreviewVisible(true)}
+                  activeOpacity={0.9}
+                >
                   <Image
                     source={{ uri: avatarUri }}
                     style={styles.avatar}
                     resizeMode="cover"
                     onError={() => setAvatarUri(FALLBACK_AVATAR)}
                   />
-                </View>
+                </TouchableOpacity>
                 {editing && (
                   <TouchableOpacity
                     style={styles.badgeCam}
                     onPress={openSheet}
                     activeOpacity={0.9}
                   >
-                    <Ionicons name="camera" size={14} color="#fff" />
+                    <Ionicons name="camera" size={24} color="#fff" />
                   </TouchableOpacity>
                 )}
               </View>
               <Text style={styles.nameTxt} numberOfLines={1}>
-                {me?.full_name || me?.name || t('common.user')}
+                {me?.full_name || me?.name || t("common.user")}
               </Text>
             </View>
 
@@ -595,34 +748,55 @@ export default function MiPerfilScreen() {
                 <>
                   <FieldEditable
                     icon="person"
-                    label={t('fields.name')}
+                    label={t("fields.name")}
                     value={edit.full_name}
-                    onChangeText={(t) => setEdit((s) => ({ ...s, full_name: t }))}
-                    placeholder={t('fields.name_placeholder')}
+                    onChangeText={(t) => {
+                      if (t.length <= 50) {
+                        setEdit((s) => ({ ...s, full_name: t }));
+                      }
+                    }}
+                    placeholder={t("fields.name_placeholder")}
+                    maxLength={50}
                   />
-                  <FieldEditable
+                  {/* <FieldEditable
                     icon="mail"
-                    label={t('fields.email')}
+                    label={t("fields.email")}
                     value={edit.email}
-                    onChangeText={(t) => setEdit((s) => ({ ...s, email: t.trim() }))}
-                    placeholder={t('fields.email_placeholder')}
+                    onChangeText={(t) =>
+                      setEdit((s) => ({ ...s, email: t.trim() }))
+                    }
+                    placeholder={t("fields.email_placeholder")}
                     keyboardType="email-address"
                     error={errEmail}
-                  />
+                  /> */}
                   <FieldEditable
                     icon="call"
-                    label={t('fields.phone')}
+                    label={t("fields.phone")}
                     value={edit.phone}
-                    onChangeText={(t) => setEdit((s) => ({ ...s, phone: t }))}
-                     placeholder={t('fields.phone_placeholder')}
+                    onChangeText={(t) => {
+                      const cleaned = t.replace(/[^\d\s+\-]/g, "");
+                      if (cleaned.length <= 14) {
+                        setEdit((s) => ({ ...s, phone: cleaned }));
+                      }
+                    }}
+                    placeholder={t("fields.phone_placeholder")}
                     keyboardType="phone-pad"
                     error={errPhone}
+                    maxLength={14}
                   />
                 </>
               ) : (
                 <>
-                 <FieldReadOnly icon="mail" label={t('fields.email')} value={me?.email} />
-                  <FieldReadOnly icon="call" label={t('fields.phone')} value={me?.phone ?? me?.phone_number} />
+                  <FieldReadOnly
+                    icon="mail"
+                    label={t("fields.email")}
+                    value={me?.email}
+                  />
+                  <FieldReadOnly
+                    icon="call"
+                    label={t("fields.phone")}
+                    value={me?.phone ?? me?.phone_number}
+                  />
                 </>
               )}
             </View>
@@ -630,13 +804,26 @@ export default function MiPerfilScreen() {
             {/* Acción: Cambiar contraseña */}
             {!editing && (
               <View style={[styles.card, { marginTop: 12 }]}>
-                <TouchableOpacity style={styles.actionRow} onPress={openPw} activeOpacity={0.9}>
-                  <View style={[styles.fieldIconWrap, { backgroundColor: "#f5f3ff" }]}>
+                <TouchableOpacity
+                  style={styles.actionRow}
+                  onPress={openPw}
+                  activeOpacity={0.9}
+                >
+                  <View
+                    style={[
+                      styles.fieldIconWrap,
+                      { backgroundColor: "#f5f3ff" },
+                    ]}
+                  >
                     <Ionicons name="key-outline" size={18} color="#6B21A8" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.actionTitle}>{t('password.change_title')}</Text>
-                   <Text style={styles.actionSub}>{t('password.subtitle')}</Text>
+                    <Text style={styles.actionTitle}>
+                      {t("password.change_title")}
+                    </Text>
+                    <Text style={styles.actionSub}>
+                      {t("password.subtitle")}
+                    </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#6B7280" />
                 </TouchableOpacity>
@@ -645,8 +832,12 @@ export default function MiPerfilScreen() {
 
             {!editing && (
               <View style={styles.noteBox}>
-                <Ionicons name="information-circle-outline" size={18} color="#2563eb" />
-               <Text style={styles.noteText}>{t('fields.readonly_hint')}</Text>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={18}
+                  color="#2563eb"
+                />
+                <Text style={styles.noteText}>{t("fields.readonly_hint")}</Text>
               </View>
             )}
           </>
@@ -667,10 +858,14 @@ export default function MiPerfilScreen() {
             disabled={saving}
             activeOpacity={0.9}
           >
-            <Text style={styles.cancelTxt}>{t('common.discard')}</Text>
+            <Text style={styles.cancelTxt}>{t("common.discard")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.saveBtn, styles.primarySave, saving && { opacity: 0.7 }]}
+            style={[
+              styles.saveBtn,
+              styles.primarySave,
+              saving && { opacity: 0.7 },
+            ]}
             onPress={saveProfile}
             disabled={saving}
             activeOpacity={0.95}
@@ -680,7 +875,7 @@ export default function MiPerfilScreen() {
             ) : (
               <>
                 <Ionicons name="save-outline" size={18} color="#fff" />
-                <Text style={styles.primaryTxt}>{t('common.save')}</Text>
+                <Text style={styles.primaryTxt}>{t("common.save")}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -689,32 +884,66 @@ export default function MiPerfilScreen() {
 
       {/* Sheet acciones foto */}
       {sheetOpen && (
-        <Modal transparent animationType="none" visible={sheetOpen} onRequestClose={closeSheet}>
-          <Animated.View style={[styles.sheetBackdrop, { opacity: sheetBackdrop }]}>
-            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={closeSheet} />
+        <Modal
+          transparent
+          animationType="none"
+          visible={sheetOpen}
+          onRequestClose={closeSheet}
+        >
+          <Animated.View
+            style={[styles.sheetBackdrop, { opacity: sheetBackdrop }]}
+          >
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={1}
+              onPress={closeSheet}
+            />
           </Animated.View>
-          <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslate }] }]}>
+          <Animated.View
+            style={[
+              styles.sheet,
+              { transform: [{ translateY: sheetTranslate }] },
+            ]}
+          >
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{t('photo.title')}</Text>
-            <TouchableOpacity style={styles.sheetRow} onPress={() => pickImage(false)} activeOpacity={0.9}>
+            <Text style={styles.sheetTitle}>{t("photo.title")}</Text>
+            <TouchableOpacity
+              style={styles.sheetRow}
+              onPress={() => pickImage(false)}
+              activeOpacity={0.9}
+            >
               <Ionicons name="images-outline" size={22} color="#6B21A8" />
-              <Text style={styles.sheetRowTxt}>{t('photo.pick_gallery')}</Text>
+              <Text style={styles.sheetRowTxt}>{t("photo.pick_gallery")}</Text>
               <Ionicons name="chevron-forward" size={18} color="#6B7280" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.sheetRow} onPress={() => pickImage(true)} activeOpacity={0.9}>
+            <TouchableOpacity
+              style={styles.sheetRow}
+              onPress={() => pickImage(true)}
+              activeOpacity={0.9}
+            >
               <Ionicons name="camera-outline" size={22} color="#6B21A8" />
-             <Text style={styles.sheetRowTxt}>{t('photo.take_photo')}</Text>
+              <Text style={styles.sheetRowTxt}>{t("photo.take_photo")}</Text>
               <Ionicons name="chevron-forward" size={18} color="#6B7280" />
             </TouchableOpacity>
             {me?.profile_image && (
-              <TouchableOpacity style={styles.sheetRow} onPress={removePhoto} activeOpacity={0.9}>
+              <TouchableOpacity
+                style={styles.sheetRow}
+                onPress={removePhoto}
+                activeOpacity={0.9}
+              >
                 <Ionicons name="trash-outline" size={22} color="#dc2626" />
-                <Text style={[styles.sheetRowTxt, { color: "#dc2626" }]}>{t('photo.delete_photo')}</Text>
+                <Text style={[styles.sheetRowTxt, { color: "#dc2626" }]}>
+                  {t("photo.delete_photo")}
+                </Text>
                 <Ionicons name="chevron-forward" size={18} color="#6B7280" />
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.sheetClose} onPress={closeSheet} activeOpacity={0.85}>
-             <Text style={styles.sheetCloseTxt}>{t('common.close')}</Text>
+            <TouchableOpacity
+              style={styles.sheetClose}
+              onPress={closeSheet}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.sheetCloseTxt}>{t("common.close")}</Text>
             </TouchableOpacity>
           </Animated.View>
         </Modal>
@@ -722,29 +951,52 @@ export default function MiPerfilScreen() {
 
       {/* Modal Cambiar contraseña */}
       {pwOpen && (
-        <Modal transparent animationType="none" visible={pwOpen} onRequestClose={closePw}>
-          <Animated.View style={[styles.sheetBackdrop, { opacity: pwBackdrop }]}>
-            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={closePw} />
+        <Modal
+          transparent
+          animationType="none"
+          visible={pwOpen}
+          onRequestClose={closePw}
+        >
+          <Animated.View
+            style={[styles.sheetBackdrop, { opacity: pwBackdrop }]}
+          >
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              activeOpacity={1}
+              onPress={closePw}
+            />
           </Animated.View>
-          <Animated.View style={[styles.pwSheet, { transform: [{ translateY: pwTranslate }] }]}>
+          <Animated.View
+            style={[
+              styles.pwSheet,
+              { transform: [{ translateY: pwTranslate }] },
+            ]}
+          >
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{t('password.change_title')}</Text>
+            <Text style={styles.sheetTitle}>{t("password.change_title")}</Text>
 
             {/* Old password */}
             <View style={styles.pwField}>
-              <Text style={styles.fieldLabel}>{t('password.current')}</Text>
+              <Text style={styles.fieldLabel}>{t("password.current")}</Text>
               <View style={[styles.inputBox, errOldPw && styles.inputError]}>
                 <TextInput
                   style={[styles.inputText, { flex: 1 }]}
-                  placeholder={t('password.current_placeholder')}
+                  placeholder={t("password.current_placeholder")}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!oldVisible}
                   value={oldPw}
                   onChangeText={(t) => setOldPw(t)}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity onPress={() => setOldVisible(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name={oldVisible ? "eye-off-outline" : "eye-outline"} size={20} color="#6B7280" />
+                <TouchableOpacity
+                  onPress={() => setOldVisible((v) => !v)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={oldVisible ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#6B7280"
+                  />
                 </TouchableOpacity>
               </View>
               {!!errOldPw && <Text style={styles.errorInline}>{errOldPw}</Text>}
@@ -752,19 +1004,26 @@ export default function MiPerfilScreen() {
 
             {/* New password */}
             <View style={styles.pwField}>
-              <Text style={styles.fieldLabel}>{t('password.new')}</Text>
+              <Text style={styles.fieldLabel}>{t("password.new")}</Text>
               <View style={[styles.inputBox, errNewPw && styles.inputError]}>
                 <TextInput
                   style={[styles.inputText, { flex: 1 }]}
-                 placeholder={t('password.new_placeholder')}
+                  placeholder={t("password.new_placeholder")}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!newVisible}
                   value={newPw}
                   onChangeText={(t) => setNewPw(t)}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity onPress={() => setNewVisible(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name={newVisible ? "eye-off-outline" : "eye-outline"} size={20} color="#6B7280" />
+                <TouchableOpacity
+                  onPress={() => setNewVisible((v) => !v)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={newVisible ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#6B7280"
+                  />
                 </TouchableOpacity>
               </View>
               {!!errNewPw && <Text style={styles.errorInline}>{errNewPw}</Text>}
@@ -772,31 +1031,50 @@ export default function MiPerfilScreen() {
 
             {/* Confirm */}
             <View style={styles.pwField}>
-             <Text style={styles.fieldLabel}>{t('password.confirm')}</Text>
-              <View style={[styles.inputBox, errConfirmPw && styles.inputError]}>
+              <Text style={styles.fieldLabel}>{t("password.confirm")}</Text>
+              <View
+                style={[styles.inputBox, errConfirmPw && styles.inputError]}
+              >
                 <TextInput
                   style={[styles.inputText, { flex: 1 }]}
-                  placeholder={t('password.confirm_placeholder')}
+                  placeholder={t("password.confirm_placeholder")}
                   placeholderTextColor="#9CA3AF"
                   secureTextEntry={!confirmVisible}
                   value={confirmPw}
                   onChangeText={(t) => setConfirmPw(t)}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity onPress={() => setConfirmVisible(v => !v)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name={confirmVisible ? "eye-off-outline" : "eye-outline"} size={20} color="#6B7280" />
+                <TouchableOpacity
+                  onPress={() => setConfirmVisible((v) => !v)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons
+                    name={confirmVisible ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#6B7280"
+                  />
                 </TouchableOpacity>
               </View>
-              {!!errConfirmPw && <Text style={styles.errorInline}>{errConfirmPw}</Text>}
+              {!!errConfirmPw && (
+                <Text style={styles.errorInline}>{errConfirmPw}</Text>
+              )}
             </View>
 
             {/* Botones */}
             <View style={{ flexDirection: "row", gap: 10, marginTop: 4 }}>
-              <TouchableOpacity style={[styles.saveBtn, styles.cancelSave]} onPress={closePw} disabled={pwLoading}>
-                 <Text style={styles.cancelTxt}>{t('header.cancel')}</Text>
+              <TouchableOpacity
+                style={[styles.saveBtn, styles.cancelSave]}
+                onPress={closePw}
+                disabled={pwLoading}
+              >
+                <Text style={styles.cancelTxt}>{t("header.cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.saveBtn, styles.primarySave, pwLoading && { opacity: 0.7 }]}
+                style={[
+                  styles.saveBtn,
+                  styles.primarySave,
+                  pwLoading && { opacity: 0.7 },
+                ]}
                 onPress={changePassword}
                 disabled={pwLoading}
                 activeOpacity={0.95}
@@ -806,12 +1084,42 @@ export default function MiPerfilScreen() {
                 ) : (
                   <>
                     <Ionicons name="key-outline" size={18} color="#fff" />
-                    <Text style={styles.primaryTxt}>{t('common.update')}</Text>
+                    <Text style={styles.primaryTxt}>{t("common.update")}</Text>
                   </>
                 )}
               </TouchableOpacity>
             </View>
           </Animated.View>
+        </Modal>
+      )}
+     {/* Modal Preview Imagen */}
+      {previewVisible && (
+        <Modal
+          transparent
+          visible={previewVisible}
+          onRequestClose={() => setPreviewVisible(false)}
+          animationType="fade"
+        >
+          <View style={styles.previewBackdrop}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setPreviewVisible(false)}
+            />
+            <View style={styles.previewContainer}>
+              <TouchableOpacity
+                style={styles.previewCloseBtn}
+                onPress={() => setPreviewVisible(false)}
+              >
+                <Ionicons name="close" size={28} color="#fff" />
+              </TouchableOpacity>
+              <Image
+                source={{ uri: avatarUri }}
+                style={styles.previewImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
         </Modal>
       )}
     </SafeAreaView>
@@ -824,7 +1132,7 @@ const styles = StyleSheet.create({
 
   toast: {
     position: "absolute",
-    top: 10,
+    top: Platform.OS === "ios" ? 60 : 50,
     left: 16,
     right: 16,
     zIndex: 20,
@@ -835,6 +1143,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
   },
   toastTxt: { fontWeight: "700", fontSize: 13 },
 
@@ -846,7 +1159,13 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     gap: 12,
   },
-  headerTitle: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "700", color: "#0f172a" },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
   editBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -860,42 +1179,42 @@ const styles = StyleSheet.create({
 
   topCard: { alignItems: "center", paddingVertical: 18, paddingHorizontal: 18 },
   avatarWrap: {
-    position: 'relative',
+    position: "relative",
     width: 116,
     height: 116,
     borderRadius: 58,
-    overflow: 'visible',
+    overflow: "visible",
     borderWidth: 3,
-    borderColor: '#7DD3FC',
-    backgroundColor: '#E0F2FE',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    borderColor: "#7DD3FC",
+    backgroundColor: "#E0F2FE",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   avatarClip: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 58,
-    overflow: 'hidden',
-    backgroundColor: '#eef2ff',
+    overflow: "hidden",
+    backgroundColor: "#eef2ff",
   },
   avatar: { width: "100%", height: "100%" },
   badgeCam: {
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     bottom: 0,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#6B21A8',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 23,
+    backgroundColor: "#6B21A8",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: "#fff",
     zIndex: 10,
     elevation: 6,
   },
@@ -916,7 +1235,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  fieldRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 10 },
+  fieldRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 10,
+  },
   fieldIconWrap: {
     width: 36,
     height: 36,
@@ -943,13 +1266,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e7eb",
     backgroundColor: "#fff",
-    paddingVertical: 8,
+    paddingVertical: Platform.OS === "ios" ? 12 : 8,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    minHeight: 44,
   },
-  inputText: { fontSize: 15, color: "#111827" },
+
+  inputText: {
+    fontSize: 15,
+    color: "#111827",
+    flex: 1,
+    minHeight: Platform.OS === "ios" ? 20 : undefined,
+  },
+
   inputError: { borderColor: "#fecaca", backgroundColor: "#fff1f2" },
   errorInline: { marginTop: 6, color: "#b91c1c", fontSize: 12 },
 
@@ -1003,7 +1334,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignSelf: "center",
   },
-  skelInput: { height: 54, borderRadius: 12, backgroundColor: "#eef2f7", marginTop: 14 },
+  skelInput: {
+    height: 54,
+    borderRadius: 12,
+    backgroundColor: "#eef2f7",
+    marginTop: 14,
+  },
 
   actionRow: {
     flexDirection: "row",
@@ -1018,7 +1354,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: 50,
     padding: 12,
     backgroundColor: "#ffffff",
     borderTopWidth: 1,
@@ -1116,4 +1452,37 @@ const styles = StyleSheet.create({
   sheetCloseTxt: { color: "#111827", fontWeight: "700" },
 
   pwField: { marginBottom: 12 },
+
+previewBackdrop: {
+  flex: 1,
+  backgroundColor: "rgba(0,0,0,0.95)",
+  justifyContent: "center",
+  alignItems: "center",
+},
+previewContainer: {
+  width: "100%",
+  height: "100%",
+  justifyContent: "center",
+  alignItems: "center",
+  padding: 20,
+},
+previewCloseBtn: {
+  position: "absolute",
+  top: Platform.OS === "ios" ? 60 : 40,
+  right: 20,
+  width: 44,
+  height: 44,
+  borderRadius: 22,
+  backgroundColor: "rgba(0,0,0,0.5)",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 10,
+},
+previewImage: {
+  width: "100%",
+  height: "80%",
+  borderRadius: 12,
+},
+
+
 });
