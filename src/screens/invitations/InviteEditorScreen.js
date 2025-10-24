@@ -751,6 +751,27 @@ export default function InviteEditorScreen() {
           </ViewShot>
         </View>
 
+         {/* ⭐ NUEVO: Barra contextual */}
+    {selected && (
+      <ContextualActionBar
+        selected={selected}
+        onDelete={remove}
+        onDuplicate={duplicate}
+        onLock={toggleLock}
+        onBringToFront={bringToFront}
+        onSendToBack={sendToBack}
+        onQuickRotate={() => {
+          if (selected?.kind === 'sticker') {
+            const current = selected.rotate || 0;
+            changeSelected({ rotate: (current + 90) % 360 });
+          }
+        }}
+        onSizePanel={() => setPanel('size')}
+        onEditPanel={() => setPanel('edit')}
+        t={t}
+      />
+    )}
+
         {/* Herramientas */}
         <View style={styles.toolbar}>
           <Tool icon="text-outline" label={t('toolbar.text')} onPress={() => setPanel('edit')}   active={panel === 'edit'} />
@@ -1040,6 +1061,128 @@ function Toggle({ active, onPress, icon, text }) {
     </TouchableOpacity>
   );
 }
+
+// ========== NUEVO COMPONENTE ==========
+function ContextualActionBar({ 
+  selected, 
+  onDelete, 
+  onDuplicate, 
+  onLock, 
+  onBringToFront, 
+  onSendToBack,
+  onQuickRotate,
+  onSizePanel,
+  onEditPanel,
+  t 
+}) {
+  if (!selected) return null;
+
+  const isSticker = selected.kind === 'sticker';
+  const isText = selected.kind === 'text';
+
+  return (
+    <View style={styles.contextBar}>
+      {/* Header */}
+      <View style={styles.contextHeader}>
+        <Ionicons 
+          name={isSticker ? "image" : "text"} 
+          size={16} 
+          color="#6B21A8" 
+        />
+        <Text style={styles.contextTitle}>
+          {isSticker ? 'Sticker seleccionado' : 'Texto seleccionado'}
+        </Text>
+      </View>
+
+      {/* Acciones */}
+      <View style={styles.contextActions}>
+        {/* ELIMINAR */}
+        <TouchableOpacity 
+          style={[styles.contextBtn, styles.contextBtnDanger]} 
+          onPress={onDelete}
+        >
+          <Ionicons name="trash-outline" size={20} color="#DC2626" />
+          <Text style={[styles.contextBtnText, { color: '#DC2626' }]}>
+            Eliminar
+          </Text>
+        </TouchableOpacity>
+
+        {/* DUPLICAR */}
+        <TouchableOpacity 
+          style={styles.contextBtn} 
+          onPress={onDuplicate}
+        >
+          <Ionicons name="copy-outline" size={20} color="#6B21A8" />
+          <Text style={styles.contextBtnText}>Duplicar</Text>
+        </TouchableOpacity>
+
+        {/* TAMAÑO */}
+        <TouchableOpacity 
+          style={styles.contextBtn} 
+          onPress={onSizePanel}
+        >
+          <Ionicons name="resize-outline" size={20} color="#6B21A8" />
+          <Text style={styles.contextBtnText}>Tamaño</Text>
+        </TouchableOpacity>
+
+        {/* SOLO PARA STICKERS */}
+        {isSticker && (
+          <>
+            <TouchableOpacity 
+              style={styles.contextBtn} 
+              onPress={onQuickRotate}
+            >
+              <Ionicons name="sync-outline" size={20} color="#6B21A8" />
+              <Text style={styles.contextBtnText}>Rotar 90°</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.contextBtn} 
+              onPress={onLock}
+            >
+              <Ionicons 
+                name={selected.locked ? "lock-open-outline" : "lock-closed-outline"} 
+                size={20} 
+                color="#6B21A8" 
+              />
+              <Text style={styles.contextBtnText}>
+                {selected.locked ? 'Desbloquear' : 'Bloquear'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.contextBtn} 
+              onPress={onBringToFront}
+            >
+              <Ionicons name="arrow-up-circle-outline" size={20} color="#6B21A8" />
+              <Text style={styles.contextBtnText}>Al frente</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.contextBtn} 
+              onPress={onSendToBack}
+            >
+              <Ionicons name="arrow-down-circle-outline" size={20} color="#6B21A8" />
+              <Text style={styles.contextBtnText}>Atrás</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {/* SOLO PARA TEXTO */}
+        {isText && (
+          <TouchableOpacity 
+            style={styles.contextBtn} 
+            onPress={onEditPanel}
+          >
+            <Ionicons name="create-outline" size={20} color="#6B21A8" />
+            <Text style={styles.contextBtnText}>Editar texto</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
 function EditableText({ value, onChange }) {
   const [editing, setEditing] = useState(false);
   const [tmp, setTmp] = useState(value);
@@ -1118,4 +1261,63 @@ const styles = StyleSheet.create({
 
   modalBtn: { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   modalBtnText: { color: '#fff', fontWeight: '800' },
+
+  // ===== Barra contextual =====
+  contextBar: {
+    backgroundColor: '#FFFFFF',
+    width: '92%',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: '#E9D5FF',
+    marginBottom: 15,
+  },
+  contextHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  contextTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B21A8',
+    flex: 1,
+  },
+  contextActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  contextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  contextBtnDanger: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FEE2E2',
+  },
+  contextBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B21A8',
+  },
 });

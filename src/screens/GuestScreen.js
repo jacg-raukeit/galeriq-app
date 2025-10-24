@@ -71,7 +71,6 @@ const mapRSVPToStatus = (rsvp) => {
   if (rsvp === 2 || rsvp === '2' || rsvp === 'rejected') return 'rejected';
   return 'pending';
 };
-const statusToCode = (status) => (status === 'confirmed' ? 1 : status === 'rejected' ? 2 : 0);
 
 const adaptGuest = (g) => ({
   id: g.guest_id ?? g.id,
@@ -100,12 +99,12 @@ const AvatarLeft = ({ uri, name, email }) => {
   );
 };
 
-const GuestRow = memo(function GuestRow({ item, onToggleStatus, onRequestDelete }) {
+const GuestRow = memo(function GuestRow({ item, onRequestDelete }) {
   const { t } = useTranslation('guests');
   const swipeRef = useRef(null);
 
   const confirmDelete = () => {
-     Alert.alert(
+    Alert.alert(
       t('confirm_delete_title'),
       t('confirm_delete_message', { name: item.nombre }),
       [
@@ -147,9 +146,10 @@ const GuestRow = memo(function GuestRow({ item, onToggleStatus, onRequestDelete 
             <AvatarLeft uri={item.avatar} name={item.nombre} email={item.correo} />
           )}
           right={() => (
-            <Pressable onPress={() => onToggleStatus(item)}>
+            // Ícono de estado SOLO informativo (sin onPress)
+            <View style={{ paddingHorizontal: 4 }}>
               <List.Icon icon={getStatusIcon(item.status)} color={getStatusColor(item.status)} />
-            </Pressable>
+            </View>
           )}
         />
       </Pressable>
@@ -191,8 +191,8 @@ export default function GuestScreen({ route }) {
       },
     });
     if (!resp.ok) {
-      const t = await resp.text().catch(() => '');
-      throw new Error(`Error ${resp.status}: ${t || 'No se pudieron obtener los invitados'}`);
+      const txt = await resp.text().catch(() => '');
+      throw new Error(`Error ${resp.status}: ${txt || 'No se pudieron obtener los invitados'}`);
     }
     const json = await resp.json();
     return Array.isArray(json) ? json.map(adaptGuest) : [];
@@ -210,7 +210,7 @@ export default function GuestScreen({ route }) {
     } finally {
       setLoading(false);
     }
-  }, [fetchGuestsFromAPI]);
+  }, [fetchGuestsFromAPI, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -230,54 +230,7 @@ export default function GuestScreen({ route }) {
     setRefreshing(false);
   };
 
-  const updateGuestRSVP = async (guestId, rsvpCode) => {
-    const url = `${API_URL}/guests/${guestId}/rsvp`;
-    const body = new FormData();
-    body.append('rsvp_status', String(rsvpCode));
-    const resp = await fetch(url, {
-      method: 'PATCH',
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body,
-    });
-    if (!resp.ok) {
-      const t = await resp.text().catch(() => '');
-      throw new Error(`RSVP falló (${resp.status}): ${t}`);
-    }
-    return resp.json();
-  };
-
-  const acceptGuest = async (guestId) => {
-    const url = `${API_URL}/guests/${guestId}/accept`;
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-    if (!resp.ok) {
-      const t = await resp.text().catch(() => '');
-      throw new Error(`Aceptar falló (${resp.status}): ${t}`);
-    }
-    return resp.json();
-  };
-
-  const rejectGuest = async (guestId) => {
-    const url = `${API_URL}/guests/${guestId}/reject`;
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-    if (!resp.ok) {
-      const t = await resp.text().catch(() => '');
-      throw new Error(`Rechazar falló (${resp.status}): ${t}`);
-    }
-    return resp.json();
-  };
-
+  // === Eliminar invitado (se mantiene)
   const deleteGuest = async (guestId) => {
     const url = `${API_URL}/guests/${guestId}`;
     const resp = await fetch(url, {
@@ -287,29 +240,11 @@ export default function GuestScreen({ route }) {
       },
     });
     if (!resp.ok) {
-      const t = await resp.text().catch(() => '');
-      throw new Error(`Eliminar falló (${resp.status}): ${t || 'No se pudo eliminar invitado'}`);
+      const txt = await resp.text().catch(() => '');
+      throw new Error(`Eliminar falló (${resp.status}): ${txt || 'No se pudo eliminar invitado'}`);
     }
     try { await resp.json(); } catch (_) {}
     return true;
-  };
-
-  const toggleStatus = async (guest) => {
-    const next =
-      guest.status === 'pending' ? 'confirmed' :
-      guest.status === 'confirmed' ? 'rejected' : 'pending';
-    try {
-      await updateGuestRSVP(guest.id, statusToCode(next));
-      await loadGuests();
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      const estadoEsp = next === 'confirmed' ? 'Confirmado' : next === 'rejected' ? 'Rechazado' : 'Pendiente';
-      setSnackbarMsg(t('snackbar.rsvp_updated', { status: t(`status.${next}`) }));
-      setSnackbarVisible(true);
-    } catch (e) {
-      console.error(e);
-      setSnackbarMsg(t('snackbar.rsvp_update_error'));
-      setSnackbarVisible(true);
-    }
   };
 
   const handleDelete = async (guestId) => {
@@ -320,8 +255,8 @@ export default function GuestScreen({ route }) {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         return next;
       });
-      setSnackbarMsg('Invitado eliminado');
       setSnackbarMsg(t('snackbar.delete_success'));
+      setSnackbarVisible(true);
     } catch (e) {
       console.error(e);
       setSnackbarMsg(t('snackbar.delete_error'));
@@ -370,7 +305,6 @@ export default function GuestScreen({ route }) {
             renderItem={({ item }) => (
               <GuestRow
                 item={item}
-                onToggleStatus={toggleStatus}
                 onRequestDelete={handleDelete}
               />
             )}
@@ -387,7 +321,7 @@ export default function GuestScreen({ route }) {
               open={fabOpen}
               icon={fabOpen ? 'close' : 'plus'}
               actions={[
-                 { icon: 'account-plus', label: t('fab.add_manual'), onPress: () => navigation.navigate('AddGuestManual', { eventId }) },
+                { icon: 'account-plus', label: t('fab.add_manual'), onPress: () => navigation.navigate('AddGuestManual', { eventId }) },
                 { icon: 'file-upload', label: t('fab.upload_csv'), onPress: () => navigation.navigate('AddGuestFromCSV', { eventId }) },
               ]}
               onStateChange={({ open }) => setFabOpen(open)}

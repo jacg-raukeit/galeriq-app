@@ -1,6 +1,7 @@
 // src/screens/AlbumsScreen.js
 import React, {
   useMemo,
+  useRef,
   useState,
   useCallback,
   useEffect,
@@ -42,11 +43,18 @@ const ALBUMS_BY_EVENT_URL = (eventId) => `${API_URL}/albums/${eventId}`;
 const UPLOAD_URL = (albumId) => `${API_URL}/albums/${albumId}/photos`;
 const PHOTOS_BY_ALBUM_URL = (albumId) => `${API_URL}/photos/album/${albumId}`;
 const FAVORITE_URL = (photoId) => `${API_URL}/photos/${photoId}/favorite`;
-const mapAlbumFromApi = (a) => ({
-  id: String(a.album_id ?? a.id ?? a.albumId),
-  name: a.name,
-  photos: [],
-});
+
+const pickAlbumId = (a, eventId) => {
+  const primary = a.album_id ?? a.albumId ?? a.id_album ?? a.idAlbum ?? a.alb_id;
+  if (primary != null) return String(primary);
+  if (a.id != null && String(a.id) !== String(eventId)) return String(a.id);
+  return null;
+};
+
+const mapAlbumFromApi = (a, eventId) => {
+  const id = pickAlbumId(a, eventId);
+  return id ? { id, name: a.name ?? a.album_name ?? "", photos: [] } : null;
+};
 
 const mapPhotoFromApi = (p) => {
   const uri =
@@ -79,7 +87,7 @@ export default function AlbumsScreen({ navigation, route }) {
   const { t } = useTranslation("albums_photos");
   const { eventId, albumId: initialAlbumId } = route?.params || {};
   const { user } = useContext(AuthContext);
-  const token = user?.token || user?.accessToken || "";
+  const token = user?.token || user?.access_token || user?.accessToken || "";
 
   const [albums, setAlbums] = useState([]);
   const [activeAlbumId, setActiveAlbumId] = useState(null);
@@ -96,7 +104,15 @@ export default function AlbumsScreen({ navigation, route }) {
   const [loadingAlbums, setLoadingAlbums] = useState(true);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
-  const authHeaders = { Authorization: `Bearer ${token}` };
+  // Nuevo: preloader de “preparación” de álbum
+  const [preparing, setPreparing] = useState(false);
+  const preparedOnceRef = useRef(new Set()); // guarda álbumes ya “preparados” (para no repetir el loader)
+
+  // Evita que cambie la referencia en cada render → corta el loop
+  const authHeaders = useMemo(
+    () => (token ? { Authorization: `Bearer ${token}` } : {}),
+    [token]
+  );
 
   const normalizeToJpeg = useCallback(async (asset) => {
     const result = await ImageManipulator.manipulateAsync(asset.uri, [], {
@@ -113,8 +129,90 @@ export default function AlbumsScreen({ navigation, route }) {
     return { uri: result.uri, name, type: "image/jpeg" };
   }, []);
 
+  // --- Alert de error "rate-limited" (solo una vez)
+  const photosErrorShownRef = useRef(false);
+  const showPhotosAlertOnce = useCallback(() => {
+    if (photosErrorShownRef.current) return;
+    photosErrorShownRef.current = true;
+    Alert.alert(
+      t("alerts.error_title"),
+      t("alerts.photos_load_failed"),
+      [{ text: "OK", onPress: () => { photosErrorShownRef.current = false; } }],
+      { cancelable: true }
+    );
+  }, [t]);
+
+  // --- Cargar fotos (tolerante a 204/404 y sin depender de `albums`)
+  const fetchPhotos = useCallback(
+    async (albumId, currentAlbums) => {
+      if (!albumId || !token) return;
+      setLoadingPhotos(true);
+      try {
+        const r = await fetch(PHOTOS_BY_ALBUM_URL(albumId), {
+          headers: authHeaders,
+        });
+
+        // Álbum nuevo: sin fotos → lista vacía, sin alertas
+        if (r.status === 204 || r.status === 404) {
+          setAlbums((prev) => {
+            const base = currentAlbums?.length ? currentAlbums : prev;
+            const idStr = String(albumId);
+            const existing = base.find((a) => a.id === idStr);
+            const name = existing?.name ?? "";
+            if (!existing) {
+              return [...base, { id: idStr, name, photos: [] }];
+            }
+            return base.map((a) =>
+              a.id === idStr ? { ...a, name, photos: [] } : a
+            );
+          });
+          return;
+        }
+
+        if (!r.ok) throw new Error(`photos_load_failed:${r.status}`);
+
+        const txt = await r.text();
+        let rawList = [];
+        if (txt && txt.trim()) {
+          try {
+            const parsed = JSON.parse(txt);
+            rawList = Array.isArray(parsed)
+              ? parsed
+              : Array.isArray(parsed.photos)
+              ? parsed.photos
+              : Array.isArray(parsed.items)
+              ? parsed.items
+              : Array.isArray(parsed.results)
+              ? parsed.results
+              : [];
+          } catch {
+            rawList = [];
+          }
+        }
+        const mapped = rawList.map(mapPhotoFromApi).filter(Boolean);
+
+        setAlbums((prev) => {
+          const base = currentAlbums?.length ? currentAlbums : prev;
+          if (!base.some((a) => a.id === String(albumId))) {
+            return [...base, { id: String(albumId), name: "", photos: mapped }];
+          }
+          return base.map((a) =>
+            a.id === String(albumId) ? { ...a, photos: mapped } : a
+          );
+        });
+      } catch (e) {
+        console.log("photos error:", e?.message);
+        showPhotosAlertOnce(); // lo mostrará una sola vez
+      } finally {
+        setLoadingPhotos(false);
+      }
+    },
+    [token, authHeaders, showPhotosAlertOnce]
+  );
+
+  // --- Cargar álbumes
   const fetchAlbums = useCallback(async () => {
-    if (!eventId || !token) return;
+    if (!eventId || !token) return [];
     setLoadingAlbums(true);
     try {
       const r = await fetch(ALBUMS_BY_EVENT_URL(eventId), {
@@ -122,55 +220,87 @@ export default function AlbumsScreen({ navigation, route }) {
       });
       if (!r.ok) throw new Error("albums_load_failed");
       const data = await r.json();
-      const tabs = (data || []).map(mapAlbumFromApi);
+      const tabs = (data || []).map((a) => mapAlbumFromApi(a, eventId)).filter(Boolean);
       setAlbums(tabs);
-      const toSelect = initialAlbumId ? String(initialAlbumId) : tabs[0]?.id;
-      setActiveAlbumId(toSelect || null);
+
+      const toSelect =
+        initialAlbumId && tabs.some((a) => a.id === String(initialAlbumId))
+          ? String(initialAlbumId)
+          : tabs[0]?.id || null;
+
+      setActiveAlbumId(toSelect);
       if (toSelect) {
         await fetchPhotos(toSelect, tabs);
       }
+      return tabs;
     } catch (e) {
       Alert.alert(t("alerts.error_title"), t("alerts.albums_load_failed"));
+      return [];
     } finally {
       setLoadingAlbums(false);
     }
-  }, [eventId, token]);
+  }, [eventId, authHeaders, initialAlbumId, fetchPhotos, t, token]);
 
-  const fetchPhotos = useCallback(
-    async (albumId, currentAlbums = albums) => {
-      if (!albumId || !token) return;
-      setLoadingPhotos(true);
-      try {
-        const r = await fetch(PHOTOS_BY_ALBUM_URL(albumId), {
-          headers: authHeaders,
-        });
-        if (!r.ok) throw new Error("photos_load_failed");
-        const list = await r.json();
-        const mapped = (list || []).map(mapPhotoFromApi).filter(Boolean);
-
-        setAlbums((prev) => {
-          const base = currentAlbums?.length ? currentAlbums : prev;
-          return base.map((a) =>
-            a.id === String(albumId) ? { ...a, photos: mapped } : a
-          );
-        });
-      } catch (e) {
-        Alert.alert(t("alerts.error_title"), t("alerts.photos_load_failed"));
-      } finally {
-        setLoadingPhotos(false);
-      }
-    },
-    [albums, token]
-  );
-
+  // Llamada inicial
   useEffect(() => {
     fetchAlbums();
-  }, [fetchAlbums]);
+  }, [eventId, token]); // evita loop
 
   const activeAlbum = useMemo(
     () => albums.find((a) => a.id === activeAlbumId),
     [albums, activeAlbumId]
   );
+
+  // Nuevo: función para “preparar” un álbum vacío con un loader de 5s
+ // Nuevo: función para “preparar” un álbum vacío con un loader de 5s
+  const prepareAlbum = useCallback(
+    async (albumId) => {
+      if (!albumId) return;
+      // Guard 1: Si ya se preparó alguna vez, no hacer nada.
+      if (preparedOnceRef.current.has(albumId)) return;
+
+      // *** SOLUCIÓN: Marcar el álbum como "preparado" INMEDIATAMENTE ***
+      // Esto previene que el useEffect (que se re-dispara por los cambios de estado)
+      // vuelva a llamar esta función mientras el timer de 5s está corriendo.
+      preparedOnceRef.current.add(albumId);
+
+      try {
+        setPreparing(true); // Mostrar el loader
+        
+        // Re-confirma que existe y refresca fotos (esto se ejecutará SÓLO UNA VEZ)
+        await Promise.allSettled([
+          fetch(`${API_URL}/albums/get_one/${albumId}`, { headers: authHeaders }),
+          (async () => { await fetchPhotos(albumId); })(),
+        ]);
+        
+        // Mantén el loader visible por 5 segundos sí o sí
+        await new Promise((r) => setTimeout(r, 5000));
+      
+      } catch (e) {
+        console.error("Error durante la preparación del álbum:", e);
+        // Si falla, quitamos la marca para que pueda intentarlo de nuevo
+        preparedOnceRef.current.delete(albumId);
+      } finally {
+        // Al terminar los 5s, simplemente oculta el loader.
+        // Ya no es necesario añadir el ID al ref aquí.
+        setPreparing(false);
+      }
+    },
+    [authHeaders, fetchPhotos]
+  );
+
+  // Dispara el preloader solo la primera vez que abrimos un álbum vacío
+  useEffect(() => {
+    if (!activeAlbumId) return;
+    if (loadingPhotos) return;
+
+    const a = albums.find((x) => x.id === activeAlbumId);
+    const photosLen = a?.photos?.length ?? 0;
+
+    if (photosLen === 0 && !preparedOnceRef.current.has(activeAlbumId)) {
+      prepareAlbum(activeAlbumId);
+    }
+  }, [activeAlbumId, albums, loadingPhotos, prepareAlbum]);
 
   const columns = useMemo(() => {
     const heights = Array(COLS).fill(0);
@@ -187,47 +317,77 @@ export default function AlbumsScreen({ navigation, route }) {
     return cols;
   }, [activeAlbum]);
 
-  const uploadOnePhoto = useCallback(
-    async (asset, albumId) => {
-      try {
-        const file = await normalizeToJpeg(asset);
-        const form = new FormData();
-        form.append("file", file);
+const uploadOnePhoto = useCallback(
+  async (asset, albumId) => {
+    try {
+      // 1) Normaliza SIEMPRE a archivo local file:// en JPEG
+      const file = await normalizeToJpeg(asset); // { uri: file://..., name, type }
 
-        const res = await fetch(UPLOAD_URL(albumId), {
-          method: "POST",
-          headers: { ...authHeaders },
-          body: form,
-        });
+      // 2) Parámetros del multipart (si tu backend espera el campo "file")
+      const uploadOpts = {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'file',                 // <-- cambia si tu API espera otro nombre
+        parameters: {},                    // puedes agregar otros campos si hace falta
+        headers: { ...authHeaders },       // ¡NO 'Content-Type' aquí!
+      };
 
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(txt || "Fallo al subir la foto");
-        }
+      // 3) Primer intento (nativo, estable)
+      let res = await FileSystem.uploadAsync(UPLOAD_URL(albumId), file.uri, uploadOpts);
 
-        await fetchPhotos(albumId);
-        return true;
-      } catch (e) {
-        console.log("upload error:", e?.message);
-        return false;
+      // 4) Si el server respondió con código no-2xx, reintenta UNA VEZ
+      if (res.status < 200 || res.status >= 300) {
+        // pequeño delay para dar tiempo al FS
+        await new Promise(r => setTimeout(r, 300));
+
+        // recrea opciones por si acaso (evita referencias “sucias”)
+        const retryOpts = { ...uploadOpts };
+        res = await FileSystem.uploadAsync(UPLOAD_URL(albumId), file.uri, retryOpts);
       }
-    },
-    [authHeaders, normalizeToJpeg, fetchPhotos]
-  );
+
+      if (res.status < 200 || res.status >= 300) {
+        const msg = res.body || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      return true;
+    } catch (e) {
+      console.log(`Error final de subida: ${e?.message || e}`);
+      return false;
+    }
+  },
+  [authHeaders, normalizeToJpeg]
+);
+
 
   const ensureActiveAlbumReady = useCallback(async () => {
     if (!activeAlbumId) return false;
-    const exists = albums.some((a) => a.id === String(activeAlbumId));
-    if (exists) return true;
-
-    await fetchAlbums();
-    return albums.some((a) => a.id === String(activeAlbumId));
+    if (albums.some((a) => a.id === String(activeAlbumId))) return true;
+    const tabs = await fetchAlbums();
+    return tabs.some((a) => a.id === String(activeAlbumId));
   }, [activeAlbumId, albums, fetchAlbums]);
 
   const pickImages = useCallback(async () => {
+    // Si está en preparación, no permitimos subir aún.
+    if (preparing) {
+      Alert.alert(
+        t("alerts.wait_title"),
+        t("alerts.wait_desc") || "Cargando álbum… espera un momento."
+      );
+      return;
+    }
+
     const ready = await ensureActiveAlbumReady();
     if (!ready) {
       Alert.alert(t("alerts.wait_title"), t("alerts.wait_desc"));
+      return;
+    }
+
+    if (String(activeAlbumId) === String(eventId)) {
+      Alert.alert(
+        t("alerts.error_title"),
+        t("alerts.invalid_album_id") || "El álbum seleccionado no es válido."
+      );
       return;
     }
 
@@ -252,28 +412,37 @@ export default function AlbumsScreen({ navigation, route }) {
 
       let okCount = 0;
       for (const asset of assets) {
+        // uploadOnePhoto ahora reintenta automáticamente
         const ok = await uploadOnePhoto(asset, activeAlbumId);
         if (ok) okCount += 1;
       }
 
+      // --- MODIFICACIÓN ---
       if (okCount > 0) {
-        await fetchPhotos(activeAlbumId);
+        // Refresca la lista de fotos UNA VEZ al final de todas las subidas
+        await fetchPhotos(activeAlbumId); 
+        
+        // Mantenemos la alerta de ÉXITO (esta sí la quieres)
         Alert.alert(
           t("alerts.upload_done_title"),
           okCount === 1
             ? t("alerts.upload_some_one")
             : t("alerts.upload_some_other", { count: okCount })
         );
-      } else {
-        Alert.alert(t("alerts.error_title"), t("alerts.upload_none"));
-      }
+      } 
+      // else {
+      //   // Alerta de "0 subidas" ELIMINADA
+      //   // Alert.alert(t("alerts.error_title"), t("alerts.upload_none"));
+      // }
+      
     } catch (e) {
-      console.error(e);
-      Alert.alert(t("alerts.error_title"), t("alerts.photos_upload_failed"));
+      console.error(e); // Mantenemos el log
+      // Alerta de "fallo general" ELIMINADA
+      // Alert.alert(t("alerts.error_title"), t("alerts.photos_upload_failed"));
     } finally {
       setPickerBusy(false);
     }
-  }, [activeAlbumId, ensureActiveAlbumReady, uploadOnePhoto, fetchPhotos]);
+  }, [preparing, activeAlbumId, ensureActiveAlbumReady, uploadOnePhoto, fetchPhotos, t]);
 
   const selectNewAlbumCover = useCallback(async () => {
     try {
@@ -294,7 +463,7 @@ export default function AlbumsScreen({ navigation, route }) {
       console.log(e);
       Alert.alert(t("alerts.error_title"), t("alerts.cover_pick_failed"));
     }
-  }, []);
+  }, [t]);
 
   const createAlbum = useCallback(async () => {
     const name = (newAlbumName || "").trim();
@@ -326,13 +495,11 @@ export default function AlbumsScreen({ navigation, route }) {
       const created = await res.json().catch(() => ({}));
       const newId = String(created?.album_id ?? created?.id ?? "");
 
+      const tabs = await fetchAlbums();
       if (newId) {
-        setAlbums((prev) => [...prev, { id: newId, name, photos: [] }]);
         setActiveAlbumId(newId);
-        fetchPhotos(newId);
+        await fetchPhotos(newId, tabs);
       }
-
-      fetchAlbums();
 
       setNewAlbumName("");
       setNewAlbumCover(null);
@@ -351,6 +518,7 @@ export default function AlbumsScreen({ navigation, route }) {
     normalizeToJpeg,
     fetchAlbums,
     fetchPhotos,
+    t,
   ]);
 
   const apiToggleFavorite = useCallback(
@@ -416,7 +584,7 @@ export default function AlbumsScreen({ navigation, route }) {
         Alert.alert(t("alerts.error_title"), t("alerts.fav_failed"));
       }
     },
-    [albums, activeAlbumId, patchPhotoFavInState, apiToggleFavorite]
+    [albums, activeAlbumId, patchPhotoFavInState, apiToggleFavorite, t]
   );
 
   const shareAlbum = useCallback(async () => {
@@ -424,7 +592,7 @@ export default function AlbumsScreen({ navigation, route }) {
       const a = activeAlbum;
       if (!a) return;
       await Share.share({
-        message: `🎞️ Álbum "${a.name}" con ${
+        message: ` Álbum "${a.name}" con ${
           a.photos?.length || 0
         } fotos. (enlace de ejemplo)`,
       });
@@ -442,6 +610,14 @@ export default function AlbumsScreen({ navigation, route }) {
     },
     [activeAlbum?.name]
   );
+
+  const ensureWritePermission = useCallback(async () => {
+    let perm = await MediaLibrary.getPermissionsAsync();
+    if (!perm.granted) {
+      perm = await MediaLibrary.requestPermissionsAsync(false);
+    }
+    return perm.granted;
+  }, []);
 
   const downloadPhoto = useCallback(
     async (photo) => {
@@ -472,7 +648,7 @@ export default function AlbumsScreen({ navigation, route }) {
           throw new Error("Download failed");
         }
 
-        const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+        await MediaLibrary.createAssetAsync(downloadResult.uri);
 
         Alert.alert(
           t("alerts.download_ok_title"),
@@ -483,29 +659,13 @@ export default function AlbumsScreen({ navigation, route }) {
         Alert.alert(t("alerts.error_title"), t("alerts.download_failed"));
       }
     },
-    [ensureWritePermission]
+    [ensureWritePermission, t]
   );
 
   const openViewer = (p) => {
     setViewerPhoto(p);
     setViewerOpen(true);
   };
-
-  const ensureWritePermission = useCallback(async () => {
-    let perm = await MediaLibrary.getPermissionsAsync();
-    if (!perm.granted) {
-      perm = await MediaLibrary.requestPermissionsAsync(false);
-    }
-    return perm.granted;
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await ensureWritePermission();
-      } catch (e) {}
-    })();
-  }, [ensureWritePermission]);
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -515,9 +675,9 @@ export default function AlbumsScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={24} color="#6F4C8C" />
         </TouchableOpacity>
         <Text style={styles.title}>{t("brand")}</Text>
-        <TouchableOpacity onPress={shareAlbum}>
+        {/* <TouchableOpacity onPress={shareAlbum}>
           <Ionicons name="share-outline" size={22} color="#6F4C8C" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
 
       <Text style={styles.titleSection}>{t("section.photos")}</Text>
@@ -585,6 +745,19 @@ export default function AlbumsScreen({ navigation, route }) {
             <ActivityIndicator />
           </View>
         )}
+
+        {/* Placeholder de álbum vacío */}
+        {!loadingPhotos && (activeAlbum?.photos?.length ?? 0) === 0 && (
+          <View style={{ paddingVertical: 24, alignItems: "center" }}>
+            <Text style={{ color: "#6B7280", fontWeight: "600" }}>
+              {t("empty.no_photos_yet")}
+            </Text>
+            <Text style={{ color: "#9CA3AF", marginTop: 4 }}>
+              {t("empty.tap_add")}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.masonryRow}>
           {columns.map((col, i) => (
             <View key={`col-${i}`} style={{ width: COL_W }}>
@@ -627,7 +800,6 @@ export default function AlbumsScreen({ navigation, route }) {
                         size={16}
                         color="#6F4C8C"
                       />
-                      {/* <Text style={styles.actionText}>Compartir</Text> */}
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.action}
@@ -638,7 +810,6 @@ export default function AlbumsScreen({ navigation, route }) {
                         size={16}
                         color="#6F4C8C"
                       />
-                      {/* <Text style={styles.actionText}>Descargar</Text> */}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -649,9 +820,9 @@ export default function AlbumsScreen({ navigation, route }) {
 
         {/* Botón Agregar fotos */}
         <TouchableOpacity
-          style={styles.addButton}
+          style={[styles.addButton, preparing && { opacity: 0.6 }]}
           onPress={pickImages}
-          disabled={pickerBusy}
+          disabled={pickerBusy || preparing}
         >
           {pickerBusy ? (
             <ActivityIndicator />
@@ -815,6 +986,22 @@ export default function AlbumsScreen({ navigation, route }) {
           )}
         </View>
       </Modal>
+
+      {/* Overlay de preparación de álbum (5s) */}
+      {preparing && (
+        <View style={styles.preparingOverlay}>
+          <View style={styles.preparingCard}>
+            <ActivityIndicator size="large" color="#6F4C8C" />
+            <Text style={styles.preparingTitle}>
+              {t("preparing.title") || "Cargando álbum…"}
+            </Text>
+            <Text style={styles.preparingDesc}>
+              {t("preparing.desc") ||
+                "Estamos preparando este álbum para subir tus fotos."}
+            </Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -828,7 +1015,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  title: { fontSize: 22, fontWeight: "700", color: "#6F4C8C" },
+  title: { fontSize: 22, fontWeight: "700", color: "#6F4C8C", marginRight: 148 },
 
   tabs: {
     paddingHorizontal: 12,
@@ -967,4 +1154,31 @@ const styles = StyleSheet.create({
 
   btn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
   btnText: { color: "#fff", fontWeight: "700" },
+
+  // Overlay preparación
+  preparingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  preparingCard: {
+    width: "78%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 18,
+    alignItems: "center",
+  },
+  preparingTitle: {
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#3E2757",
+  },
+  preparingDesc: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "#4B5563",
+    textAlign: "center",
+  },
 });

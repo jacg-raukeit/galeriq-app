@@ -1,3 +1,5 @@
+
+
 {
   "brand": "Galeriq",
   "search": {
@@ -11,7 +13,8 @@
   },
   "cards": {
     "photos_count_one": "1 photo",
-    "photos_count_other": "{{count}} photos"
+    "photos_count_other": "{{count}} photos",
+    "photo_count_empty": "0"
   },
   "create": {
     "open_button": "Create album",

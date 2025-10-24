@@ -8,7 +8,7 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk",
-        "image": "ubuntu-22.04-jdk-17-ndk-27.1.12297006"
+        "image": "latest"
       }
     },
     "preview": {

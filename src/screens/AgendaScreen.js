@@ -444,7 +444,7 @@ export default function AgendaScreen({ navigation, route }) {
 
         <TouchableOpacity
           style={styles.tabButton}
-          onPress={() => navigation.replace("BudgetControl", { eventId })}
+          onPress={() => navigation.replace("BudgetControl", { eventId, eventDate })}
         >
           <Ionicons name="cash-outline" size={20} color={"#254236"} />
           <Text style={styles.tabText}>{t("bottombar.expenses")}</Text>

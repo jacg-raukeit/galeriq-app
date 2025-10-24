@@ -8,6 +8,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 
 const API_URL = 'http://143.198.138.35:8000';
 
@@ -302,6 +303,14 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
   }, [eventId, token, authHeaders, fetchCountsForAlbums, fetchTimesForAlbums]);
 
   useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
+
+  useFocusEffect(
+  useCallback(() => {
+    if (albums.length > 0) {
+      fetchCountsForAlbums(albums);
+    }
+  }, [albums, fetchCountsForAlbums])
+);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

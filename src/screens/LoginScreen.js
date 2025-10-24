@@ -27,6 +27,7 @@ import * as Device from "expo-device";
 import { AuthContext } from "../context/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import * as Localization from 'expo-localization';
 import * as Notifications from "expo-notifications";
 
 import {
@@ -72,6 +73,14 @@ const SUPPORT_WHATSAPP = "+5217777884778";
 const SUPPORT_EMAIL = "soporte@galeriq.app";
 const SUPPORT_PHONE = "+527777884778";
 const SUPPORT_DEFAULT_MSG = "Hola, necesito ayuda con mi cuenta de Galeriq.";
+
+const getUserTimezone = () => {
+  try {
+    return Localization.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return 'UTC';
+  }
+};
 
 export default function LoginScreen() {
   const navigation = useNavigation();
@@ -298,6 +307,9 @@ export default function LoginScreen() {
         }
       } catch {}
 
+      const timezone = getUserTimezone();
+      console.log('🌍 Timezone detectado:', timezone);
+
       // 3) Llamar a tu backend con JSON (idToken tiene que ir como "idToken")
       const r = await fetch(`${API_BASE}/auth/google-login`, {
         method: "POST",
@@ -312,6 +324,7 @@ export default function LoginScreen() {
           device_name: Device.modelName,
           device_os: Device.osVersion,
           browser: null,
+          user_zone: timezone,
         }),
       });
 
@@ -376,6 +389,9 @@ export default function LoginScreen() {
         }
       }
 
+      const timezone = getUserTimezone();
+      console.log('🌍 Timezone detectado:', timezone);
+
       const res = await fetch(`${API_BASE}/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -386,6 +402,7 @@ export default function LoginScreen() {
           device_type: Platform.OS,
           device_name: Device.modelName,
           device_os: Device.osVersion,
+          user_zone: timezone,
         }).toString(),
       });
 

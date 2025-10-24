@@ -8,6 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "owner": "rauke",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -27,7 +28,6 @@
       "package": "galeriq.com",
       "googleServicesFile": "./google-services.json"
     },
-    "useNextNotificationsApi": true,
     "permissions": [
       "NOTIFICATIONS",
       "INTERNET",
@@ -55,14 +55,10 @@
           }
         }
       ],
-      "expo-web-browser",
       "@react-native-google-signin/google-signin",
-      "expo-sqlite",
-      "expo-font",
-      "expo-secure-store",
-      "expo-router",
       "expo-notifications",
-      "expo-asset"
+      "expo-router",
+      "expo-localization"
     ],
     "extra": {
       "eas": {

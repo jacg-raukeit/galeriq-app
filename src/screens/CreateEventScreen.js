@@ -193,8 +193,8 @@ export default function CreateEventScreen({ navigation }) {
         event_type:        finalType,
         event_coverUri:    tempImageUri,
         event_status:      status,
-        event_latitude:    '',
-        event_longitude:   '',
+        // event_latitude:    '',
+        // event_longitude:   '',
         budget:            cleanBudget,
       });
 
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   btnCancel: { backgroundColor: '#F3F4F6' },
   btnCancelText: { color: '#374151', fontWeight: '600' },
   btnAccept: { backgroundColor: '#6B21A8' },
-  btnAcceptText: { color: '#FFF', fontWeight: '700' },
+  btnAcceptText: { color: '#FFF', fontWeight: '700', textAlign: 'center' },
 
   successCard: {
     width: '100%', maxWidth: 420,

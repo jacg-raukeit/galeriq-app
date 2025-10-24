@@ -62,7 +62,7 @@
     "ok": "OK",
     "error": "Error",
     "doneTitle": "¡Listo!",
-    "doneMsg": "La invitación se guardó con éxito en la nube.",
+    "doneMsg": "La invitación se guardó con éxito.",
     "eventRequiredTitle": "Evento requerido",
     "eventRequiredMsg": "No se pudo determinar el ID del evento desde la navegación.\nAbre el editor con: navigate(\"InviteEditor\", { eventId, event, template })",
     "previewError": "No se pudo generar la previsualización.",

@@ -41,6 +41,17 @@
     "download_ok_desc": "La foto se guardó en tu galería.",
     "download_failed": "No se pudo descargar la foto."
   },
+
+  "preparing": {
+    "title": "Preparando álbum",
+    "desc": "Espera un momento mientras preparamos tu nuevo álbum."
+  },
+
+  "empty": {
+    "no_photos_yet": "Álbum vacío",
+    "tap_add": "Agrega tus primeras fotos."
+  },
+
   "modal": {
     "create_title": "Crear álbum",
     "album_name_ph": "Nombre del álbum"

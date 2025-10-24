@@ -41,6 +41,17 @@
     "download_ok_desc": "The photo was saved to your library.",
     "download_failed": "Could not download the photo."
   },
+
+  "preparing": {
+    "title": "Preparing album",
+    "desc": "Please wait while we prepare your new album."
+  },
+
+  "empty": {
+    "no_photos_yet": "Empty album",
+    "tap_add": "Add your first photos."
+  },
+
   "modal": {
     "create_title": "Create album",
     "album_name_ph": "Album name"

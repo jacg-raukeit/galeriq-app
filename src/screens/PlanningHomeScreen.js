@@ -716,7 +716,7 @@ export default function PlanningHomeScreen({ navigation, route }) {
 
         <TouchableOpacity
           style={[styles.tabButton, activeTab === "gastos" && styles.tabActive]}
-          onPress={() => navigation.replace("BudgetControl", { eventId })}
+          onPress={() => navigation.replace("BudgetControl", { eventId, eventDate })}
         >
           <Ionicons
             name="cash-outline"

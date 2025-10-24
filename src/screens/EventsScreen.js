@@ -18,6 +18,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import LottieView from "lottie-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { AuthContext } from "../context/AuthContext";
 import { EventsContext } from "../context/EventsContext";
@@ -33,7 +34,7 @@ const API_BASE = "http://143.198.138.35:8000";
 
 const TOKEN_KEY = "galeriq_token";
 const USER_ID_KEY = "galeriq_user_id";
-
+const ARCHIVED_EVENTS_KEY = "galeriq_archived_events";
 const EMPTY_ANIM = require("../assets/lottie/empty.json");
 
 const ROLE_ORGANIZER = 1;
@@ -47,6 +48,11 @@ export default function EventsScreen() {
   const { events, refreshEvents, fetchEvents, loadEvents } =
     useContext(EventsContext);
   const refetchEvents = refreshEvents || fetchEvents || loadEvents;
+
+  const refetchEventsRef = useRef(refetchEvents);
+useEffect(() => {
+  refetchEventsRef.current = refetchEvents;
+}, [refetchEvents]);
 
   const [sessionExpired, setSessionExpired] = useState(false);
   const [closingSession, setClosingSession] = useState(false);
@@ -123,6 +129,35 @@ export default function EventsScreen() {
     }
   };
 
+
+  // Cargar estado archivado desde el almacenamiento local
+const loadArchivedState = async () => {
+  try {
+    const stored = await AsyncStorage.getItem(ARCHIVED_EVENTS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      setArchivedById(parsed);
+    }
+  } catch (error) {
+    console.error("Error al cargar eventos archivados:", error);
+  }
+};
+
+// Guardar estado archivado en el almacenamiento local
+const saveArchivedState = async (newState) => {
+  try {
+    await AsyncStorage.setItem(ARCHIVED_EVENTS_KEY, JSON.stringify(newState));
+  } catch (error) {
+    console.error("Error al guardar eventos archivados:", error);
+  }
+};
+
+// ✅ Cargar el estado archivado al montar el componente
+  useEffect(() => {
+    loadArchivedState();
+  }, []);
+
+
   useEffect(() => {
     if (!events || events.length === 0) return;
     setArchivedById((prev) => {
@@ -137,21 +172,27 @@ export default function EventsScreen() {
   }, [events]);
 
   useFocusEffect(
-    React.useCallback(() => {
-      const run = async () => {
-        try {
-          await refetchEvents?.();
-        } catch (e) {
-          if (isAuthError(e)) return handleAuthExpired();
-        }
-        await fetchNotificationsCount();
-      };
-      run();
-    }, [refetchEvents, user?.token])
-  );
+  React.useCallback(() => {
+    const run = async () => {
+      try {
+        await refetchEventsRef.current?.();  //  Usa .current
+      } catch (e) {
+        if (isAuthError(e)) return handleAuthExpired();
+      }
+      await fetchNotificationsCount();
+    };
+    run();
+  }, [user?.token])  //  Solo user?.token (sin refetchEvents)
+);
 
-  const toggleArchive = (id) => {
-    setArchivedById((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
+  const toggleArchive = async (id) => {
+    const newState = {
+      ...archivedById,
+      [id]: !(archivedById[id] ?? false),
+    };
+    
+    setArchivedById(newState);
+    await saveArchivedState(newState); // Guardar en AsyncStorage
   };
 
   const matchFilter = (evt) => {
