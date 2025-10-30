@@ -180,7 +180,7 @@ function InlineColorPicker({ value, onChange, onClose }) {
   );
 }
 
-// ====== Texto arrastrable ======
+// aqui va el Texto arrastrable
 function DraggableText({
   id, text, color, size, weight, align, font, x, y,
   onSelect, selected, onDragEnd, clampW, clampH, hideSelection,
@@ -227,7 +227,7 @@ function DraggableText({
   );
 }
 
-// ====== Sticker arrastrable ======
+// aqui va el Sticker arrastrable
 function DraggableSticker({
   id, uri, x, y, scale = 1, rotate = 0, base = 160, locked = false,
   gesturesEnabled = true,

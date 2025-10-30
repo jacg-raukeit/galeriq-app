@@ -828,13 +828,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
+    marginLeft: 16,
+    fontSize: 10,
     fontWeight: "800",
     color: "#111827",
   },
-  cardText: { fontSize: 14, color: "#374151", marginTop: 4 },
-  cardMeta: { fontSize: 12, color: "#6B7280", marginTop: 8 },
+  cardText: { fontSize: 11, color: "#374151", marginTop: 4 },
+  cardMeta: { fontSize: 10, color: "#6B7280", marginTop: 8 },
 
   rsvpRow: { flexDirection: "row", gap: 10, marginTop: 12 },
   actionsRow: { flexDirection: "row", gap: 10, marginTop: 14 },

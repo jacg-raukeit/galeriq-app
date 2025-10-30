@@ -31,8 +31,10 @@ const CATS_URL = (eventId) => `${API_URL}/category-checklists/event/${eventId}`;
 
 const C_BUDGET = "#D6C7FF";
 const C_REAL = "#5F3EE6";
+const C_REAL_EXCEED = "#E63946"; 
 const C_TEXT = "#0B1220";
 const C_MUTED = "#6B7280";
+const C_WARNING = "#E63946"; 
 const CARD_BG = "#FFFFFF";
 const SCREEN_BG = "#F6F2FB";
 
@@ -170,6 +172,8 @@ export default function BudgetControlScreen({ route, navigation }) {
 
   const dashSpent = `${CIRC * pct} ${CIRC * (1 - pct)}`;
 
+  const totalExceeded = spentTotal > budgetBase && budgetBase > 0;
+
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: SCREEN_BG }]}>
       <ScrollView
@@ -199,7 +203,7 @@ export default function BudgetControlScreen({ route, navigation }) {
                 cx={cx}
                 cy={cy}
                 r={r}
-                stroke={C_REAL}
+                stroke={totalExceeded ? C_REAL_EXCEED : C_REAL}
                 strokeWidth={stroke}
                 fill="none"
                 strokeDasharray={dashSpent}
@@ -212,6 +216,14 @@ export default function BudgetControlScreen({ route, navigation }) {
                 {money(eventBudget || totals.total_budget)}
               </Text>
               <Text style={styles.centerLabel}>{t("center.total_budget")}</Text>
+              {totalExceeded && (
+                <View style={styles.totalExceededBadge}>
+                  <Ionicons name="warning" size={14} color="#FFF" />
+                  <Text style={styles.totalExceededText}>
+                    Excedido por {money(spentTotal - budgetBase)}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -235,26 +247,51 @@ export default function BudgetControlScreen({ route, navigation }) {
             rows.map((row) => {
               const bCat = Number(row.catBudget || 0);
               const gSpent = Number(row.realSpent || 0);
+              const exceeded = gSpent > bCat && bCat > 0;
               const p = bCat > 0 ? Math.min(1, gSpent / bCat) : 0;
+              const exceedAmount = exceeded ? gSpent - bCat : 0;
 
               return (
                 <View key={row.name} style={styles.categoryBlock}>
                   <View style={styles.categoryHeader}>
                     <Text style={styles.categoryName}>{row.name}</Text>
 
-                    {/* Derecha: etiqueta + monto de gasto real */}
+                    {/* etiqueta + monto de gasto real */}
                     <View style={styles.rightBox}>
                       <Text style={styles.rightCaption}>
                         {t("legend.real_spent")}
                       </Text>
-                      <Text style={styles.categoryRight}>{money(gSpent)}</Text>
+                      <View style={styles.amountRow}>
+                        {exceeded && (
+                          <Ionicons
+                            name="warning"
+                            size={18}
+                            color={C_WARNING}
+                            style={{ marginRight: 6 }}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.categoryRight,
+                            exceeded && { color: C_WARNING },
+                          ]}
+                        >
+                          {money(gSpent)}
+                        </Text>
+                      </View>
                     </View>
                   </View>
 
                   {/* Barra Gasto real (arriba) */}
                   <View style={styles.barTrack}>
                     <View
-                      style={[styles.barFillReal, { width: `${p * 100}%` }]}
+                      style={[
+                        styles.barFillReal,
+                        {
+                          width: `${p * 100}%`,
+                          backgroundColor: exceeded ? C_REAL_EXCEED : C_REAL,
+                        },
+                      ]}
                     />
                   </View>
 
@@ -263,13 +300,22 @@ export default function BudgetControlScreen({ route, navigation }) {
                     <View style={[styles.barFillBudget]} />
                   </View>
 
-                  {/* Abajo derecha: etiqueta + monto de presupuesto */}
+                  {/* etiqueta + monto de presupuesto */}
                   <View style={styles.bottomRightWrap}>
                     <Text style={styles.rightCaption}>
                       {t("legend.budget")}
                     </Text>
                     <Text style={styles.bottomRight}>{money(bCat)}</Text>
                   </View>
+
+                  {/* Mensaje de excedido */}
+                  {exceeded && (
+                    <View style={styles.exceededMessageWrap}>
+                      <Text style={styles.exceededMessage}>
+                        Excedido por {money(exceedAmount)}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               );
             })
@@ -371,6 +417,21 @@ const styles = StyleSheet.create({
     color: C_MUTED,
     fontWeight: "600",
   },
+  totalExceededBadge: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: C_WARNING,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  totalExceededText: {
+    color: "#FFF",
+    fontSize: 9,
+    fontWeight: "700",
+  },
 
   legendRow: {
     marginTop: 8,
@@ -392,6 +453,10 @@ const styles = StyleSheet.create({
   },
   categoryName: { color: C_TEXT, fontSize: 18, fontWeight: "700" },
   categoryRight: { color: C_TEXT, fontWeight: "700" },
+  amountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
 
   barTrack: {
     height: 14,
@@ -408,7 +473,7 @@ const styles = StyleSheet.create({
     backgroundColor: C_BUDGET,
     borderRadius: 10,
   },
-  barFillReal: { height: "100%", backgroundColor: C_REAL, borderRadius: 10 },
+  barFillReal: { height: "100%", borderRadius: 10 },
 
   bottomRight: {
     alignSelf: "flex-end",
@@ -423,6 +488,16 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     marginTop: 6,
     alignItems: "flex-end",
+  },
+
+  exceededMessageWrap: {
+    alignSelf: "flex-end",
+    marginTop: 8,
+  },
+  exceededMessage: {
+    color: C_WARNING,
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   tabBar: {

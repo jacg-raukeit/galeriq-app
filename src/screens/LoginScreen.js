@@ -98,7 +98,7 @@ export default function LoginScreen() {
     focusedInput === field && styles.inputFocused,
   ];
 
-  const [bootLoading, setBootLoading] = useState(true);
+  // const [bootLoading, setBootLoading] = useState(true);
   const [rememberMe, setRememberMe] = useState(true);
   const [showEmailForm, setShowEmailForm] = useState(false);
 
@@ -166,31 +166,38 @@ export default function LoginScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-        if (savedToken) {
-          const profileRes = await fetch(`${API_BASE}/me`, {
-            headers: { Authorization: `Bearer ${savedToken}` },
-          });
-          if (profileRes.ok) {
-            const profile = await profileRes.json();
-            setUser({ id: profile.user_id, token: savedToken });
-            navigation.replace("Events");
-            return;
-          } else {
-            await SecureStore.deleteItemAsync(TOKEN_KEY);
-            await SecureStore.deleteItemAsync(USER_ID_KEY);
-          }
-        }
-      } catch (e) {
-        console.log("Auto-login error:", e);
-      } finally {
-        setBootLoading(false);
-      }
-    })();
-  }, [navigation, setUser]);
+  // const autoLoginExecuted = useRef(false);
+
+//   useEffect(() => {
+//   if (autoLoginExecuted.current) return;
+  
+//   (async () => {
+//     try {
+//       autoLoginExecuted.current = true;
+//       const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+//       if (savedToken) {
+//         const profileRes = await fetch(`${API_BASE}/me`, {
+//           headers: { Authorization: `Bearer ${savedToken}` },
+//         });
+//         if (profileRes.ok) {
+//           const profile = await profileRes.json();
+//           setUser({ id: profile.user_id, token: savedToken });
+//          setTimeout(() => {
+//   navigation.replace("Events");
+// }, 100);
+//           return;
+//         } else {
+//           await SecureStore.deleteItemAsync(TOKEN_KEY);
+//           await SecureStore.deleteItemAsync(USER_ID_KEY);
+//         }
+//       }
+//     } catch (e) {
+//       console.log("Auto-login error:", e);
+//     } finally {
+//       setBootLoading(false);
+//     }
+//   })();
+// }, [navigation, setUser]);
 
   const [current, setCurrent] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -277,9 +284,9 @@ export default function LoginScreen() {
 
       // 2) Google Sign-In (API "Original")
       const res = await GoogleSignin.signIn();
-      if (!isSuccessResponse(res)) return; // usuario canceló
+      if (!isSuccessResponse(res)) return;
 
-      const { user, idToken } = res.data; // <-- idToken y user vienen en res.data
+      const { user, idToken } = res.data; 
 
       if (!idToken) {
         Alert.alert(
@@ -502,21 +509,21 @@ export default function LoginScreen() {
     return () => sub.remove();
   }, [kbOpen, showEmailForm, forgotOpen, supportOpen]);
 
-  if (bootLoading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#FFE8D6",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color="#6B21A8" />
-        <Text style={{ marginTop: 10, color: "#111827" }}>Cargando…</Text>
-      </View>
-    );
-  }
+  // if (bootLoading) {
+  //   return (
+  //     <View
+  //       style={{
+  //         flex: 1,
+  //         backgroundColor: "#FFE8D6",
+  //         alignItems: "center",
+  //         justifyContent: "center",
+  //       }}
+  //     >
+  //       <ActivityIndicator size="large" color="#6B21A8" />
+  //       <Text style={{ marginTop: 10, color: "#111827" }}>Cargando…</Text>
+  //     </View>
+  //   );
+  // }
 
   const heroHeight = kbOpen
     ? Math.min(140, height * 0.18)

@@ -172,6 +172,7 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
   }, [eventId, fetchRole]);
 
   const isOwner = role === 1;
+  const isGuest = role === 2;
 
   const filtered = useMemo(() => {
     if (!query.trim()) return albums;
@@ -445,14 +446,16 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.menuBtn}
-          onPress={() => { setMenuAlbum(item); setMenuOpen(true); }}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          disabled={isDeleting}
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
-        </TouchableOpacity>
+        {!isGuest && (
+          <TouchableOpacity
+            style={styles.menuBtn}
+            onPress={() => { setMenuAlbum(item); setMenuOpen(true); }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            disabled={isDeleting}
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
 

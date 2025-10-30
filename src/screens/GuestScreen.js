@@ -28,7 +28,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/* === Helpers para avatar tipo Google === */
+
 const AVATAR_COLORS = [
   '#F44336', '#E91E63', '#9C27B0', '#673AB7',
   '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4',
@@ -230,7 +230,7 @@ export default function GuestScreen({ route }) {
     setRefreshing(false);
   };
 
-  // === Eliminar invitado (se mantiene)
+  
   const deleteGuest = async (guestId) => {
     const url = `${API_URL}/guests/${guestId}`;
     const resp = await fetch(url, {

@@ -177,9 +177,8 @@ ${message}`.slice(0, 2000);
     const supported = await Linking.canOpenURL(mailto);
     if (supported) {
       await Linking.openURL(mailto);
+      // ⬇️ SOLO marcar que se abrió el correo, SIN alerta
       openedMailRef.current = true;
-
-      Alert.alert(t('alerts.thanks_title'), t('alerts.thanks_body'));
     } else {
       Alert.alert(t('alerts.cannot_open_title'), t('alerts.cannot_open_body', { email: FEEDBACK_EMAIL }));
     }
@@ -187,7 +186,6 @@ ${message}`.slice(0, 2000);
     Alert.alert(t('alerts.error_title'), t('alerts.error_open_mail'));
   }
 };
-
 
 
   const onSend = () => {
@@ -257,19 +255,15 @@ useEffect(() => {
       resetForm();
       openedMailRef.current = false;
 
-      setSentModalVisible(true);
-
-      if (sentTimeoutRef.current) clearTimeout(sentTimeoutRef.current);
-      sentTimeoutRef.current = setTimeout(() => {
-        setSentModalVisible(false);
-        navRef.current?.replace('Events');
-      }, 1500);
+      
+      navRef.current?.replace('Events');
     }
   };
 
   const sub = AppState.addEventListener('change', onChange);
   return () => {
     sub.remove();
+    // ⬇️ Limpiar timeout si existe
     if (sentTimeoutRef.current) clearTimeout(sentTimeoutRef.current);
   };
 }, []);
@@ -454,7 +448,7 @@ useFocusEffect(
          <Text style={styles.primaryBtnText}>{t('buttons.send')}</Text>
         </TouchableOpacity>
 
-        {/* Nota */}
+       
         {/* <Text style={styles.note}>
           Abriremos tu cliente de correo con el mensaje prellenado para que puedas enviarlo.
         </Text> */}

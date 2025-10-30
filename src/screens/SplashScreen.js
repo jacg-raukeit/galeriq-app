@@ -5,6 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
+const BACKGROUND_COLOR = '#FFE8D6';
+const SPLASH_DURATION = 3000; 
 
 export default function SplashScreen() {
   const navigation = useNavigation();
@@ -16,7 +18,7 @@ export default function SplashScreen() {
 
   const brandName = 'Galeriq';
   const letterAnimations = useRef(brandName.split('').map(() => new Animated.Value(0))).current;
-  
+
   const brandScale = useRef(new Animated.Value(0.85)).current;
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export default function SplashScreen() {
     ]).start();
 
     Animated.parallel([
-      Animated.stagger(80, 
+      Animated.stagger(80,
         letterAnimations.map(anim =>
           Animated.timing(anim, {
             toValue: 1,
@@ -50,7 +52,8 @@ export default function SplashScreen() {
     const timeout = setTimeout(() => {
       if (user?.token) navigation.replace('Events');
       else navigation.replace('Login');
-    }, 3200);
+    },SPLASH_DURATION); 
+    
     return () => clearTimeout(timeout);
   }, [user, navigation]);
 
@@ -108,8 +111,6 @@ export default function SplashScreen() {
           style={styles.lottie}
         />
 
-        {/* --- INICIO DE CAMBIOS EN EL JSX --- */}
-        {/* Contenedor para las letras animadas */}
         <Animated.View
           style={{
             flexDirection: 'row',
@@ -133,7 +134,6 @@ export default function SplashScreen() {
             );
           })}
         </Animated.View>
-        {/* --- FIN DE CAMBIOS EN EL JSX --- */}
       </View>
     </View>
   );
@@ -144,7 +144,7 @@ const { width: W, height: H } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFE8D6',
+    backgroundColor: BACKGROUND_COLOR,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -751,24 +751,26 @@ export default function EventDetailScreen() {
             </View>
           </View>
 
-          {!!eventData.event_address && (
-            <View style={[styles.metaItem, { marginTop: 6 }]}>
-              <Ionicons name="location-outline" size={16} color="#F9FAFB" />
-              <Text style={styles.metaText} numberOfLines={1}>
-                {eventData.event_address}
-              </Text>
-            </View>
-          )}
+          {/* Dirección y tag en columna */}
+  <View style={styles.bottomMetaContainer}>
+    {!!eventData.event_address && (
+      <View style={[styles.metaItem, { marginBottom: 4 }]}>
+        <Ionicons name="location-outline" size={16} color="#F9FAFB" />
+        <Text style={styles.metaText} numberOfLines={2}>
+          {eventData.event_address}
+        </Text>
+      </View>
+    )}
         </View>
 
-        {/* Pill de tipo de evento (como rating) */}
-        {!!eventData.event_type && (
-          <BlurView intensity={30} tint="dark" style={styles.typePill}>
-            <Ionicons name="pricetag-outline" size={14} color="#fff" />
-            <Text style={styles.typePillText}>{eventData.event_type}</Text>
-          </BlurView>
-        )}
+       {!!eventData.event_type && (
+      <View style={styles.typePillInline}>
+        <Ionicons name="pricetag-outline" size={14} color="#fff" />
+        <Text style={styles.typePillText}>{eventData.event_type}</Text>
       </View>
+    )}
+  </View>
+</View>
 
       {/* ====== CONTENIDO ====== */}
       <ScrollView bounces contentContainerStyle={{ paddingBottom: 150 }}>
@@ -1849,4 +1851,19 @@ ownerSheetContent: {
   },
   ownerTabText: { color: "#6B7280", fontWeight: "700" },
   ownerTabTextActive: { color: "#111827" },
+
+  bottomMetaContainer: {
+  marginTop: 6,
+},
+typePillInline: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  // paddingHorizontal: 12,
+  // paddingVertical: 6,
+  // borderRadius: 12,
+  overflow: "hidden",
+  alignSelf: 'flex-start',
+  // backgroundColor: 'rgba(0,0,0,0.3)',
+},
 });

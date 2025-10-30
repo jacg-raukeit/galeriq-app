@@ -171,18 +171,32 @@ const saveArchivedState = async (newState) => {
     });
   }, [events]);
 
+  const initialLoadRef = useRef(false);
+
   useFocusEffect(
   React.useCallback(() => {
+    if (initialLoadRef.current) return;
+    
     const run = async () => {
       try {
-        await refetchEventsRef.current?.();  //  Usa .current
+        if (!initialLoadRef.current) {
+          initialLoadRef.current = true;
+          await refetchEventsRef.current?.();
+          await fetchNotificationsCount();
+        }
       } catch (e) {
         if (isAuthError(e)) return handleAuthExpired();
+        initialLoadRef.current = false; 
       }
-      await fetchNotificationsCount();
     };
+
     run();
-  }, [user?.token])  //  Solo user?.token (sin refetchEvents)
+
+    return () => {
+      
+      // initialLoadRef.current = false;
+    };
+  }, [user?.token]) 
 );
 
   const toggleArchive = async (id) => {
@@ -192,7 +206,7 @@ const saveArchivedState = async (newState) => {
     };
     
     setArchivedById(newState);
-    await saveArchivedState(newState); // Guardar en AsyncStorage
+    await saveArchivedState(newState);
   };
 
   const matchFilter = (evt) => {

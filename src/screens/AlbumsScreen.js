@@ -21,6 +21,9 @@ import {
   Share,
   Alert,
   ActivityIndicator,
+  Animated,
+  Pressable,
+  Easing,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
@@ -28,6 +31,7 @@ import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as ImageManipulator from "expo-image-manipulator";
+
 import { AuthContext } from "../context/AuthContext";
 import { useTranslation } from "react-i18next";
 
@@ -38,11 +42,37 @@ const GUTTER = 12;
 const COLS = 2;
 const COL_W = (SCREEN_W - GUTTER * (COLS + 1)) / COLS;
 
+// URLs de Álbumes y Fotos (sin cambios)
 const CREATE_ALBUM_URL = `${API_URL}/albums/`;
 const ALBUMS_BY_EVENT_URL = (eventId) => `${API_URL}/albums/${eventId}`;
 const UPLOAD_URL = (albumId) => `${API_URL}/albums/${albumId}/photos`;
 const PHOTOS_BY_ALBUM_URL = (albumId) => `${API_URL}/photos/album/${albumId}`;
 const FAVORITE_URL = (photoId) => `${API_URL}/photos/${photoId}/favorite`;
+const DELETE_PHOTO_URL = (photoId) => `${API_URL}/photos/${photoId}`;
+
+// 🎉 NUEVOS ENDPOINTS PARA REACCIONES (basados en tu FastAPI)
+// Este es el endpoint que SÍ EXISTE (GET /photo-reactions/)
+const GET_REACTIONS_URL = `${API_URL}/photo-reactions/`;
+const CREATE_REACTION_URL = `${API_URL}/photo-reactions/`; // POST
+const DELETE_REACTION_URL = (reactionId) =>
+  `${API_URL}/photo-reactions/${reactionId}`; // DELETE
+
+// 🎨 TIPOS DE REACCIONES (con ID para el backend)
+const REACTION_TYPES = {
+  like: { id: 1, icon: "heart", color: "#E11D48", label: "Me gusta" },
+  // Futuros tipos (ejemplo):
+  // love: { id: 2, icon: "heart-circle", color: "#EC4899", label: "Me encanta" },
+  // wow: { id: 3, icon: "star", color: "#F59E0B", label: "Wow" },
+};
+
+// Mapa inverso para leer desde el backend
+const REACTION_TYPE_MAP_BY_ID = Object.entries(REACTION_TYPES).reduce(
+  (acc, [key, value]) => {
+    acc[value.id] = key; // { 1: 'like', 2: 'love', ... }
+    return acc;
+  },
+  {}
+);
 
 const pickAlbumId = (a, eventId) => {
   const primary = a.album_id ?? a.albumId ?? a.id_album ?? a.idAlbum ?? a.alb_id;
@@ -83,11 +113,150 @@ const mapPhotoFromApi = (p) => {
   };
 };
 
+// 🎭 COMPONENTE DE BOTÓN DE REACCIÓN ANIMADO (Sin cambios)
+const ReactionButton = ({
+  type,
+  count,
+  userReacted,
+  onPress,
+  disabled,
+  size = "normal",
+}) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  const reactionConfig = REACTION_TYPES[type];
+  const iconSize = size === "large" ? 24 : 18;
+  const fontSize = size === "large" ? 14 : 11;
+
+  const handlePress = () => {
+    if (disabled) return;
+
+    // Animación de bounce + rotación
+    Animated.parallel([
+      Animated.sequence([
+        Animated.spring(scaleAnim, {
+          toValue: 1.3,
+          friction: 3,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 3,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 200,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(rotateAnim, {
+          toValue: 0,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    onPress();
+  };
+
+  const rotation = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "12deg"],
+  });
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.reactionButton,
+        size === "large" && styles.reactionButtonLarge,
+        userReacted && { backgroundColor: `${reactionConfig.color}15` },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      <Animated.View
+        style={{
+          transform: [{ scale: scaleAnim }, { rotate: rotation }],
+        }}
+      >
+        <Ionicons
+          name={userReacted ? reactionConfig.icon : `${reactionConfig.icon}-outline`}
+          size={iconSize}
+          color={userReacted ? reactionConfig.color : "#64748B"}
+        />
+      </Animated.View>
+      {count > 0 && (
+        <Text
+          style={[
+            styles.reactionCount,
+            size === "large" && styles.reactionCountLarge,
+            userReacted && { color: reactionConfig.color, fontWeight: "700" },
+          ]}
+        >
+          {count}
+        </Text>
+      )}
+    </Pressable>
+  );
+};
+
+// 🎨 BARRA DE REACCIONES (MODIFICADA)
+// Recibe `userReaction` (objeto) en lugar de `userReactions` (array)
+const ReactionsBar = ({
+  photoId,
+  reactions,
+  userReaction, // <--- MODIFICADO
+  onReactionToggle,
+  size = "normal",
+  style,
+}) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleReactionPress = async (type) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    await onReactionToggle(photoId, type);
+    setIsProcessing(false);
+  };
+
+  return (
+    <View
+      style={[
+        styles.reactionsBar,
+        size === "large" && styles.reactionsBarLarge,
+        style,
+      ]}
+    >
+      {Object.keys(REACTION_TYPES).map((type) => (
+        <ReactionButton
+          key={type}
+          type={type}
+          count={reactions[type] || 0}
+          userReacted={userReaction?.type === type} // <--- MODIFICADO
+          onPress={() => handleReactionPress(type)}
+          disabled={isProcessing}
+          size={size}
+        />
+      ))}
+    </View>
+  );
+};
+
 export default function AlbumsScreen({ navigation, route }) {
   const { t } = useTranslation("albums_photos");
   const { eventId, albumId: initialAlbumId } = route?.params || {};
   const { user } = useContext(AuthContext);
   const token = user?.token || user?.access_token || user?.accessToken || "";
+  const userId = user?.user_id || user?.id; // <--- OBTENER EL ID DE USUARIO
 
   const [albums, setAlbums] = useState([]);
   const [activeAlbumId, setActiveAlbumId] = useState(null);
@@ -100,18 +269,297 @@ export default function AlbumsScreen({ navigation, route }) {
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerPhoto, setViewerPhoto] = useState(null);
+  const [sharingPhotoId, setSharingPhotoId] = useState(null);
 
   const [loadingAlbums, setLoadingAlbums] = useState(true);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
-  // Nuevo: preloader de “preparación” de álbum
+  // Estados del rol
+  const [role, setRole] = useState(null);
+  const [roleLoading, setRoleLoading] = useState(true);
+
+  // Nuevo: preloader de "preparación" de álbum
   const [preparing, setPreparing] = useState(false);
-  const preparedOnceRef = useRef(new Set()); // guarda álbumes ya “preparados” (para no repetir el loader)
+  const preparedOnceRef = useRef(new Set());
+
+  // 🎉 NUEVOS ESTADOS PARA REACCIONES
+  const [photoReactions, setPhotoReactions] = useState({}); // Conteos: { [photoId]: { like: 5 } }
+  // MODIFICADO: Guarda el objeto de reacción del usuario
+  const [userReactions, setUserReactions] = useState({}); // { [photoId]: { type: 'like', reaction_id: 123 } }
 
   // Evita que cambie la referencia en cada render → corta el loop
   const authHeaders = useMemo(
     () => (token ? { Authorization: `Bearer ${token}` } : {}),
     [token]
+  );
+
+  // Función para convertir el rol a número
+  const toRoleNumber = (data) => {
+    if (typeof data === "number") return data;
+    if (typeof data === "string") {
+      const n = parseInt(data, 10);
+      return Number.isFinite(n) ? n : null;
+    }
+    if (data && typeof data === "object") {
+      if (data.role_id != null) return parseInt(String(data.role_id), 10);
+      if (data.role != null) return parseInt(String(data.role), 10);
+    }
+    return null;
+  };
+
+  // Función para obtener el rol del usuario
+  const fetchRole = useCallback(
+    async (eid) => {
+      if (!eid) return null;
+      try {
+        const res = await fetch(
+          `${API_URL}/user/role?event_id=${encodeURIComponent(eid)}`,
+          {
+            headers: { ...authHeaders },
+          }
+        );
+        const raw = await res.text();
+        if (!res.ok) throw new Error(raw || `HTTP ${res.status}`);
+        let data;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          data = raw;
+        }
+        const r = toRoleNumber(data);
+        if (r != null) return r;
+        throw new Error("role parse error");
+      } catch {
+        try {
+          const res2 = await fetch(`${API_URL}/user/role`, {
+            method: "POST",
+            headers: {
+              ...authHeaders,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({ event_id: String(eid) }).toString(),
+          });
+          const raw2 = await res2.text();
+          if (!res2.ok) throw new Error(raw2 || `HTTP ${res2.status}`);
+          let data2;
+          try {
+            data2 = JSON.parse(raw2);
+          } catch {
+            data2 = raw2;
+          }
+          return toRoleNumber(data2);
+        } catch {
+          return null;
+        }
+      }
+    },
+    [authHeaders]
+  );
+
+  // useEffect para cargar el rol
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (!eventId) return;
+      setRoleLoading(true);
+      const r = await fetchRole(eventId);
+      if (mounted) {
+        setRole(r);
+        setRoleLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [eventId, fetchRole]);
+
+  // Constantes para verificar el rol
+  const isOwner = role === 1;
+  const isGuest = role === 2;
+
+  // 🎯 CARGAR REACCIONES (REESCRITO)
+  // Asume que el backend devuelve List[PhotoReactionRead]
+  // 🎯 CARGAR REACCIONES (REESCRITO PARA USAR GET /)
+  // Esta función ahora filtra la lista completa de reacciones en el cliente.
+  const loadReactions = useCallback(
+    async (photosInAlbum) => {
+      // photosInAlbum es la lista de fotos del álbum actual (objeto 'mapped')
+      if (!token || !userId || !photosInAlbum || photosInAlbum.length === 0) {
+        // Si no hay fotos, reiniciamos los estados
+        setPhotoReactions({});
+        setUserReactions({});
+        return;
+      }
+
+      // 1. Crear un Set con los IDs de las fotos que SÍ nos interesan
+      const relevantPhotoIds = new Set(photosInAlbum.map((p) => String(p.id)));
+
+      try {
+        // 2. Llamar al endpoint que trae TODAS las reacciones de la BD
+        const response = await fetch(GET_REACTIONS_URL, {
+          headers: authHeaders,
+        });
+
+        if (!response.ok) {
+          if (response.status === 404 || response.status === 204) {
+            // No hay reacciones en toda la BD, está bien.
+            setPhotoReactions({});
+            setUserReactions({});
+            return;
+          }
+          throw new Error("Failed to load reactions");
+        }
+
+        const allReactions = await response.json(); // List[PhotoReactionRead]
+
+        const newReactions = {}; // Para conteos
+        const newUserReactions = {}; // Para el {id, type} del usuario
+
+        // 3. Filtrar la lista completa en el cliente
+        for (const reaction of allReactions) {
+          const photoId = String(reaction.photo_id);
+
+          // Si esta reacción no es de una foto del álbum actual, la ignoramos
+          if (!relevantPhotoIds.has(photoId)) {
+            continue;
+          }
+
+          // Si es relevante, la procesamos
+          const type = REACTION_TYPE_MAP_BY_ID[reaction.reaction_type_id];
+          if (type) {
+            // 1. Sumar al conteo
+            if (!newReactions[photoId]) newReactions[photoId] = {};
+            newReactions[photoId][type] = (newReactions[photoId][type] || 0) + 1;
+
+            // 2. Comprobar si es del usuario actual
+            if (reaction.user_id === userId) {
+              newUserReactions[photoId] = {
+                type: type,
+                reaction_id: reaction.photo_reaction_id,
+              };
+            }
+          }
+        }
+
+        // 4. Actualizar el estado
+        setPhotoReactions(newReactions);
+        setUserReactions(newUserReactions);
+      } catch (error) {
+        console.log("Error loading reactions:", error);
+      }
+    },
+    [token, authHeaders, userId] // Dependencias de la función
+  );
+
+  // 🎯 TOGGLE REACCIÓN (REESCRITO)
+  const handleReactionToggle = useCallback(
+    async (photoId, reactionType) => {
+      if (!token || !userId) return;
+
+      const reactionConfig = REACTION_TYPES[reactionType];
+      if (!reactionConfig) return; // Tipo de reacción no conocido
+
+      const reactionTypeId = reactionConfig.id;
+      const currentUserReaction = userReactions[photoId] || null;
+
+      const isRemoving = currentUserReaction?.type === reactionType;
+      const isChanging =
+        currentUserReaction && currentUserReaction?.type !== reactionType;
+      const isAdding = !currentUserReaction;
+
+      // Guardar estado anterior para revertir en caso de error
+      const oldPhotoReactions = photoReactions;
+      const oldUserReactions = userReactions;
+
+      // --- Actualización optimista ---
+      const optimisticUserReactions = { ...userReactions };
+      const optimisticPhotoReactions = {
+        ...photoReactions,
+        [photoId]: { ...(photoReactions[photoId] || {}) },
+      };
+
+      if (isRemoving) {
+        // 1. Quitar reacción
+        optimisticUserReactions[photoId] = null;
+        optimisticPhotoReactions[photoId][reactionType] = Math.max(
+          0,
+          (optimisticPhotoReactions[photoId][reactionType] || 0) - 1
+        );
+      } else {
+        // 2. Agregar o Cambiar reacción
+        optimisticUserReactions[photoId] = {
+          type: reactionType,
+          reaction_id: "temp", // ID temporal
+        };
+        // Incrementar el nuevo
+        optimisticPhotoReactions[photoId][reactionType] =
+          (optimisticPhotoReactions[photoId][reactionType] || 0) + 1;
+
+        if (isChanging) {
+          // Decrementar el antiguo
+          const oldType = currentUserReaction.type;
+          optimisticPhotoReactions[photoId][oldType] = Math.max(
+            0,
+            (optimisticPhotoReactions[photoId][oldType] || 0) - 1
+          );
+        }
+      }
+
+      setUserReactions(optimisticUserReactions);
+      setPhotoReactions(optimisticPhotoReactions);
+      // --- Fin de actualización optimista ---
+
+      try {
+        // --- Llamada al API ---
+        // 1. Si ya existe una reacción (para quitar o cambiar), la borramos primero.
+        if (currentUserReaction) {
+          await fetch(DELETE_REACTION_URL(currentUserReaction.reaction_id), {
+            method: "DELETE",
+            headers: authHeaders,
+          });
+        }
+
+        // 2. Si estamos agregando o cambiando, creamos la nueva.
+        if (isAdding || isChanging) {
+          const response = await fetch(CREATE_REACTION_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders,
+            },
+            body: JSON.stringify({
+              photo_id: photoId,
+              reaction_type_id: reactionTypeId,
+            }),
+          });
+
+          if (!response.ok) throw new Error("Failed to create reaction");
+
+          const createdReaction = await response.json(); // Esta es PhotoReactionRead
+
+          // Actualizamos el estado con el ID real de la BD
+          setUserReactions((prev) => ({
+            ...prev,
+            [photoId]: {
+              type: reactionType,
+              reaction_id: createdReaction.photo_reaction_id,
+            },
+          }));
+        } else {
+          // Si solo estábamos borrando, nos aseguramos de que esté en null
+          setUserReactions((prev) => ({
+            ...prev,
+            [photoId]: null,
+          }));
+        }
+      } catch (error) {
+        // Revertir cambios si hay error
+        setUserReactions(oldUserReactions);
+        setPhotoReactions(oldPhotoReactions);
+        console.log("Error toggling reaction:", error);
+      }
+    },
+    [token, authHeaders, userReactions, photoReactions, userId]
   );
 
   const normalizeToJpeg = useCallback(async (asset) => {
@@ -137,7 +585,14 @@ export default function AlbumsScreen({ navigation, route }) {
     Alert.alert(
       t("alerts.error_title"),
       t("alerts.photos_load_failed"),
-      [{ text: "OK", onPress: () => { photosErrorShownRef.current = false; } }],
+      [
+        {
+          text: "OK",
+          onPress: () => {
+            photosErrorShownRef.current = false;
+          },
+        },
+      ],
       { cancelable: true }
     );
   }, [t]);
@@ -200,14 +655,20 @@ export default function AlbumsScreen({ navigation, route }) {
             a.id === String(albumId) ? { ...a, photos: mapped } : a
           );
         });
+
+        // 🎉 CARGAR REACCIONES DESPUÉS DE CARGAR FOTOS
+        // AHORA LLAMAMOS A loadReactions CON LAS FOTOS QUE ACABAMOS DE MAPEAR
+        await loadReactions(mapped); // <--- ESTA ES LA LÍNEA MODIFICADA
+        
       } catch (e) {
         console.log("photos error:", e?.message);
-        showPhotosAlertOnce(); // lo mostrará una sola vez
+        showPhotosAlertOnce();
       } finally {
         setLoadingPhotos(false);
       }
     },
-    [token, authHeaders, showPhotosAlertOnce]
+    // ¡ASEGÚRATE DE AÑADIR loadReactions A LAS DEPENDENCIAS!
+    [token, authHeaders, showPhotosAlertOnce, loadReactions]
   );
 
   // --- Cargar álbumes
@@ -220,7 +681,9 @@ export default function AlbumsScreen({ navigation, route }) {
       });
       if (!r.ok) throw new Error("albums_load_failed");
       const data = await r.json();
-      const tabs = (data || []).map((a) => mapAlbumFromApi(a, eventId)).filter(Boolean);
+      const tabs = (data || [])
+        .map((a) => mapAlbumFromApi(a, eventId))
+        .filter(Boolean);
       setAlbums(tabs);
 
       const toSelect =
@@ -244,52 +707,41 @@ export default function AlbumsScreen({ navigation, route }) {
   // Llamada inicial
   useEffect(() => {
     fetchAlbums();
-  }, [eventId, token]); // evita loop
+  }, [eventId, token]);
 
   const activeAlbum = useMemo(
     () => albums.find((a) => a.id === activeAlbumId),
     [albums, activeAlbumId]
   );
 
-  // Nuevo: función para “preparar” un álbum vacío con un loader de 5s
- // Nuevo: función para “preparar” un álbum vacío con un loader de 5s
   const prepareAlbum = useCallback(
     async (albumId) => {
       if (!albumId) return;
-      // Guard 1: Si ya se preparó alguna vez, no hacer nada.
       if (preparedOnceRef.current.has(albumId)) return;
 
-      // *** SOLUCIÓN: Marcar el álbum como "preparado" INMEDIATAMENTE ***
-      // Esto previene que el useEffect (que se re-dispara por los cambios de estado)
-      // vuelva a llamar esta función mientras el timer de 5s está corriendo.
       preparedOnceRef.current.add(albumId);
 
       try {
-        setPreparing(true); // Mostrar el loader
-        
-        // Re-confirma que existe y refresca fotos (esto se ejecutará SÓLO UNA VEZ)
+        setPreparing(true);
+
         await Promise.allSettled([
           fetch(`${API_URL}/albums/get_one/${albumId}`, { headers: authHeaders }),
-          (async () => { await fetchPhotos(albumId); })(),
+          (async () => {
+            await fetchPhotos(albumId);
+          })(),
         ]);
-        
-        // Mantén el loader visible por 5 segundos sí o sí
+
         await new Promise((r) => setTimeout(r, 5000));
-      
       } catch (e) {
         console.error("Error durante la preparación del álbum:", e);
-        // Si falla, quitamos la marca para que pueda intentarlo de nuevo
         preparedOnceRef.current.delete(albumId);
       } finally {
-        // Al terminar los 5s, simplemente oculta el loader.
-        // Ya no es necesario añadir el ID al ref aquí.
         setPreparing(false);
       }
     },
     [authHeaders, fetchPhotos]
   );
 
-  // Dispara el preloader solo la primera vez que abrimos un álbum vacío
   useEffect(() => {
     if (!activeAlbumId) return;
     if (loadingPhotos) return;
@@ -317,48 +769,48 @@ export default function AlbumsScreen({ navigation, route }) {
     return cols;
   }, [activeAlbum]);
 
-const uploadOnePhoto = useCallback(
-  async (asset, albumId) => {
-    try {
-      // 1) Normaliza SIEMPRE a archivo local file:// en JPEG
-      const file = await normalizeToJpeg(asset); // { uri: file://..., name, type }
+  const uploadOnePhoto = useCallback(
+    async (asset, albumId) => {
+      try {
+        const file = await normalizeToJpeg(asset);
 
-      // 2) Parámetros del multipart (si tu backend espera el campo "file")
-      const uploadOpts = {
-        httpMethod: 'POST',
-        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-        fieldName: 'file',                 // <-- cambia si tu API espera otro nombre
-        parameters: {},                    // puedes agregar otros campos si hace falta
-        headers: { ...authHeaders },       // ¡NO 'Content-Type' aquí!
-      };
+        const uploadOpts = {
+          httpMethod: "POST",
+          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+          fieldName: "file",
+          parameters: {},
+          headers: { ...authHeaders },
+        };
 
-      // 3) Primer intento (nativo, estable)
-      let res = await FileSystem.uploadAsync(UPLOAD_URL(albumId), file.uri, uploadOpts);
+        let res = await FileSystem.uploadAsync(
+          UPLOAD_URL(albumId),
+          file.uri,
+          uploadOpts
+        );
 
-      // 4) Si el server respondió con código no-2xx, reintenta UNA VEZ
-      if (res.status < 200 || res.status >= 300) {
-        // pequeño delay para dar tiempo al FS
-        await new Promise(r => setTimeout(r, 300));
+        if (res.status < 200 || res.status >= 300) {
+          await new Promise((r) => setTimeout(r, 300));
+          const retryOpts = { ...uploadOpts };
+          res = await FileSystem.uploadAsync(
+            UPLOAD_URL(albumId),
+            file.uri,
+            retryOpts
+          );
+        }
 
-        // recrea opciones por si acaso (evita referencias “sucias”)
-        const retryOpts = { ...uploadOpts };
-        res = await FileSystem.uploadAsync(UPLOAD_URL(albumId), file.uri, retryOpts);
+        if (res.status < 200 || res.status >= 300) {
+          const msg = res.body || `HTTP ${res.status}`;
+          throw new Error(msg);
+        }
+
+        return true;
+      } catch (e) {
+        console.log(`Error final de subida: ${e?.message || e}`);
+        return false;
       }
-
-      if (res.status < 200 || res.status >= 300) {
-        const msg = res.body || `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-
-      return true;
-    } catch (e) {
-      console.log(`Error final de subida: ${e?.message || e}`);
-      return false;
-    }
-  },
-  [authHeaders, normalizeToJpeg]
-);
-
+    },
+    [authHeaders, normalizeToJpeg]
+  );
 
   const ensureActiveAlbumReady = useCallback(async () => {
     if (!activeAlbumId) return false;
@@ -368,7 +820,6 @@ const uploadOnePhoto = useCallback(
   }, [activeAlbumId, albums, fetchAlbums]);
 
   const pickImages = useCallback(async () => {
-    // Si está en preparación, no permitimos subir aún.
     if (preparing) {
       Alert.alert(
         t("alerts.wait_title"),
@@ -412,37 +863,33 @@ const uploadOnePhoto = useCallback(
 
       let okCount = 0;
       for (const asset of assets) {
-        // uploadOnePhoto ahora reintenta automáticamente
         const ok = await uploadOnePhoto(asset, activeAlbumId);
         if (ok) okCount += 1;
       }
 
-      // --- MODIFICACIÓN ---
       if (okCount > 0) {
-        // Refresca la lista de fotos UNA VEZ al final de todas las subidas
-        await fetchPhotos(activeAlbumId); 
-        
-        // Mantenemos la alerta de ÉXITO (esta sí la quieres)
+        await fetchPhotos(activeAlbumId);
+
         Alert.alert(
           t("alerts.upload_done_title"),
           okCount === 1
             ? t("alerts.upload_some_one")
             : t("alerts.upload_some_other", { count: okCount })
         );
-      } 
-      // else {
-      //   // Alerta de "0 subidas" ELIMINADA
-      //   // Alert.alert(t("alerts.error_title"), t("alerts.upload_none"));
-      // }
-      
+      }
     } catch (e) {
-      console.error(e); // Mantenemos el log
-      // Alerta de "fallo general" ELIMINADA
-      // Alert.alert(t("alerts.error_title"), t("alerts.photos_upload_failed"));
+      console.error(e);
     } finally {
       setPickerBusy(false);
     }
-  }, [preparing, activeAlbumId, ensureActiveAlbumReady, uploadOnePhoto, fetchPhotos, t]);
+  }, [
+    preparing,
+    activeAlbumId,
+    ensureActiveAlbumReady,
+    uploadOnePhoto,
+    fetchPhotos,
+    t,
+  ]);
 
   const selectNewAlbumCover = useCallback(async () => {
     try {
@@ -601,14 +1048,41 @@ const uploadOnePhoto = useCallback(
 
   const sharePhoto = useCallback(
     async (photo) => {
+      if (sharingPhotoId) return;
+
       try {
-        await Share.share({
-          message: `📸 Foto de álbum "${activeAlbum?.name}"`,
-          url: photo.uri,
+        setSharingPhotoId(photo.id);
+
+        const filename = `temp_${Date.now()}.jpg`;
+        const localUri = `${FileSystem.cacheDirectory}${filename}`;
+
+        const downloadResult = await FileSystem.downloadAsync(
+          photo.uri,
+          localUri
+        );
+
+        if (!downloadResult.uri) {
+          throw new Error("No se pudo descargar la imagen");
+        }
+
+        const message = `📸 Foto de álbum "${activeAlbum?.name || "Mi álbum"}"`;
+
+        await Sharing.shareAsync(downloadResult.uri, {
+          mimeType: "image/jpeg",
+          dialogTitle: message,
+          UTI: "public.jpeg",
         });
-      } catch {}
+      } catch (error) {
+        console.log("Error sharing photo:", error);
+        Alert.alert(
+          t("alerts.error_title"),
+          t("alerts.share_failed") || "No se pudo compartir la foto"
+        );
+      } finally {
+        setSharingPhotoId(null);
+      }
     },
-    [activeAlbum?.name]
+    [activeAlbum?.name, t, sharingPhotoId]
   );
 
   const ensureWritePermission = useCallback(async () => {
@@ -662,6 +1136,64 @@ const uploadOnePhoto = useCallback(
     [ensureWritePermission, t]
   );
 
+  const deletePhoto = useCallback(
+    async (photo) => {
+      Alert.alert(
+        t("alerts.confirm_delete_title") || "Confirmar eliminación",
+        t("alerts.confirm_delete_message") ||
+          "¿Estás seguro de que deseas eliminar esta foto?",
+        [
+          {
+            text: t("actions.cancel") || "Cancelar",
+            style: "cancel",
+          },
+          {
+            text: t("actions.delete") || "Eliminar",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const response = await fetch(DELETE_PHOTO_URL(photo.id), {
+                  method: "DELETE",
+                  headers: authHeaders,
+                });
+
+                if (!response.ok) {
+                  throw new Error("delete_failed");
+                }
+
+                setAlbums((prev) =>
+                  prev.map((album) =>
+                    album.id === activeAlbumId
+                      ? {
+                          ...album,
+                          photos: album.photos.filter((p) => p.id !== photo.id),
+                        }
+                      : album
+                  )
+                );
+
+                setViewerOpen(false);
+                setViewerPhoto(null);
+
+                Alert.alert(
+                  t("alerts.success_title") || "Éxito",
+                  t("alerts.photo_deleted") || "Foto eliminada correctamente"
+                );
+              } catch (error) {
+                console.log("delete error:", error);
+                Alert.alert(
+                  t("alerts.error_title") || "Error",
+                  t("alerts.delete_failed") || "No se pudo eliminar la foto"
+                );
+              }
+            },
+          },
+        ]
+      );
+    },
+    [activeAlbumId, authHeaders, t]
+  );
+
   const openViewer = (p) => {
     setViewerPhoto(p);
     setViewerOpen(true);
@@ -675,9 +1207,6 @@ const uploadOnePhoto = useCallback(
           <Ionicons name="arrow-back" size={24} color="#6F4C8C" />
         </TouchableOpacity>
         <Text style={styles.title}>{t("brand")}</Text>
-        {/* <TouchableOpacity onPress={shareAlbum}>
-          <Ionicons name="share-outline" size={22} color="#6F4C8C" />
-        </TouchableOpacity> */}
       </View>
 
       <Text style={styles.titleSection}>{t("section.photos")}</Text>
@@ -761,78 +1290,116 @@ const uploadOnePhoto = useCallback(
         <View style={styles.masonryRow}>
           {columns.map((col, i) => (
             <View key={`col-${i}`} style={{ width: COL_W }}>
-              {col.map((p) => (
-                <View key={p.id} style={{ marginBottom: GUTTER }}>
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => openViewer(p)}
-                    style={styles.card}
-                  >
-                    <Image
-                      source={{ uri: p.uri }}
-                      style={{ width: "100%", height: p._h, borderRadius: 12 }}
-                    />
-                    <TouchableOpacity
-                      style={styles.favBtn}
-                      onPress={() => toggleFav(p.id)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons
-                        name={p.fav ? "heart" : "heart-outline"}
-                        size={20}
-                        color={p.fav ? "#E11D48" : "#fff"}
-                      />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                  {p.title ? (
-                    <Text style={styles.caption} numberOfLines={1}>
-                      {p.title}
-                    </Text>
-                  ) : null}
+              {col.map((p) => {
+                // 🎉 OBTENER REACCIONES DE LA FOTO (MODIFICADO)
+                const reactions = photoReactions[p.id] || {};
+                const userReaction = userReactions[p.id] || null; // <--- MODIFICADO
 
-                  <View style={styles.actionsRow}>
+                return (
+                  <View key={p.id} style={{ marginBottom: GUTTER }}>
                     <TouchableOpacity
-                      style={styles.action}
-                      onPress={() => sharePhoto(p)}
+                      activeOpacity={0.9}
+                      onPress={() => openViewer(p)}
+                      style={styles.card}
                     >
-                      <Ionicons
-                        name="share-social-outline"
-                        size={16}
-                        color="#6F4C8C"
+                      <Image
+                        source={{ uri: p.uri }}
+                        style={{ width: "100%", height: p._h, borderRadius: 12 }}
                       />
+                      <TouchableOpacity
+                        style={styles.favBtn}
+                        onPress={() => toggleFav(p.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons
+                          name={p.fav ? "heart" : "heart-outline"}
+                          size={20}
+                          color={p.fav ? "#E11D48" : "#fff"}
+                        />
+                      </TouchableOpacity>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.action}
-                      onPress={() => downloadPhoto(p)}
-                    >
-                      <Ionicons
-                        name="download-outline"
-                        size={16}
-                        color="#6F4C8C"
-                      />
-                    </TouchableOpacity>
+
+                    {p.title ? (
+                      <Text style={styles.caption} numberOfLines={1}>
+                        {p.title}
+                      </Text>
+                    ) : null}
+
+                    {/* 🎨 BARRA DE REACCIONES DEBAJO DE LA FOTO (MODIFICADO) */}
+                    <ReactionsBar
+                      photoId={p.id}
+                      reactions={reactions}
+                      userReaction={userReaction} // <--- MODIFICADO
+                      onReactionToggle={handleReactionToggle}
+                      style={styles.reactionsBarInGrid}
+                    />
+
+                    <View style={styles.actionsRow}>
+                      <TouchableOpacity
+                        style={styles.action}
+                        onPress={() => sharePhoto(p)}
+                        disabled={sharingPhotoId !== null}
+                      >
+                        {sharingPhotoId === p.id ? (
+                          <ActivityIndicator size="small" color="#6F4C8C" />
+                        ) : (
+                          <Ionicons
+                            name="share-social-outline"
+                            size={16}
+                            color="#6F4C8C"
+                          />
+                        )}
+                      </TouchableOpacity>
+                      {!isGuest && (
+                        <TouchableOpacity
+                          style={styles.action}
+                          onPress={() => downloadPhoto(p)}
+                        >
+                          <Ionicons
+                            name="download-outline"
+                            size={16}
+                            color="#6F4C8C"
+                          />
+                        </TouchableOpacity>
+                      )}
+
+                      {!isGuest && (
+                        <TouchableOpacity
+                          onPress={() => deletePhoto(p)}
+                          style={styles.action}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={16}
+                            color="#6F4C8C"
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           ))}
         </View>
 
         {/* Botón Agregar fotos */}
-        <TouchableOpacity
-          style={[styles.addButton, preparing && { opacity: 0.6 }]}
-          onPress={pickImages}
-          disabled={pickerBusy || preparing}
-        >
-          {pickerBusy ? (
-            <ActivityIndicator />
-          ) : (
-            <>
-              <Ionicons name="add-circle" size={22} color="#fff" />
-              <Text style={styles.addText}>{t("actions.add_photos")}</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {(isOwner || isGuest) && (
+          <TouchableOpacity
+            style={[styles.addButton, preparing && { opacity: 0.6 }]}
+            onPress={pickImages}
+            disabled={pickerBusy || preparing}
+          >
+            {pickerBusy ? (
+              <ActivityIndicator />
+            ) : (
+              <>
+                <Ionicons name="add-circle" size={22} color="#fff" />
+                <Text style={styles.addText}>{t("actions.add_photos")}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Modal crear álbum */}
@@ -854,7 +1421,6 @@ const uploadOnePhoto = useCallback(
               editable={!newAlbumBusy}
             />
 
-            {/* Selector de portada */}
             <TouchableOpacity
               style={styles.coverPicker}
               onPress={selectNewAlbumCover}
@@ -945,6 +1511,17 @@ const uploadOnePhoto = useCallback(
                 style={styles.viewerImage}
                 resizeMode="contain"
               />
+
+              {/* 🎨 BARRA DE REACCIONES EN FULLSCREEN (MODIFICADO) */}
+              <ReactionsBar
+                photoId={viewerPhoto.id}
+                reactions={photoReactions[viewerPhoto.id] || {}}
+                userReaction={userReactions[viewerPhoto.id] || null} // <--- MODIFICADO
+                onReactionToggle={handleReactionToggle}
+                size="large"
+                style={styles.reactionsBarFullscreen}
+              />
+
               <View style={styles.viewerActions}>
                 <TouchableOpacity
                   onPress={() => toggleFav(viewerPhoto.id)}
@@ -962,32 +1539,53 @@ const uploadOnePhoto = useCallback(
                 <TouchableOpacity
                   onPress={() => sharePhoto(viewerPhoto)}
                   style={styles.viewerActionBtn}
+                  disabled={sharingPhotoId !== null}
                 >
-                  <Ionicons
-                    name="share-social-outline"
-                    size={22}
-                    color="#fff"
-                  />
+                  {sharingPhotoId === viewerPhoto?.id ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons
+                      name="share-social-outline"
+                      size={22}
+                      color="#fff"
+                    />
+                  )}
                   <Text style={styles.viewerActionTxt}>
-                    {t("actions.share")}
+                    {sharingPhotoId === viewerPhoto?.id
+                      ? t("actions.sharing") || "Compartiendo..."
+                      : t("actions.share")}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => downloadPhoto(viewerPhoto)}
-                  style={styles.viewerActionBtn}
-                >
-                  <Ionicons name="download-outline" size={22} color="#fff" />
-                  <Text style={styles.viewerActionTxt}>
-                    {t("actions.download")}
-                  </Text>
-                </TouchableOpacity>
+                {!isGuest && (
+                  <TouchableOpacity
+                    onPress={() => downloadPhoto(viewerPhoto)}
+                    style={styles.viewerActionBtn}
+                  >
+                    <Ionicons name="download-outline" size={22} color="#fff" />
+                    <Text style={styles.viewerActionTxt}>
+                      {t("actions.download")}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {!isGuest && (
+                  <TouchableOpacity
+                    onPress={() => deletePhoto(viewerPhoto)}
+                    style={styles.viewerActionBtn}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#fff" />
+                    <Text style={styles.viewerActionTxt}>
+                      {t("actions.delete")}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </>
           )}
         </View>
       </Modal>
 
-      {/* Overlay de preparación de álbum (5s) */}
+      {/* Overlay de preparación de álbum */}
       {preparing && (
         <View style={styles.preparingOverlay}>
           <View style={styles.preparingCard}>
@@ -1006,6 +1604,7 @@ const uploadOnePhoto = useCallback(
   );
 }
 
+// Estilos (sin cambios)
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#F5EEF7", marginTop: 20 },
   header: {
@@ -1021,7 +1620,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 12,
     gap: 8,
-    paddingTop: 4,
+    paddingTop: 0,
     height: 55,
     flexGrow: 0,
     marginBottom: 15,
@@ -1053,7 +1652,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "black",
     marginLeft: 16,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
   },
 
@@ -1068,6 +1667,62 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   caption: { marginTop: 6, marginLeft: 4, color: "#4B5563", fontWeight: "600" },
+
+  // 🎨 ESTILOS DE REACCIONES
+  reactionsBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    gap: 6,
+  },
+  reactionsBarInGrid: {
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  reactionsBarFullscreen: {
+    position: "absolute",
+    bottom: 120,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderRadius: 25,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    justifyContent: "center",
+  },
+  reactionsBarLarge: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  reactionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 16,
+    backgroundColor: "#F3F4F6",
+    gap: 4,
+    minWidth: 44,
+    justifyContent: "center",
+  },
+  reactionButtonLarge: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    minWidth: 56,
+    gap: 6,
+  },
+  reactionCount: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  reactionCountLarge: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
 
   actionsRow: { flexDirection: "row", gap: 14, paddingLeft: 4, marginTop: 6 },
   action: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -1155,7 +1810,6 @@ const styles = StyleSheet.create({
   btn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
   btnText: { color: "#fff", fontWeight: "700" },
 
-  // Overlay preparación
   preparingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.45)",

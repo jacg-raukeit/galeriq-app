@@ -11,9 +11,11 @@
     "favorite": "Favorite",
     "share": "Share",
     "download": "Download",
+    "delete": "Delete",
     "create": "Create",
     "creating": "Creating...",
     "cancel": "Cancel",
+    "sharing": "Sharing...",
     "change_cover": "Change cover",
     "pick_cover": "Choose cover (optional)"
   },
@@ -39,7 +41,11 @@
     "download_perm": "I need permission to save to your library.",
     "download_ok_title": "Downloaded",
     "download_ok_desc": "The photo was saved to your library.",
-    "download_failed": "Could not download the photo."
+    "download_failed": "Could not download the photo.",
+    "confirm_delete_title": "Delete photo",
+    "confirm_delete_message": "Are you sure you want to delete this photo? This action cannot be undone.",
+    "success_title": "Photo deleted",
+    "photo_deleted": "The photo was deleted successfully."
   },
 
   "preparing": {

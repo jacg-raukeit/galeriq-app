@@ -274,7 +274,7 @@ export default function App() {
       <AuthProvider>
         <EventsProvider>
           <NavigationContainer ref={navigationRef}>
-            <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+            <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false, gestureEnabled: false, animationEnabled: true }}>
               <Stack.Screen name="Splash" component={SplashScreen} />
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="MiPerfil" component={MiPerfilScreen} />

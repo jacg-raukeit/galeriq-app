@@ -1,9 +1,11 @@
+// src/context/EventsContext.js (corregido)
 import React, {
   createContext,
   useState,
   useEffect,
   useContext,
   useCallback,
+  useRef,
 } from "react";
 import { AuthContext } from "./AuthContext";
 
@@ -15,39 +17,87 @@ export function EventsProvider({ children }) {
   const { user } = useContext(AuthContext);
   const [events, setEvents] = useState([]);
 
-  const refreshEvents = useCallback(async () => {
+  const isFetchingRef = useRef(false);
+  const refreshTimerRef = useRef(null);
+
+  const refreshEvents = useCallback(async (opts = { force: false }) => {
+    if (!user?.token) {
+      setEvents([]);
+      return [];
+    }
+    if (isFetchingRef.current && !opts.force) {
+      console.log("[EventsContext] refreshEvents: already fetching, skip");
+      return events; 
+    }
+
+    isFetchingRef.current = true;
+    try {
+      console.log("[EventsContext] fetching events...");
+      const res = await fetch(`${API_BASE}/events/get-events`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+
+      if (res.status === 401) {
+        const text = await res.text().catch(() => "");
+        const err = new Error(text || "Unauthorized");
+        err.status = 401;
+        throw err;
+      }
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        const err = new Error(body || "Error fetching events");
+        err.status = res.status;
+        throw err;
+      }
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      setEvents(list);
+      return list;
+    } catch (err) {
+      console.error("[EventsContext] Error al cargar eventos:", err);
+      throw err;
+    } finally {
+      isFetchingRef.current = false;
+    }
+  }, [user?.token]);
+
+  
+  useEffect(() => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+
     if (!user?.token) {
       setEvents([]);
       return;
     }
-    try {
-      const res = await fetch(`${API_BASE}/events/get-events`, {
-        headers: { Authorization: `Bearer ${user.token}` },
+
+    refreshTimerRef.current = setTimeout(() => {
+      refreshEvents().catch((e) => {
+        console.log("[EventsContext] refresh after token change finished:", e?.message);
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setEvents(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Error al cargar eventos:", err);
-    }
-  }, [user?.token]);
+    }, 250);
 
-  useEffect(() => {
-    refreshEvents();
-  }, [refreshEvents]);
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    };
+  }, [user?.token, refreshEvents]); 
 
-  const addEvent = async ({
-    event_name,
-    event_date,
-    event_address,
-    event_type,
-    event_coverUri,
-    event_status,
-    event_description,
-    event_latitude,
-    event_longitude,
-    budget,
-  }) => {
+  const addEvent = async (payload) => {
+    if (!user?.token) throw new Error("No auth token");
+    const {
+      event_name,
+      event_date,
+      event_address,
+      event_type,
+      event_coverUri,
+      event_status,
+      event_description,
+      event_latitude,
+      event_longitude,
+      budget,
+    } = payload;
+
     const form = new FormData();
     form.append("event_name", event_name);
     form.append("event_date", event_date);
@@ -75,6 +125,12 @@ export function EventsProvider({ children }) {
       body: form,
     });
 
+    if (res.status === 401) {
+      const t = await res.text().catch(() => "");
+      const err = new Error(t || "Unauthorized");
+      err.status = 401;
+      throw err;
+    }
     if (!res.ok) {
       const errorText = await res.text();
       throw new Error(`Error al crear evento: ${errorText}`);
@@ -82,8 +138,6 @@ export function EventsProvider({ children }) {
 
     const nuevo = await res.json();
     setEvents((prev) => [nuevo, ...prev]);
-    // await refreshEvents();
-
     return nuevo;
   };
 
