@@ -57,6 +57,7 @@ export default function CreateEventScreen({ navigation }) {
 
   const [iosDateModalVisible, setIosDateModalVisible] = useState(false);
   const [iosTimeModalVisible, setIosTimeModalVisible] = useState(false);
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [tempDateIOS, setTempDateIOS] = useState(new Date());
   const [tempTimeIOS, setTempTimeIOS] = useState(new Date());
 
@@ -75,16 +76,8 @@ export default function CreateEventScreen({ navigation }) {
     `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
   const pickImage = () => {
-   Alert.alert(
-      t('cover.picker_title'),
-      t('cover.picker_message'),
-      [
-        { text: t('cover.camera'), onPress: pickFromCamera },
-        { text: t('cover.gallery'), onPress: pickFromGallery },
-        { text: t('cover.cancel'), style: 'cancel' },
-      ]
-    );
-  };
+  setShowImagePickerModal(true);
+};
 
   const pickFromCamera = async () => {
     const { status: camPerm } = await ImagePicker.requestCameraPermissionsAsync();
@@ -471,6 +464,52 @@ export default function CreateEventScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {showImagePickerModal && (
+  <Modal
+    visible={showImagePickerModal}
+    transparent
+    animationType="fade"
+    onRequestClose={() => setShowImagePickerModal(false)}
+  >
+    <View style={styles.modalBackdrop}>
+      <View style={styles.modalCard}>
+        <Text style={styles.modalTitle}>{t('cover.picker_title')}</Text>
+        
+        <TouchableOpacity 
+          style={styles.modalOption}
+          onPress={async () => {
+            setShowImagePickerModal(false);
+            await pickFromCamera();
+          }}
+        >
+          <Ionicons name="camera-outline" size={24} color="#6B21A8" />
+          <Text style={styles.modalOptionText}>{t('cover.camera')}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.modalOption}
+          onPress={async () => {
+            setShowImagePickerModal(false);
+            await pickFromGallery();
+          }}
+        >
+          <Ionicons name="images-outline" size={24} color="#6B21A8" />
+          <Text style={styles.modalOptionText}>{t('cover.gallery')}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.modalOption, { borderTopWidth: 1, borderTopColor: '#E5E7EB' }]}
+          onPress={() => setShowImagePickerModal(false)}
+        >
+          <Text style={[styles.modalOptionText, { color: '#EF4444' }]}>
+            {t('cover.cancel')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+)}
     </View>
   );
 }
@@ -581,4 +620,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 12,
   },
+
+  modalOption: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingVertical: 16,
+  paddingHorizontal: 12,
+  borderBottomWidth: 1,
+  borderBottomColor: '#E5E7EB',
+},
+modalOptionText: {
+  marginLeft: 12,
+  fontSize: 16,
+  color: '#374151',
+  fontWeight: '500',
+},
 });

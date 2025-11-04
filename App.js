@@ -75,7 +75,7 @@ function navigate(name, params) {
   }
 }
 
-// ======= Normalización de data de notificación =======
+
 function normalizeNotifData(raw = {}) {
   const type =
     raw.type ??
@@ -274,7 +274,7 @@ export default function App() {
       <AuthProvider>
         <EventsProvider>
           <NavigationContainer ref={navigationRef}>
-            <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false, gestureEnabled: false, animationEnabled: true }}>
+            <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false, gestureEnabled: false, animationEnabled: false }}>
               <Stack.Screen name="Splash" component={SplashScreen} />
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="MiPerfil" component={MiPerfilScreen} />

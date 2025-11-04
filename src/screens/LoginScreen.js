@@ -166,38 +166,38 @@ export default function LoginScreen() {
     };
   }, []);
 
-  // const autoLoginExecuted = useRef(false);
+  const autoLoginExecuted = useRef(false);
 
-//   useEffect(() => {
-//   if (autoLoginExecuted.current) return;
+  useEffect(() => {
+  if (autoLoginExecuted.current) return;
   
-//   (async () => {
-//     try {
-//       autoLoginExecuted.current = true;
-//       const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-//       if (savedToken) {
-//         const profileRes = await fetch(`${API_BASE}/me`, {
-//           headers: { Authorization: `Bearer ${savedToken}` },
-//         });
-//         if (profileRes.ok) {
-//           const profile = await profileRes.json();
-//           setUser({ id: profile.user_id, token: savedToken });
-//          setTimeout(() => {
-//   navigation.replace("Events");
-// }, 100);
-//           return;
-//         } else {
-//           await SecureStore.deleteItemAsync(TOKEN_KEY);
-//           await SecureStore.deleteItemAsync(USER_ID_KEY);
-//         }
-//       }
-//     } catch (e) {
-//       console.log("Auto-login error:", e);
-//     } finally {
-//       setBootLoading(false);
-//     }
-//   })();
-// }, [navigation, setUser]);
+  (async () => {
+    try {
+      autoLoginExecuted.current = true;
+      const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (savedToken) {
+        const profileRes = await fetch(`${API_BASE}/me`, {
+          headers: { Authorization: `Bearer ${savedToken}` },
+        });
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          setUser({ id: profile.user_id, token: savedToken });
+         setTimeout(() => {
+  navigation.replace("Events");
+}, 100);
+          return;
+        } else {
+          await SecureStore.deleteItemAsync(TOKEN_KEY);
+          await SecureStore.deleteItemAsync(USER_ID_KEY);
+        }
+      }
+    } catch (e) {
+      console.log("Auto-login error:", e);
+    } finally {
+      setBootLoading(false);
+    }
+  })();
+}, [navigation, setUser]);
 
   const [current, setCurrent] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -244,7 +244,7 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
-  const panelExpand = useRef(new Animated.Value(0)).current; // 0..1
+  const panelExpand = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(panelExpand, {
       toValue: showEmailForm ? 1 : 0,
@@ -263,6 +263,7 @@ export default function LoginScreen() {
     try {
       await SecureStore.setItemAsync(TOKEN_KEY, token);
       await SecureStore.setItemAsync(USER_ID_KEY, String(userId));
+      console.log("✅ Token guardado exitosamente para Google Sign-In");
     } catch (e) {
       console.log("Error guardando sesión:", e);
     }
@@ -344,18 +345,17 @@ export default function LoginScreen() {
         await r.json();
 
       // 4) Guardar sesión local y navegar a Home
-      setUser({ id: user_id, token: jwt_token }); // tu AuthContext
+      setUser({ id: user_id, token: jwt_token }); 
       if (rememberMe) {
         await SecureStore.setItemAsync(TOKEN_KEY, jwt_token);
         await SecureStore.setItemAsync(USER_ID_KEY, String(user_id));
         // Si te interesa persistir el session_token del device:
-        // await SecureStore.setItemAsync('galeriq_session_token', session_token || '');
+         await SecureStore.setItemAsync('galeriq_session_token', session_token || '');
       } else {
         await SecureStore.deleteItemAsync(TOKEN_KEY);
         await SecureStore.deleteItemAsync(USER_ID_KEY);
       }
 
-      // Redirigir al Home
       navigation.replace("Events");
     } catch (e) {
       if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED)
@@ -503,7 +503,8 @@ export default function LoginScreen() {
         setForgotOpen(false);
         return true;
       }
-      return false;
+      BackHandler.exitApp();
+    return true;
     };
     const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
     return () => sub.remove();

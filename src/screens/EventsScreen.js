@@ -19,6 +19,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import LottieView from "lottie-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BackHandler} from "react-native";
 
 import { AuthContext } from "../context/AuthContext";
 import { EventsContext } from "../context/EventsContext";
@@ -130,7 +131,6 @@ useEffect(() => {
   };
 
 
-  // Cargar estado archivado desde el almacenamiento local
 const loadArchivedState = async () => {
   try {
     const stored = await AsyncStorage.getItem(ARCHIVED_EVENTS_KEY);
@@ -143,7 +143,6 @@ const loadArchivedState = async () => {
   }
 };
 
-// Guardar estado archivado en el almacenamiento local
 const saveArchivedState = async (newState) => {
   try {
     await AsyncStorage.setItem(ARCHIVED_EVENTS_KEY, JSON.stringify(newState));
@@ -152,10 +151,21 @@ const saveArchivedState = async (newState) => {
   }
 };
 
-// ✅ Cargar el estado archivado al montar el componente
   useEffect(() => {
     loadArchivedState();
   }, []);
+
+  useEffect(() => {
+  const backHandler = BackHandler.addEventListener(
+    'hardwareBackPress',
+    () => {
+      BackHandler.exitApp();
+      return true;
+    }
+  );
+
+  return () => backHandler.remove();
+}, []);
 
 
   useEffect(() => {

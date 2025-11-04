@@ -48,14 +48,17 @@ export default function SplashScreen() {
     ]).start();
   }, []);
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (user?.token) navigation.replace('Events');
-      else navigation.replace('Login');
-    },SPLASH_DURATION); 
-    
-    return () => clearTimeout(timeout);
-  }, [user, navigation]);
+ useEffect(() => {
+  const timeout = setTimeout(() => {
+    if (user?.token) {
+      navigation.replace('Events');
+    } else {
+      navigation.replace('Login');
+    }
+  }, SPLASH_DURATION); 
+  
+  return () => clearTimeout(timeout);
+}, [user, navigation]);
 
   const circleSize = Math.max(width, height) * 0.4;
   const topRightStyle = {
