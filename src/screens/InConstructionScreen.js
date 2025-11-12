@@ -1,4 +1,3 @@
-// src/screens/InConstructionScreen.js
 import React, { useEffect, useRef } from 'react';
 import {
   SafeAreaView,
@@ -8,18 +7,20 @@ import {
   Dimensions,
   Animated,
   StatusBar,
+  TouchableOpacity,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import LottieView from 'lottie-react-native';
 
 const { width } = Dimensions.get('window');
-
 const LOTTIE_SRC = require('../assets/lottie/construction.json');
 
 export default function InConstructionScreen() {
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(12)).current;
   const lottieRef = useRef(null);
+  const navigation = useNavigation(); // 👈 para poder ir hacia atrás
 
   useEffect(() => {
     Animated.timing(fade, { toValue: 1, duration: 480, useNativeDriver: true }).start();
@@ -47,6 +48,11 @@ export default function InConstructionScreen() {
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
+        {/* 🔙 Botón de retroceso */}
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={26} color="#2A1B45" />
+        </TouchableOpacity>
+
         {/* Marca superior */}
         <Text style={styles.brand}>Galeriq</Text>
 
@@ -60,7 +66,6 @@ export default function InConstructionScreen() {
             style={styles.lottie}
             renderMode="AUTOMATIC"
             onAnimationFinish={() => {
-              
               try {
                 lottieRef.current?.play?.();
               } catch {}
@@ -92,6 +97,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG,
     alignItems: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    top: StatusBar.currentHeight ? StatusBar.currentHeight + 1 : 16,
+    left: 16,
+    zIndex: 10,
+    padding: 6,
   },
   brand: {
     fontSize: 34,

@@ -19,7 +19,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import LottieView from "lottie-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { BackHandler} from "react-native";
+import { BackHandler } from "react-native";
 
 import { AuthContext } from "../context/AuthContext";
 import { EventsContext } from "../context/EventsContext";
@@ -51,9 +51,9 @@ export default function EventsScreen() {
   const refetchEvents = refreshEvents || fetchEvents || loadEvents;
 
   const refetchEventsRef = useRef(refetchEvents);
-useEffect(() => {
-  refetchEventsRef.current = refetchEvents;
-}, [refetchEvents]);
+  useEffect(() => {
+    refetchEventsRef.current = refetchEvents;
+  }, [refetchEvents]);
 
   const [sessionExpired, setSessionExpired] = useState(false);
   const [closingSession, setClosingSession] = useState(false);
@@ -130,43 +130,41 @@ useEffect(() => {
     }
   };
 
-
-const loadArchivedState = async () => {
-  try {
-    const stored = await AsyncStorage.getItem(ARCHIVED_EVENTS_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      setArchivedById(parsed);
+  const loadArchivedState = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(ARCHIVED_EVENTS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setArchivedById(parsed);
+      }
+    } catch (error) {
+      console.error("Error al cargar eventos archivados:", error);
     }
-  } catch (error) {
-    console.error("Error al cargar eventos archivados:", error);
-  }
-};
+  };
 
-const saveArchivedState = async (newState) => {
-  try {
-    await AsyncStorage.setItem(ARCHIVED_EVENTS_KEY, JSON.stringify(newState));
-  } catch (error) {
-    console.error("Error al guardar eventos archivados:", error);
-  }
-};
+  const saveArchivedState = async (newState) => {
+    try {
+      await AsyncStorage.setItem(ARCHIVED_EVENTS_KEY, JSON.stringify(newState));
+    } catch (error) {
+      console.error("Error al guardar eventos archivados:", error);
+    }
+  };
 
   useEffect(() => {
     loadArchivedState();
   }, []);
 
   useEffect(() => {
-  const backHandler = BackHandler.addEventListener(
-    'hardwareBackPress',
-    () => {
-      BackHandler.exitApp();
-      return true;
-    }
-  );
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        BackHandler.exitApp();
+        return true;
+      }
+    );
 
-  return () => backHandler.remove();
-}, []);
-
+    return () => backHandler.remove();
+  }, []);
 
   useEffect(() => {
     if (!events || events.length === 0) return;
@@ -183,38 +181,31 @@ const saveArchivedState = async (newState) => {
 
   const initialLoadRef = useRef(false);
 
-  useFocusEffect(
-  React.useCallback(() => {
-    if (initialLoadRef.current) return;
-    
-    const run = async () => {
+  useEffect(() => {
+    // Este efecto se encarga de la carga inicial de eventos cuando el usuario inicia sesión.
+    // Se dispara solo cuando `user.token` pasa de ser `falsy` a `truthy`.
+    if (user?.token && !initialLoadRef.current) {
+      const run = async () => {
+      initialLoadRef.current = true; // Marcamos que la carga inicial ha comenzado.
+      console.log("[EventsScreen] Triggering initial events fetch...");
       try {
-        if (!initialLoadRef.current) {
-          initialLoadRef.current = true;
-          await refetchEventsRef.current?.();
-          await fetchNotificationsCount();
-        }
+        await refetchEventsRef.current?.({ force: false }); // Usamos la ref para no depender de la función.
+        await fetchNotificationsCount();
       } catch (e) {
         if (isAuthError(e)) return handleAuthExpired();
-        initialLoadRef.current = false; 
+        initialLoadRef.current = false; // Permite reintentar si falla.
       }
-    };
-
-    run();
-
-    return () => {
-      
-      // initialLoadRef.current = false;
-    };
-  }, [user?.token]) 
-);
+      };
+      run();
+    }
+  }, [user?.token]); // Se ejecuta solo cuando el token cambia (ej. de null a valor)
 
   const toggleArchive = async (id) => {
     const newState = {
       ...archivedById,
       [id]: !(archivedById[id] ?? false),
     };
-    
+
     setArchivedById(newState);
     await saveArchivedState(newState);
   };
@@ -350,7 +341,7 @@ const saveArchivedState = async (newState) => {
 
   if (!user) return null;
 
- const filterLabel =
+  const filterLabel =
     filterMode === "organizer"
       ? t("filter.chip_label.organizer")
       : filterMode === "guest"
@@ -359,7 +350,6 @@ const saveArchivedState = async (newState) => {
 
   return (
     <View style={styles.screen}>
-     
       {/* HEADER */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerSide}>
@@ -373,7 +363,7 @@ const saveArchivedState = async (newState) => {
         </View>
 
         <View style={styles.headerCenter}>
-         <Text style={styles.title}>{t("brand")}</Text>
+          <Text style={styles.title}>{t("brand")}</Text>
         </View>
 
         <View style={styles.headerSide}>
@@ -382,7 +372,6 @@ const saveArchivedState = async (newState) => {
             onPress={() => setFilterVisible(true)}
             activeOpacity={0.85}
           >
-            
             <Ionicons
               name="funnel-outline"
               size={24}
@@ -433,13 +422,13 @@ const saveArchivedState = async (newState) => {
               loop
               style={styles.emptyAnim}
             />
-           <Text style={styles.emptyTitle}>{t("empty.title")}</Text>
+            <Text style={styles.emptyTitle}>{t("empty.title")}</Text>
             <Text style={styles.emptySubtitle}>{t("empty.subtitle")}</Text>
           </View>
         ) : (
           <>
             {activeEvents.length === 0 ? (
-             <Text style={styles.emptyTextSmall}>{t("empty.no_active")}</Text>
+              <Text style={styles.emptyTextSmall}>{t("empty.no_active")}</Text>
             ) : (
               activeEvents.map((evt) => (
                 <TouchableOpacity
@@ -466,7 +455,9 @@ const saveArchivedState = async (newState) => {
               <>
                 <View style={styles.sectionDivider} />
                 <Text style={styles.archivedTitle}>
-                  {t("archived.title_with_count", { count: archivedEvents.length })}
+                  {t("archived.title_with_count", {
+                    count: archivedEvents.length,
+                  })}
                 </Text>
 
                 {archivedEvents.map((evt) => (
@@ -552,7 +543,7 @@ const saveArchivedState = async (newState) => {
           activeOpacity={0.85}
         >
           <Ionicons name="person-circle-outline" size={20} color="#6B21A8" />
-           <Text style={styles.itemText}>{t("drawer.profile")}</Text>
+          <Text style={styles.itemText}>{t("drawer.profile")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -597,7 +588,7 @@ const saveArchivedState = async (newState) => {
           activeOpacity={0.85}
         >
           <Ionicons name="star-outline" size={20} color="#6B21A8" />
-           <Text style={styles.itemText}>{t("drawer.feedback")}</Text>
+          <Text style={styles.itemText}>{t("drawer.feedback")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -609,7 +600,7 @@ const saveArchivedState = async (newState) => {
           activeOpacity={0.85}
         >
           <Ionicons name="diamond-outline" size={20} color="#6B21A8" />
-         <Text style={styles.itemText}>{t("drawer.plans")}</Text>
+          <Text style={styles.itemText}>{t("drawer.plans")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -621,7 +612,7 @@ const saveArchivedState = async (newState) => {
           activeOpacity={0.85}
         >
           <Ionicons name="share-social-outline" size={20} color="#6B21A8" />
-         <Text style={styles.itemText}>{t("drawer.share")}</Text>
+          <Text style={styles.itemText}>{t("drawer.share")}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -727,7 +718,9 @@ const saveArchivedState = async (newState) => {
       >
         <View style={styles.expiredBackdrop}>
           <View style={styles.expiredCard}>
-           <Text style={styles.expiredTitle}>{t("session_expired.title")}</Text>
+            <Text style={styles.expiredTitle}>
+              {t("session_expired.title")}
+            </Text>
             <Text style={styles.expiredText}>{t("session_expired.text")}</Text>
 
             <View style={{ height: 10 }} />
@@ -737,7 +730,9 @@ const saveArchivedState = async (newState) => {
               onPress={() => handleAuthExpired(true)}
               activeOpacity={0.9}
             >
-              <Text style={styles.expiredButtonText}>{t("session_expired.button")}</Text>
+              <Text style={styles.expiredButtonText}>
+                {t("session_expired.button")}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -800,7 +795,7 @@ const styles = StyleSheet.create({
     color: "#111827",
     textAlign: "center",
     textAlignVertical: "center",
-    includeFontPadding: false, 
+    includeFontPadding: false,
   },
   iconNudge: {
     transform: [{ translateY: 1 }],
@@ -810,7 +805,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     marginLeft: 16,
     fontWeight: "800",
-    marginTop: Platform.OS === 'ios' ? 12 : 2,
+    marginTop: Platform.OS === "ios" ? 12 : 2,
     color: "#111827",
   },
 

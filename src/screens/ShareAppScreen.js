@@ -30,9 +30,10 @@ const IMAGES = [
 const APP_LINK = "https://tu-link-de-descarga.com";
 
 const guidelineBaseWidth = 375;
-const normalize = (size, width) => Math.round((width / guidelineBaseWidth) * size);
+const normalize = (size, width) =>
+  Math.round((width / guidelineBaseWidth) * size);
 
-export default function ShareAppScreen() {
+export default function ShareAppScreen({ navigation }) {
   const { t } = useTranslation("share");
   const { width, height } = useWindowDimensions();
 
@@ -94,10 +95,83 @@ export default function ShareAppScreen() {
     outputRange: ["#FFFFFF", "#F1F2F4"],
   });
 
-  const openWhatsApp = async () => { /* ... */ };
-  const openFacebook = async () => { /* ... */ };
-  const openEmail = () => { /* ... */ };
-  const copyLink = async () => { /* ... */ };
+  const openWhatsApp = async () => {
+    // Asumimos que tienes una traduccion como: "Mira esta app: {link}"
+    const message = t("messages.whatsapp", { link: APP_LINK });
+    const encodedMessage = encodeURIComponent(message);
+    const url = `https://wa.me/?text=${encodedMessage}`;
+
+    try {
+      // Comprueba si el dispositivo puede abrir este tipo de URL
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback por si no se puede (ej. en un simulador sin WhatsApp)
+        Alert.alert(t("alert.error_title"), t("alert.error_whatsapp"));
+      }
+    } catch (e) {
+      console.error("Failed to open WhatsApp: ", e);
+      Alert.alert(t("alert.error_title"), t("alert.error_whatsapp"));
+    }
+  };
+  const openFacebook = async () => {
+    const encodedLink = encodeURIComponent(APP_LINK);
+    // Facebook usa un sharer web, pasando el link en el parametro 'u'
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`;
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(t("alert.error_title"), t("alert.error_facebook"));
+      }
+    } catch (e) {
+      console.error("Failed to open Facebook: ", e);
+      Alert.alert(t("alert.error_title"), t("alert.error_facebook"));
+    }
+  };
+
+  const openEmail = async () => {
+    // Asumimos traducciones para el asunto y cuerpo del email
+    const subject = t("messages.mailSubject");
+    const body = t("messages.mailBody", { link: APP_LINK });
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedBody = encodeURIComponent(body);
+
+    // El esquema 'mailto:' abre el cliente de correo por defecto
+    const url = `mailto:?subject=${encodedSubject}&body=${encodedBody}`;
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(t("alert.error_title"), t("alert.error_email"));
+      }
+    } catch (e) {
+      console.error("Failed to open email client: ", e);
+      Alert.alert(t("alert.error_title"), t("alert.error_email"));
+    }
+  };
+
+  const copyLink = async () => {
+    try {
+      // Usa la funcion setStringAsync de expo-clipboard
+      await Clipboard.setStringAsync(APP_LINK);
+
+      // Da feedback al usuario. Toast en Android, Alert en iOS.
+      if (Platform.OS === "android") {
+        ToastAndroid.show(t("alerts.toastCopied"), ToastAndroid.SHORT);
+      } else {
+        Alert.alert(t("alert.copied_title"), t("alert.copied_message"));
+      }
+    } catch (e) {
+      console.error("Failed to copy link: ", e);
+      Alert.alert(t("alert.error_title"), t("alert.error_copy"));
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -111,7 +185,19 @@ export default function ShareAppScreen() {
         >
           {/* --- SECCIÓN DE ENCABEZADO --- */}
           <View style={styles.header}>
-            <Text style={[styles.title, { fontSize: titleSize }]}>{t("title")}</Text>
+            {/* --- NUEVO BOTON --- */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#0F172A" />
+            </TouchableOpacity>
+            <Text style={[styles.title, { fontSize: titleSize }]}>
+              {t("title")}
+            </Text>
+            {/* --- NUEVO ESPACIADOR --- */}
+            <View style={styles.spacer} />
+            {/* --- FIN NUEVO ESPACIADOR --- */}
           </View>
 
           {/* --- SECCIÓN DE CONTENIDO PRINCIPAL --- */}
@@ -147,7 +233,11 @@ export default function ShareAppScreen() {
                       },
                     ]}
                   >
-                    <Image source={IMAGES[i]} style={styles.cardImage} resizeMode="cover" />
+                    <Image
+                      source={IMAGES[i]}
+                      style={styles.cardImage}
+                      resizeMode="cover"
+                    />
                   </Animated.View>
                 );
               })}
@@ -162,27 +252,63 @@ export default function ShareAppScreen() {
             <View style={[styles.actions, { gap: Math.max(8, width * 0.03) }]}>
               <ShareButton
                 label={t("buttons.whatsapp")}
-                icon={<Ionicons name="logo-whatsapp" size={buttonIcon} color="#fff" />}
-                bg="#25D366" onPress={openWhatsApp} height={buttonHeight}
-                radius={buttonRadius} fontSize={buttonFont}
+                icon={
+                  <Ionicons
+                    name="logo-whatsapp"
+                    size={buttonIcon}
+                    color="#fff"
+                  />
+                }
+                bg="#25D366"
+                onPress={openWhatsApp}
+                height={buttonHeight}
+                radius={buttonRadius}
+                fontSize={buttonFont}
               />
               <ShareButton
                 label={t("buttons.facebook")}
-                icon={<Ionicons name="logo-facebook" size={buttonIcon} color="#fff" />}
-                bg="#1877F2" onPress={openFacebook} height={buttonHeight}
-                radius={buttonRadius} fontSize={buttonFont}
+                icon={
+                  <Ionicons
+                    name="logo-facebook"
+                    size={buttonIcon}
+                    color="#fff"
+                  />
+                }
+                bg="#1877F2"
+                onPress={openFacebook}
+                height={buttonHeight}
+                radius={buttonRadius}
+                fontSize={buttonFont}
               />
               <ShareButton
                 label={t("buttons.mail")}
-                icon={<Ionicons name="mail-outline" size={buttonIcon} color="#fff" />}
-                bg="#9CA3AF" onPress={openEmail} height={buttonHeight}
-                radius={buttonRadius} fontSize={buttonFont}
+                icon={
+                  <Ionicons
+                    name="mail-outline"
+                    size={buttonIcon}
+                    color="#fff"
+                  />
+                }
+                bg="#9CA3AF"
+                onPress={openEmail}
+                height={buttonHeight}
+                radius={buttonRadius}
+                fontSize={buttonFont}
               />
               <ShareButton
                 label={t("buttons.copy")}
-                icon={<Ionicons name="link-outline" size={buttonIcon} color="#fff" />}
-                bg="#2563EB" onPress={copyLink} height={buttonHeight}
-                radius={buttonRadius} fontSize={buttonFont}
+                icon={
+                  <Ionicons
+                    name="link-outline"
+                    size={buttonIcon}
+                    color="#fff"
+                  />
+                }
+                bg="#2563EB"
+                onPress={copyLink}
+                height={buttonHeight}
+                radius={buttonRadius}
+                fontSize={buttonFont}
               />
             </View>
           </View>
@@ -223,9 +349,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 16,
-    marginBottom: 16,
-  },
+ paddingTop: 16,
+ marginBottom: 16,
+ flexDirection: "row", // Anadido
+ alignItems: "center", // Anadido
+ justifyContent: "space-between", // Anadido
+},
   mainContent: {
     flex: 1,
     justifyContent: "center",
@@ -236,16 +365,27 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     marginTop: 16,
   },
-  title: {
-    fontWeight: "700",
-    color: "#0F172A",
-    textAlign: 'center',
-    fontFamily: "Montserrat-Bold",
-  },
+ title: {
+ flex: 1, // Anadido para que el centrado funcione
+ fontWeight: "700",
+ color: "#0F172A",
+ textAlign: "center",
+ fontFamily: "Montserrat-Bold",
+ },
+
+ backButton: {
+ width: 40,
+ height: 40,
+ justifyContent: "center",
+ alignItems: "center",
+ },
+ spacer: {
+ width: 40, // Un espaciador invisible para balancear el boton de atras
+ },
   previewArea: {
     justifyContent: "center",
     alignItems: "center",
-    width: '100%',
+    width: "100%",
   },
   card: {
     position: "absolute",
@@ -260,18 +400,18 @@ const styles = StyleSheet.create({
   subTitle: {
     fontWeight: "400",
     color: "#1F2937",
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 16,
   },
   actions: {
     flexDirection: "row",
     justifyContent: "center",
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   btn: {
     flex: 1,
-    minWidth: '22%',
-    maxWidth: '24%',
+    minWidth: "22%",
+    maxWidth: "24%",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 8,
@@ -280,7 +420,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     color: "#fff",
     fontWeight: "600",
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
-

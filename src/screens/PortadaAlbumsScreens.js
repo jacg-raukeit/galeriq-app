@@ -103,6 +103,10 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
 
   const [deletingId, setDeletingId] = useState(null);
 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [albumToDelete, setAlbumToDelete] = useState(null);
+
+
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     Animated.parallel([
@@ -388,20 +392,16 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
   };
 
   const confirmDelete = (album) => {
-    if (!isOwner) return;
-    if (album.photosCount !== 0) {
-      Alert.alert(t('alerts.cannot_delete_title'), t('alerts.cannot_delete_desc'));
-      return;
-    }
-     Alert.alert(
-      t('alerts.delete_title'),
-      t('alerts.delete_message', { name: album.name }),
-      [
-        { text: t('alerts.buttons.cancel'), style: 'cancel' },
-        { text: t('alerts.buttons.delete'), style: 'destructive', onPress: () => deleteAlbum(album.id) },
-      ]
-    );
-  };
+  if (!isOwner) return;
+  if (album.photosCount !== 0) {
+    Alert.alert(t('alerts.cannot_delete_title'), t('alerts.cannot_delete_desc'));
+    return;
+  }
+  setAlbumToDelete(album);
+  setShowDeleteModal(true);
+  setMenuOpen(false);
+};
+
 
   const deleteAlbum = async (albumId) => {
     try {
@@ -672,6 +672,62 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Confirmación de Eliminación */}
+<Modal
+  visible={showDeleteModal}
+  transparent
+  animationType="fade"
+  onRequestClose={() => setShowDeleteModal(false)}
+>
+  <View style={styles.deleteModalBackdrop}>
+    <View style={styles.deleteModalCard}>
+      <Ionicons
+        name="alert-circle-outline"
+        size={50}
+        color="#F59E0B"
+        style={styles.deleteModalIcon}
+      />
+      <Text style={styles.deleteModalTitle}>
+        {t('alerts.delete_title')}
+      </Text>
+      <Text style={styles.deleteModalText}>
+        {t('alerts.delete_message', { name: albumToDelete?.name || '' })}
+      </Text>
+      
+      <View style={styles.deleteModalActions}>
+        <TouchableOpacity
+          style={[styles.deleteModalButton, styles.deleteModalButtonCancel]}
+          onPress={() => {
+            setShowDeleteModal(false);
+            setAlbumToDelete(null);
+          }}
+          disabled={!!deletingId}
+        >
+          <Text style={styles.deleteModalButtonTextCancel}>
+            {t('alerts.buttons.cancel')}
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.deleteModalButton, styles.deleteModalButtonDelete]}
+          onPress={() => {
+            setShowDeleteModal(false);
+            deleteAlbum(albumToDelete.id);
+            setAlbumToDelete(null);
+          }}
+          disabled={!!deletingId}
+        >
+          <Text style={styles.deleteModalButtonTextDelete}>
+            {t('alerts.buttons.delete')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+
+
     </SafeAreaView>
   );
 }
@@ -776,4 +832,72 @@ const styles = StyleSheet.create({
   menuTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
   menuText: { fontSize: 15 },
+
+
+  deleteModalBackdrop: {
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.4)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 20,
+},
+deleteModalCard: {
+  width: '100%',
+  maxWidth: 340,
+  backgroundColor: 'white',
+  borderRadius: 14,
+  padding: 20,
+  alignItems: 'center',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 4,
+  elevation: 5,
+},
+deleteModalIcon: {
+  marginBottom: 10,
+},
+deleteModalTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: '#111827',
+  marginBottom: 8,
+  textAlign: 'center',
+},
+deleteModalText: {
+  fontSize: 14,
+  color: '#374151',
+  marginBottom: 20,
+  textAlign: 'center',
+},
+deleteModalActions: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  width: '100%',
+  gap: 10,
+},
+deleteModalButton: {
+  flex: 1,
+  height: 44,
+  borderRadius: 10,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+deleteModalButtonCancel: {
+  backgroundColor: '#efeff4',
+},
+deleteModalButtonDelete: {
+  backgroundColor: '#DC2626',
+},
+deleteModalButtonTextCancel: {
+  color: '#333',
+  fontWeight: '700',
+  fontSize: 15,
+},
+deleteModalButtonTextDelete: {
+  color: '#fff',
+  fontWeight: '700',
+  fontSize: 15,
+},
+
 });

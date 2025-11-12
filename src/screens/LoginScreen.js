@@ -166,39 +166,6 @@ export default function LoginScreen() {
     };
   }, []);
 
-  const autoLoginExecuted = useRef(false);
-
-  useEffect(() => {
-  if (autoLoginExecuted.current) return;
-  
-  (async () => {
-    try {
-      autoLoginExecuted.current = true;
-      const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-      if (savedToken) {
-        const profileRes = await fetch(`${API_BASE}/me`, {
-          headers: { Authorization: `Bearer ${savedToken}` },
-        });
-        if (profileRes.ok) {
-          const profile = await profileRes.json();
-          setUser({ id: profile.user_id, token: savedToken });
-         setTimeout(() => {
-  navigation.replace("Events");
-}, 100);
-          return;
-        } else {
-          await SecureStore.deleteItemAsync(TOKEN_KEY);
-          await SecureStore.deleteItemAsync(USER_ID_KEY);
-        }
-      }
-    } catch (e) {
-      console.log("Auto-login error:", e);
-    } finally {
-      setBootLoading(false);
-    }
-  })();
-}, [navigation, setUser]);
-
   const [current, setCurrent] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 

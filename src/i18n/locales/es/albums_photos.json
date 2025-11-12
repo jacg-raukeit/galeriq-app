@@ -17,7 +17,8 @@
     "cancel": "Cancelar",
     "sharing": "Compartiendo...",
     "change_cover": "Cambiar portada",
-    "pick_cover": "Elegir portada (opcional)"
+    "pick_cover": "Elegir portada (opcional)",
+    "ok": "Aceptar"
   },
   "alerts": {
     "wait_title": "Espera un segundo",

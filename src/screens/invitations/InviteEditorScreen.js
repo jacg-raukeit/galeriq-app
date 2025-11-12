@@ -95,6 +95,55 @@ const hexToRgb = (hex) => {
 const rgbToHex = ({ r, g, b }) => '#' + [r, g, b].map(v => clamp255(v).toString(16).padStart(2, '0')).join('').toUpperCase();
 const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : '');
 
+// ========== MODAL DE CONFIRMACIÓN ==========
+function ConfirmModal({ visible, title, message, onCancel, onConfirm, confirmText, cancelText }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <Ionicons name="alert-circle-outline" size={48} color="#6B21A8" style={{ marginBottom: 16 }} />
+          <Text style={styles.modalTitle}>{title}</Text>
+          <Text style={styles.modalMessage}>{message}</Text>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSecondary]} onPress={onCancel}>
+              <Text style={styles.modalBtnTextSecondary}>{cancelText}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.modalBtn, styles.modalBtnPrimary]} onPress={onConfirm}>
+              <Text style={styles.modalBtnTextPrimary}>{confirmText}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ========== MODAL DE ÉXITO (con cierre automático) ==========
+function SuccessModal({ visible, title, message, onClose }) {
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [visible, onClose]);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <Ionicons name="checkmark-circle" size={64} color="#10B981" style={{ marginBottom: 16 }} />
+          <Text style={styles.modalTitle}>{title}</Text>
+          <Text style={styles.modalMessage}>{message}</Text>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+
 function InlineColorPicker({ value, onChange, onClose }) {
   const [hex, setHex] = useState(value || '#111827');
   const [rgb, setRgb] = useState(hexToRgb(value));
@@ -407,10 +456,10 @@ export default function InviteEditorScreen() {
 
   const baseLayers = useMemo(() => ([
     { kind: 'text', id: 't1', text: t('placeholders.templateDefaults.inviteLead'), x: CANVAS_W * 0.29, y: CANVAS_H * 0.18, size: 18, color: '#4B5563', weight: '700', align: 'center', font: 'System' },
-    { kind: 'text', id: 't2', text: String(eventType).toUpperCase(), x: CANVAS_W * 0.29, y: CANVAS_H * 0.30, size: 22, color: '#5B2B2B', weight: '900', align: 'left',   font: 'Montserrat' },
-    { kind: 'text', id: 't3', text: eventDescription,                x: CANVAS_W * 0.07, y: CANVAS_H * 0.42, size: 24, color: '#6B2A4A', weight: '800', align: 'center', font: 'Pacifico' },
-    { kind: 'text', id: 't4', text: formattedDateTime,               x: CANVAS_W * 0.12, y: CANVAS_H * 0.54, size: 14, color: '#374151', weight: '700', align: 'left',   font: 'Lato' },
-    { kind: 'text', id: 't5', text: eventName,                       x: CANVAS_W * 0.29, y: CANVAS_H * 0.66, size: 14, color: '#374151', weight: '700', align: 'left',   font: 'Lato' },
+    { kind: 'text', id: 't2', text: String(eventType).toUpperCase(), x: CANVAS_W * 0.10, y: CANVAS_H * 0.26, size: 18, color: '#5B2B2B', weight: '900', align: 'left',   font: 'Montserrat' },
+    { kind: 'text', id: 't3', text: eventDescription,                x: CANVAS_W * 0.10, y: CANVAS_H * 0.42, size: 24, color: '#6B2A4A', weight: '800', align: 'center', font: 'Pacifico' },
+    { kind: 'text', id: 't4', text: formattedDateTime,               x: CANVAS_W * 0.06, y: CANVAS_H * 0.60, size: 14, color: '#374151', weight: '700', align: 'left',   font: 'Lato' },
+    { kind: 'text', id: 't5', text: eventName,                       x: CANVAS_W * 0.33, y: CANVAS_H * 0.76, size: 14, color: '#374151', weight: '700', align: 'left',   font: 'Lato' },
   ]), [eventType, eventDescription, formattedDateTime, eventName, i18n.language]);
 
   const [layers, setLayers] = useState(baseLayers);
@@ -435,6 +484,11 @@ export default function InviteEditorScreen() {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewUri, setPreviewUri] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Estados para los modales personalizados
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [pendingUploadUri, setPendingUploadUri] = useState(null);
 
   const PREV_W = width - 32;
   const PREV_H = PREV_W * 1.4;
@@ -600,22 +654,15 @@ export default function InviteEditorScreen() {
   };
 
   const confirmAndUpload = (forcedUri) => {
-   Alert.alert(
-      t('alerts.confirmSaveTitle'),
-      t('alerts.confirmSaveMsg'),
-      [
-       { text: t('actions.cancel'), style: 'cancel' },
-        { text: t('actions.upload'), style: 'destructive', onPress: () => uploadInvitation(forcedUri) },
-      ],
-      { cancelable: true }
-    );
+    setPendingUploadUri(forcedUri);
+    setConfirmModalVisible(true);
   };
 
   const uploadInvitation = async (forcedUri) => {
     const eid = activeEventId != null ? Number(activeEventId) : null;
     if (!eid) {
       Alert.alert(t('alerts.eventRequiredTitle'), t('alerts.eventRequiredMsg'));
-       return;
+      return;
     }
     try {
       setIsUploading(true);
@@ -637,23 +684,24 @@ export default function InviteEditorScreen() {
         throw new Error(`HTTP ${resp.status} - ${txt}`);
       }
 
-       Alert.alert(t('alerts.doneTitle'), t('alerts.doneMsg'),[
-        { text: t('alerts.ok'), onPress: () => {
-          setPreviewVisible(false);
-          navigation.reset({
-            index: 1,
-            routes: [
-              { name: 'Events' },
-              { name: 'InvitationsHome', params: { event: currentEvent || null, eventId: activeEventId || null, fromEditor: true, refreshToken: Date.now() } },
-            ],
-          });
-        }},
-      ],{ cancelable: false });
+      setSuccessModalVisible(true);
     } catch (e) {
       Alert.alert(t('alerts.error'), t('alerts.uploadError', { msg: String(e?.message || e) }));
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleSuccessClose = () => {
+    setSuccessModalVisible(false);
+    setPreviewVisible(false);
+    navigation.reset({
+      index: 1,
+      routes: [
+        { name: 'Events' },
+        { name: 'InvitationsHome', params: { event: currentEvent || null, eventId: activeEventId || null, fromEditor: true, refreshToken: Date.now() } },
+      ],
+    });
   };
 
   const shareImage = async (forcedUri) => {
@@ -1032,6 +1080,34 @@ export default function InviteEditorScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* MODAL DE CONFIRMACIÓN */}
+      <ConfirmModal
+        visible={confirmModalVisible}
+        title={t('alerts.confirmSaveTitle')}
+        message={t('alerts.confirmSaveMsg')}
+        cancelText={t('actions.cancel')}
+        confirmText={t('actions.upload')}
+        onCancel={() => {
+          setConfirmModalVisible(false);
+          setPendingUploadUri(null);
+        }}
+        onConfirm={() => {
+          setConfirmModalVisible(false);
+          uploadInvitation(pendingUploadUri);
+          setPendingUploadUri(null);
+        }}
+      />
+
+      {/* MODAL DE ÉXITO */}
+      {/* MODAL DE ÉXITO */}
+<SuccessModal
+  visible={successModalVisible}
+  title={t('alerts.doneTitle')}
+  message={t('alerts.doneMsg')}
+  onClose={handleSuccessClose}
+/>
+
     </View>
   );
 }
@@ -1319,5 +1395,77 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#6B21A8',
+  },
+
+  // ===== MODALES PERSONALIZADOS =====
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalBtnPrimary: {
+    flex: 1,
+    backgroundColor: '#6B21A8',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalBtnSecondary: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalBtnSuccess: {
+    width: '100%',
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalBtnTextPrimary: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  modalBtnTextSecondary: {
+    color: '#111827',
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

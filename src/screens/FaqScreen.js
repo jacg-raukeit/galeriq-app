@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 
 import * as WebBrowser from 'expo-web-browser';
 
-const WEBSITE_URL = 'https://vicman28-tv.github.io/Galeriq/';
+const WEBSITE_URL = 'https://vicman28-tv.github.io/Galeriq23/';
 const SUPPORT_EMAIL = 'ayudagaleriq@gmail.com';
 
 const TERMS_PDF_LOCAL = require('../assets/documents/terminos.pdf');

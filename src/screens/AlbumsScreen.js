@@ -1,4 +1,3 @@
-// src/screens/AlbumsScreen.js
 import React, {
   useMemo,
   useRef,
@@ -16,7 +15,7 @@ import {
   SafeAreaView,
   Dimensions,
   Image,
-  Modal,
+  Modal, // Importado
   TextInput,
   Share,
   Alert,
@@ -43,7 +42,7 @@ const GUTTER = 12;
 const COLS = 2;
 const COL_W = (SCREEN_W - GUTTER * (COLS + 1)) / COLS;
 
-// URLs de Álbumes y Fotos
+// URLs de Albumes y Fotos
 const CREATE_ALBUM_URL = `${API_URL}/albums/`;
 const ALBUMS_BY_EVENT_URL = (eventId) => `${API_URL}/albums/${eventId}`;
 const UPLOAD_URL = (albumId) => `${API_URL}/albums/${albumId}/photos`;
@@ -297,6 +296,15 @@ export default function AlbumsScreen({ navigation, route }) {
   const [viewerPhoto, setViewerPhoto] = useState(null);
   const [sharingPhotoId, setSharingPhotoId] = useState(null);
 
+  const [downloadingPhotoId, setDownloadingPhotoId] = useState(null);
+
+  const [uploadSuccessCount, setUploadSuccessCount] = useState(0);
+  const [showUploadSuccessModal, setShowUploadSuccessModal] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState(null);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
+  const [showDownloadSuccessModal, setShowDownloadSuccessModal] = useState(false);
+
   const [loadingAlbums, setLoadingAlbums] = useState(true);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
@@ -306,9 +314,6 @@ export default function AlbumsScreen({ navigation, route }) {
   const [preparing, setPreparing] = useState(false);
   const preparedOnceRef = useRef(new Set());
 
-  
-  // photoReactions: { [photoId]: { like: 5, wow: 2, angry: 1 } }
-  // userReactions: { [photoId]: { type: 'like', reaction_id: 123 } | null }
   const [photoReactions, setPhotoReactions] = useState({});
   const [userReactions, setUserReactions] = useState({});
 
@@ -316,6 +321,50 @@ export default function AlbumsScreen({ navigation, route }) {
     () => (token ? { Authorization: `Bearer ${token}` } : {}),
     [token]
   );
+
+  // --- NUEVO: useEffect para auto-cerrar modal de descarga ---
+  useEffect(() => {
+    let timer;
+    if (showDownloadSuccessModal) {
+      timer = setTimeout(() => {
+        setShowDownloadSuccessModal(false);
+      }, 1000); // 1 segundo
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [showDownloadSuccessModal]);
+  // --- FIN NUEVO ---
+
+  // --- NUEVO: useEffect para auto-cerrar modal de eliminacion ---
+  useEffect(() => {
+    let timer;
+    if (showDeleteSuccessModal) {
+      timer = setTimeout(() => {
+        setShowDeleteSuccessModal(false);
+      }, 1000); // 1 segundo
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [showDeleteSuccessModal]);
+  // --- FIN NUEVO ---
+
+  // ... (justo despues de los otros useEffect para los modales)
+
+  // --- NUEVO: useEffect para auto-cerrar modal de subida ---
+  useEffect(() => {
+    let timer;
+    if (showUploadSuccessModal) {
+      timer = setTimeout(() => {
+        setShowUploadSuccessModal(false);
+      }, 1000); // 1 segundo
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [showUploadSuccessModal]);
+  // --- FIN NUEVO ---
 
   const toRoleNumber = (data) => {
     if (typeof data === "number") return data;
@@ -447,115 +496,115 @@ export default function AlbumsScreen({ navigation, route }) {
     [token, userId]
   );
 
- const handleReactionToggle = useCallback(
-  async (photoId, reactionType) => {
-    if (!token || !userId) return;
+  const handleReactionToggle = useCallback(
+    async (photoId, reactionType) => {
+      if (!token || !userId) return;
 
-    const reactionConfig = REACTION_TYPES[reactionType];
-    if (!reactionConfig) return;
+      const reactionConfig = REACTION_TYPES[reactionType];
+      if (!reactionConfig) return;
 
-    const reactionTypeId = reactionConfig.id;
-    const currentUserReaction = userReactions[photoId] || null;
+      const reactionTypeId = reactionConfig.id;
+      const currentUserReaction = userReactions[photoId] || null;
 
-    const isRemoving = currentUserReaction?.type === reactionType;
-    const isChanging = currentUserReaction && currentUserReaction?.type !== reactionType;
-    const isAdding = !currentUserReaction;
+      const isRemoving = currentUserReaction?.type === reactionType;
+      const isChanging = currentUserReaction && currentUserReaction?.type !== reactionType;
+      const isAdding = !currentUserReaction;
 
-    const oldPhotoReactions = photoReactions;
-    const oldUserReactions = userReactions;
+      const oldPhotoReactions = photoReactions;
+      const oldUserReactions = userReactions;
 
-    const optimisticUserReactions = { ...userReactions };
-    const optimisticPhotoReactions = {
-      ...photoReactions,
-      [photoId]: { ...(photoReactions[photoId] || {}) },
-    };
-
-    if (isRemoving) {
-      // Quitar reacción
-      optimisticUserReactions[photoId] = null;
-      optimisticPhotoReactions[photoId][reactionType] = Math.max(
-        0,
-        (optimisticPhotoReactions[photoId][reactionType] || 0) - 1
-      );
-    } else {
-      optimisticUserReactions[photoId] = {
-        type: reactionType,
-        photo_reaction_id: 'temp'
+      const optimisticUserReactions = { ...userReactions };
+      const optimisticPhotoReactions = {
+        ...photoReactions,
+        [photoId]: { ...(photoReactions[photoId] || {}) },
       };
-      optimisticPhotoReactions[photoId][reactionType] =
-        (optimisticPhotoReactions[photoId][reactionType] || 0) + 1;
-
-      if (isChanging) {
-        const oldType = currentUserReaction.type;
-        optimisticPhotoReactions[photoId][oldType] = Math.max(
-          0,
-          (optimisticPhotoReactions[photoId][oldType] || 0) - 1
-        );
-      }
-    }
-
-    setUserReactions(optimisticUserReactions);
-    setPhotoReactions(optimisticPhotoReactions);
-
-    try {
-      if (isChanging && currentUserReaction.photo_reaction_id) {
-        await fetch(DELETE_REACTION_URL(currentUserReaction.photo_reaction_id), {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders,
-          },
-        });
-      }
 
       if (isRemoving) {
-        if (!currentUserReaction.photo_reaction_id) {
-          throw new Error("No photo_reaction_id found");
+        // Quitar reaccion
+        optimisticUserReactions[photoId] = null;
+        optimisticPhotoReactions[photoId][reactionType] = Math.max(
+          0,
+          (optimisticPhotoReactions[photoId][reactionType] || 0) - 1
+        );
+      } else {
+        optimisticUserReactions[photoId] = {
+          type: reactionType,
+          photo_reaction_id: 'temp'
+        };
+        optimisticPhotoReactions[photoId][reactionType] =
+          (optimisticPhotoReactions[photoId][reactionType] || 0) + 1;
+
+        if (isChanging) {
+          const oldType = currentUserReaction.type;
+          optimisticPhotoReactions[photoId][oldType] = Math.max(
+            0,
+            (optimisticPhotoReactions[photoId][oldType] || 0) - 1
+          );
+        }
+      }
+
+      setUserReactions(optimisticUserReactions);
+      setPhotoReactions(optimisticPhotoReactions);
+
+      try {
+        if (isChanging && currentUserReaction.photo_reaction_id) {
+          await fetch(DELETE_REACTION_URL(currentUserReaction.photo_reaction_id), {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders,
+            },
+          });
         }
 
-        const response = await fetch(DELETE_REACTION_URL(currentUserReaction.photo_reaction_id), {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders,
-          },
-        });
-
-        if (!response.ok) throw new Error("Failed to delete reaction");
-      } else {
-        const response = await fetch(CREATE_REACTION_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders,
-          },
-          body: JSON.stringify({
-            reaction_type_id: reactionTypeId,
-            photo_id: parseInt(photoId)
-          }),
-        });
-
-        if (!response.ok) throw new Error("Failed to create reaction");
-
-        const data = await response.json();
-        const newPhotoReactionId = data.photo_reaction_id || data.id;
-
-        setUserReactions((prev) => ({
-          ...prev,
-          [photoId]: {
-            type: reactionType,
-            photo_reaction_id: newPhotoReactionId
+        if (isRemoving) {
+          if (!currentUserReaction.photo_reaction_id) {
+            throw new Error("No photo_reaction_id found");
           }
-        }));
+
+          const response = await fetch(DELETE_REACTION_URL(currentUserReaction.photo_reaction_id), {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders,
+            },
+          });
+
+          if (!response.ok) throw new Error("Failed to delete reaction");
+        } else {
+          const response = await fetch(CREATE_REACTION_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...authHeaders,
+            },
+            body: JSON.stringify({
+              reaction_type_id: reactionTypeId,
+              photo_id: parseInt(photoId)
+            }),
+          });
+
+          if (!response.ok) throw new Error("Failed to create reaction");
+
+          const data = await response.json();
+          const newPhotoReactionId = data.photo_reaction_id || data.id;
+
+          setUserReactions((prev) => ({
+            ...prev,
+            [photoId]: {
+              type: reactionType,
+              photo_reaction_id: newPhotoReactionId
+            }
+          }));
+        }
+      } catch (error) {
+        setUserReactions(oldUserReactions);
+        setPhotoReactions(oldPhotoReactions);
+        console.log("Error toggling reaction:", error);
       }
-    } catch (error) {
-      setUserReactions(oldUserReactions);
-      setPhotoReactions(oldPhotoReactions);
-      console.log("Error toggling reaction:", error);
-    }
-  },
-  [token, authHeaders, userReactions, photoReactions, userId]
-);
+    },
+    [token, authHeaders, userReactions, photoReactions, userId]
+  );
 
   const normalizeToJpeg = useCallback(async (asset) => {
     const result = await ImageManipulator.manipulateAsync(asset.uri, [], {
@@ -729,9 +778,9 @@ export default function AlbumsScreen({ navigation, route }) {
           })(),
         ]);
 
-        await new Promise((r) => setTimeout(r, 5000));
+        // await new Promise((r) => setTimeout(r, 5000));
       } catch (e) {
-        console.error("Error durante la preparación del álbum:", e);
+        console.error("Error durante la preparacion del album:", e);
         preparedOnceRef.current.delete(albumId);
       } finally {
         setPreparing(false);
@@ -821,7 +870,7 @@ export default function AlbumsScreen({ navigation, route }) {
     if (preparing) {
       Alert.alert(
         t("alerts.wait_title"),
-        t("alerts.wait_desc") || "Cargando álbum… espera un momento."
+        t("alerts.wait_desc") || "Cargando album... espera un momento."
       );
       return;
     }
@@ -835,7 +884,7 @@ export default function AlbumsScreen({ navigation, route }) {
     if (String(activeAlbumId) === String(eventId)) {
       Alert.alert(
         t("alerts.error_title"),
-        t("alerts.invalid_album_id") || "El álbum seleccionado no es válido."
+        t("alerts.invalid_album_id") || "El album seleccionado no es valido."
       );
       return;
     }
@@ -868,12 +917,8 @@ export default function AlbumsScreen({ navigation, route }) {
       if (okCount > 0) {
         await fetchPhotos(activeAlbumId);
 
-        Alert.alert(
-          t("alerts.upload_done_title"),
-          okCount === 1
-            ? t("alerts.upload_some_one")
-            : t("alerts.upload_some_other", { count: okCount })
-        );
+        setUploadSuccessCount(okCount);
+        setShowUploadSuccessModal(true);
       }
     } catch (e) {
       console.error(e);
@@ -1037,9 +1082,9 @@ export default function AlbumsScreen({ navigation, route }) {
       const a = activeAlbum;
       if (!a) return;
       await Share.share({
-        message: ` Álbum "${a.name}" con ${
+        message: ` Album "${a.name}" con ${
           a.photos?.length || 0
-        } fotos. (enlace de ejemplo)`,
+        } fotos. (enlace de ejemplo)`, // Sin acentos
       });
     } catch {}
   }, [activeAlbum]);
@@ -1060,10 +1105,10 @@ export default function AlbumsScreen({ navigation, route }) {
         );
 
         if (!downloadResult.uri) {
-          throw new Error("No se pudo descargar la imagen");
+          throw new Error("No se pudo descargar la imagen"); // Sin acentos
         }
 
-        const message = `📸 Foto de álbum "${activeAlbum?.name || "Mi álbum"}"`;
+        const message = `Foto de album "${activeAlbum?.name || "Mi album"}"`; // Sin acentos
 
         await Sharing.shareAsync(downloadResult.uri, {
           mimeType: "image/jpeg",
@@ -1074,7 +1119,7 @@ export default function AlbumsScreen({ navigation, route }) {
         console.log("Error sharing photo:", error);
         Alert.alert(
           t("alerts.error_title"),
-          t("alerts.share_failed") || "No se pudo compartir la foto"
+          t("alerts.share_failed") || "No se pudo compartir la foto" // Sin acentos
         );
       } finally {
         setSharingPhotoId(null);
@@ -1093,6 +1138,9 @@ export default function AlbumsScreen({ navigation, route }) {
 
   const downloadPhoto = useCallback(
     async (photo) => {
+      if (downloadingPhotoId) return; 
+      
+      setDownloadingPhotoId(photo.id);
       try {
         const ok = await ensureWritePermission();
         if (!ok) {
@@ -1122,74 +1170,67 @@ export default function AlbumsScreen({ navigation, route }) {
 
         await MediaLibrary.createAssetAsync(downloadResult.uri);
 
-        Alert.alert(
-          t("alerts.download_ok_title"),
-          t("alerts.download_ok_desc")
-        );
+        setShowDownloadSuccessModal(true);
+
       } catch (e) {
         console.error("Download error:", e);
         Alert.alert(t("alerts.error_title"), t("alerts.download_failed"));
+      } finally {
+        setDownloadingPhotoId(null); 
       }
     },
-    [ensureWritePermission, t]
+    [ensureWritePermission, t, downloadingPhotoId]
   );
+
+  const executeDelete = useCallback(async () => {
+    if (!photoToDelete) return;
+    const photo = photoToDelete; 
+
+    setShowDeleteConfirmModal(false); 
+
+    try {
+      const response = await fetch(DELETE_PHOTO_URL(photo.id), {
+        method: "DELETE",
+        headers: authHeaders,
+      });
+
+      if (!response.ok) {
+        throw new Error("delete_failed");
+      }
+
+      setAlbums((prev) =>
+        prev.map((album) =>
+          album.id === activeAlbumId
+            ? {
+                ...album,
+                photos: album.photos.filter((p) => p.id !== photo.id),
+              }
+            : album
+        )
+      );
+
+      setViewerOpen(false);
+      setViewerPhoto(null);
+
+      setShowDeleteSuccessModal(true);
+
+    } catch (error) {
+      console.log("delete error:", error);
+      Alert.alert(
+        t("alerts.error_title") || "Error",
+        t("alerts.delete_failed") || "No se pudo eliminar la foto" // Sin acentos
+      );
+    } finally {
+      setPhotoToDelete(null); 
+    }
+  }, [photoToDelete, activeAlbumId, authHeaders, t]);
 
   const deletePhoto = useCallback(
     async (photo) => {
-      Alert.alert(
-        t("alerts.confirm_delete_title") || "Confirmar eliminación",
-        t("alerts.confirm_delete_message") ||
-          "¿Estás seguro de que deseas eliminar esta foto?",
-        [
-          {
-            text: t("actions.cancel") || "Cancelar",
-            style: "cancel",
-          },
-          {
-            text: t("actions.delete") || "Eliminar",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                const response = await fetch(DELETE_PHOTO_URL(photo.id), {
-                  method: "DELETE",
-                  headers: authHeaders,
-                });
-
-                if (!response.ok) {
-                  throw new Error("delete_failed");
-                }
-
-                setAlbums((prev) =>
-                  prev.map((album) =>
-                    album.id === activeAlbumId
-                      ? {
-                          ...album,
-                          photos: album.photos.filter((p) => p.id !== photo.id),
-                        }
-                      : album
-                  )
-                );
-
-                setViewerOpen(false);
-                setViewerPhoto(null);
-
-                Alert.alert(
-                  t("alerts.success_title") || "Éxito",
-                  t("alerts.photo_deleted") || "Foto eliminada correctamente"
-                );
-              } catch (error) {
-                console.log("delete error:", error);
-                Alert.alert(
-                  t("alerts.error_title") || "Error",
-                  t("alerts.delete_failed") || "No se pudo eliminar la foto"
-                );
-              }
-            },
-          },
-        ]
-      );
+      setPhotoToDelete(photo);
+      setShowDeleteConfirmModal(true);
     },
-    [activeAlbumId, authHeaders, t]
+    [] 
   );
 
   const openViewer = (p) => {
@@ -1269,15 +1310,15 @@ export default function AlbumsScreen({ navigation, route }) {
           </View>
         )}
 
-        {!loadingPhotos && (activeAlbum?.photos?.length ?? 0) === 0 && (
-          <View style={{ paddingVertical: 24, alignItems: "center" }}>
-            <Text style={{ color: "#6B7280", fontWeight: "600" }}>
-              {t("empty.no_photos_yet")}
-            </Text>
-            <Text style={{ color: "#9CA3AF", marginTop: 4 }}>
-              {t("empty.tap_add")}
-            </Text>
-          </View>
+        {!loadingPhotos && !loadingAlbums && !preparing && (activeAlbum?.photos?.length ?? 0) === 0 && (
+         <View style={{ paddingVertical: 24, alignItems: "center" }}>
+           <Text style={{ color: "#6B7280", fontWeight: "600" }}>
+             {t("empty.no_photos_yet")}
+           </Text>
+           <Text style={{ color: "#9CA3AF", marginTop: 4 }}>
+             {t("empty.tap_add")}
+           </Text>
+         </View>
         )}
 
         <View style={styles.masonryRow}>
@@ -1338,12 +1379,17 @@ export default function AlbumsScreen({ navigation, route }) {
                         <TouchableOpacity
                           style={styles.action}
                           onPress={() => downloadPhoto(p)}
+                          disabled={downloadingPhotoId !== null}
                         >
-                          <Ionicons
-                            name="download-outline"
-                            size={16}
-                            color="#6F4C8C"
-                          />
+                          {downloadingPhotoId === p.id ? (
+                            <ActivityIndicator size="small" color="#6F4C8C" />
+                          ) : (
+                            <Ionicons
+                              name="download-outline"
+                              size={16}
+                              color="#6F4C8C"
+                            />
+                          )}
                         </TouchableOpacity>
                       )}
 
@@ -1385,6 +1431,7 @@ export default function AlbumsScreen({ navigation, route }) {
         )}
       </ScrollView>
 
+      {/* Modal Crear Album (Existente) */}
       <Modal
         visible={showCreate}
         animationType="fade"
@@ -1471,6 +1518,7 @@ export default function AlbumsScreen({ navigation, route }) {
         </View>
       </Modal>
 
+      {/* Modal Visor de Foto (Existente) */}
       <Modal
         visible={viewerOpen}
         transparent
@@ -1527,10 +1575,17 @@ export default function AlbumsScreen({ navigation, route }) {
                   <TouchableOpacity
                     onPress={() => downloadPhoto(viewerPhoto)}
                     style={styles.viewerActionBtn}
+                    disabled={downloadingPhotoId !== null}
                   >
-                    <Ionicons name="download-outline" size={22} color="#fff" />
+                    {downloadingPhotoId === viewerPhoto?.id ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Ionicons name="download-outline" size={22} color="#fff" />
+                    )}
                     <Text style={styles.viewerActionTxt}>
-                      {t("actions.download")}
+                      {downloadingPhotoId === viewerPhoto?.id
+                        ? t("actions.downloading") || "Descargando..."
+                        : t("actions.download")}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -1552,20 +1607,136 @@ export default function AlbumsScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      {preparing && (
+      {/* Overlay "Preparando" (Existente) */}
+      {/* {preparing && (
         <View style={styles.preparingOverlay}>
           <View style={styles.preparingCard}>
             <ActivityIndicator size="large" color="#6F4C8C" />
             <Text style={styles.preparingTitle}>
-              {t("preparing.title") || "Cargando álbum…"}
+              {t("preparing.title") || "Cargando album..."}
             </Text>
             <Text style={styles.preparingDesc}>
               {t("preparing.desc") ||
-                "Estamos preparando este álbum para subir tus fotos."}
+                "Estamos preparando este album para subir tus fotos."}
             </Text>
           </View>
         </View>
-      )}
+      )} */}
+
+      {/* --- INICIO MODALES MODIFICADOS --- */}
+
+      {/* Modal de Subida Exitosa (Sin boton OK) */}
+      {/* Modal de Subida Exitosa (MODIFICADO: Sin boton, se auto-cierra) */}
+      <Modal
+        visible={showUploadSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUploadSuccessModal(false)}
+      >
+        <View style={styles.modalGeneralBackdrop}>
+          <View style={styles.modalGeneralCard}>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={50}
+              color="#10B981"
+              style={styles.modalGeneralIcon}
+            />
+            <Text style={styles.modalGeneralTitle}>{t("alerts.upload_done_title")}</Text>
+            <Text style={[styles.modalGeneralText, { marginBottom: 0 }]}>
+              {uploadSuccessCount === 1
+                ? t("alerts.upload_some_one")
+                : t("alerts.upload_some_other", { count: uploadSuccessCount })}
+            </Text>
+            {/* Boton eliminado */}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Descarga Exitosa (MODIFICADO: Sin boton, se auto-cierra) */}
+      <Modal
+        visible={showDownloadSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDownloadSuccessModal(false)}
+      >
+        <View style={styles.modalGeneralBackdrop}>
+          <View style={styles.modalGeneralCard}>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={50}
+              color="#10B981"
+              style={styles.modalGeneralIcon}
+            />
+            <Text style={styles.modalGeneralTitle}>{t("alerts.download_ok_title")}</Text>
+            <Text style={[styles.modalGeneralText, { marginBottom: 0 }]}> 
+              {t("alerts.download_ok_desc")}
+            </Text>
+            {/* Boton eliminado */}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Confirmar Eliminacion (Sin cambios) */}
+      <Modal
+        visible={showDeleteConfirmModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirmModal(false)}
+      >
+        <View style={styles.modalGeneralBackdrop}>
+          <View style={styles.modalGeneralCard}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={50}
+              color="#F59E0B"
+              style={styles.modalGeneralIcon}
+            />
+            <Text style={styles.modalGeneralTitle}>{t("alerts.confirm_delete_title")}</Text>
+            <Text style={styles.modalGeneralText}>{t("alerts.confirm_delete_message")}</Text>
+            <View style={styles.modalGeneralActions}>
+              <TouchableOpacity
+                style={[styles.modalGeneralButton, styles.modalGeneralButtonOutline]}
+                onPress={() => setShowDeleteConfirmModal(false)}
+              >
+                <Text style={styles.modalGeneralButtonTextOutline}>{t("actions.cancel")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalGeneralButton, styles.modalGeneralButtonDestructive]}
+                onPress={executeDelete}
+              >
+                <Text style={styles.modalGeneralButtonTextSolid}>{t("actions.delete")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Modal de Eliminacion Exitosa (MODIFICADO: Sin boton, se auto-cierra) */}
+      <Modal
+        visible={showDeleteSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteSuccessModal(false)}
+      >
+        <View style={styles.modalGeneralBackdrop}>
+          <View style={styles.modalGeneralCard}>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={50}
+              color="#10B981"
+              style={styles.modalGeneralIcon}
+            />
+            <Text style={styles.modalGeneralTitle}>{t("alerts.success_title")}</Text>
+            <Text style={[styles.modalGeneralText, { marginBottom: 0 }]}> 
+              {t("alerts.photo_deleted")}
+            </Text>
+            {/* Boton eliminado */}
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- FIN MODALES MODIFICADOS --- */}
+
     </SafeAreaView>
   );
 }
@@ -1686,7 +1857,13 @@ const styles = StyleSheet.create({
   },
 
   actionsRow: { flexDirection: "row", gap: 14, paddingLeft: 4, marginTop: 6 },
-  action: { flexDirection: "row", alignItems: "center", gap: 6 },
+  action: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minWidth: 20, // Para que el ActivityIndicator no haga saltar el layout
+    justifyContent: "center",
+  },
 
   addButton: {
     marginTop: 16,
@@ -1764,7 +1941,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 24,
   },
-  viewerActionBtn: { alignItems: "center" },
+  viewerActionBtn: { alignItems: "center", minWidth: 60 }, // minWidth para los loaders
   viewerActionTxt: { color: "#fff", marginTop: 6, fontWeight: "600" },
 
   btn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
@@ -1795,4 +1972,75 @@ const styles = StyleSheet.create({
     color: "#4B5563",
     textAlign: "center",
   },
+  
+  // --- INICIO NUEVOS ESTILOS PARA MODALES ---
+  modalGeneralBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalGeneralCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: "white",
+    borderRadius: 14,
+    padding: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalGeneralIcon: {
+    marginBottom: 10,
+  },
+  modalGeneralTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  modalGeneralText: {
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  modalGeneralActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    gap: 10,
+  },
+  modalGeneralButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalGeneralButtonSolid: {
+    backgroundColor: "#6F4C8C"
+  },
+  modalGeneralButtonTextSolid: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  modalGeneralButtonOutline: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB", // Gris claro
+  },
+  modalGeneralButtonTextOutline: {
+    color: "#374151", // Texto oscuro
+    fontWeight: "600",
+  },
+  modalGeneralButtonDestructive: {
+    backgroundColor: "#DC2626", // Rojo para eliminar
+  },
+  // --- FIN NUEVOS ESTILOS ---
 });

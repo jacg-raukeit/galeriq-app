@@ -13,6 +13,11 @@ export const EventsContext = createContext();
 
 const API_BASE = "http://143.198.138.35:8000";
 
+// --- INICIO DEL CAMBIO ---
+// Esta bandera vivirá fuera del componente.
+// Evitará llamadas duplicadas incluso si el Provider se remonta.
+let globalHasInitialFetchStarted = false;// --- FIN DEL CAMBIO ---
+
 export function EventsProvider({ children }) {
   const { user } = useContext(AuthContext);
   const [events, setEvents] = useState([]);
@@ -20,68 +25,80 @@ export function EventsProvider({ children }) {
   const isFetchingRef = useRef(false);
   const refreshTimerRef = useRef(null);
 
-  const refreshEvents = useCallback(async (opts = { force: false }) => {
-    if (!user?.token) {
-      setEvents([]);
-      return [];
-    }
-    if (isFetchingRef.current && !opts.force) {
-      console.log("[EventsContext] refreshEvents: already fetching, skip");
-      return events; 
-    }
-
-    isFetchingRef.current = true;
-    try {
-      console.log("[EventsContext] fetching events...");
-      const res = await fetch(`${API_BASE}/events/get-events`, {
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
-
-      if (res.status === 401) {
-        const text = await res.text().catch(() => "");
-        const err = new Error(text || "Unauthorized");
-        err.status = 401;
-        throw err;
+  const refreshEvents = useCallback(
+    async (opts = { force: false }) => {
+      if (!user?.token) {
+        setEvents([]);
+        return [];
       }
-
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        const err = new Error(body || "Error fetching events");
-        err.status = res.status;
-        throw err;
+      // --- INICIO DEL CAMBIO ---
+      // Usamos el candado global
+      if (globalHasInitialFetchStarted && !opts.force) {
+        console.log(
+          "[EventsContext] refreshEvents: Initial fetch already started, skip"
+        );
+        return events;
       }
+      // Ponemos el cerrojo. NO se quitará hasta el logout.
+ globalHasInitialFetchStarted = true;
+isFetchingRef.current = true;
+ // --- FIN CAMBIO ---
 
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : [];
-      setEvents(list);
-      return list;
-    } catch (err) {
-      console.error("[EventsContext] Error al cargar eventos:", err);
-      throw err;
-    } finally {
-      isFetchingRef.current = false;
-    }
-  }, [user?.token]);
+      try {
+        console.log("[EventsContext] fetching events...");
+        const res = await fetch(`${API_BASE}/events/get-events`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
 
-  
+        if (res.status === 401) {
+          const text = await res.text().catch(() => "");
+          const err = new Error(text || "Unauthorized");
+          err.status = 401;
+          throw err;
+        }
+
+        if (!res.ok) {
+          const body = await res.text().catch(() => "");
+          const err = new Error(body || "Error fetching events");
+          err.status = res.status;
+          throw err;
+        }
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        setEvents(list);
+        return list;
+      } catch (err) {
+        console.error("[EventsContext] Error al cargar eventos:", err);
+        // --- INICIO DEL CAMBIO ---
+        // Si falla, liberamos el candado para permitir un reintento
+        globalHasInitialFetchStarted = false;
+ isFetchingRef.current = false;
+        // --- FIN DEL CAMBIO ---
+        throw err;
+      } finally {
+        // --- INICIO DEL CAMBIO ---
+        // Liberamos el candado global
+        isFetchingRef.current = false;
+        // --- FIN DEL CAMBIO ---
+      }
+    },
+    [user?.token]
+  );
+
   useEffect(() => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-
+    // Limpia los eventos si el token del usuario desaparece (logout)
     if (!user?.token) {
+      console.log("[EventsContext] User token cleared, setting empty events.");
       setEvents([]);
-      return;
-    }
-
-    refreshTimerRef.current = setTimeout(() => {
-      refreshEvents().catch((e) => {
-        console.log("[EventsContext] refresh after token change finished:", e?.message);
-      });
-    }, 250);
-
-    return () => {
+      isFetchingRef.current = false; // Resetea el flag por si acaso
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    };
-  }, [user?.token, refreshEvents]); 
+ // --- CAMBIO ---
+ // Aquí es donde SÍ reiniciamos el cerrojo
+ globalHasInitialFetchStarted = false;
+// --- FIN CAMBIO ---
+ }
+ }, [user?.token]);
 
   const addEvent = async (payload) => {
     if (!user?.token) throw new Error("No auth token");

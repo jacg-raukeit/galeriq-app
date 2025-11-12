@@ -23,14 +23,15 @@ export default function NotificationsScreen({ navigation }) {
   const { user } = useContext(AuthContext);
   const { t } = useTranslation("notifications");
 
-  const [unread, setUnread] = useState([]); 
-  const [read, setRead] = useState([]);     
+  const [unread, setUnread] = useState([]);
+  const [read, setRead] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const [selected, setSelected] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
 
   const [deleting, setDeleting] = useState(false);
   const [rsvpLoading, setRsvpLoading] = useState(false);
@@ -51,7 +52,7 @@ export default function NotificationsScreen({ navigation }) {
 
   const [markingRead, setMarkingRead] = useState(false);
 
-  const [activeTab, setActiveTab] = useState("unread"); 
+  const [activeTab, setActiveTab] = useState("unread");
 
   const mapItem = (n) => {
     const id = n?.notification_id ?? n?.id ?? String(Math.random());
@@ -115,10 +116,20 @@ export default function NotificationsScreen({ navigation }) {
   const getInviterName = (item) => {
     const r = item?.raw || {};
     const cands = [
-      r?.inviter_name, r?.sender_name, r?.from_name, r?.from_user_name,
-      r?.created_by_name, r?.creator_name, r?.owner_name, r?.host_name,
-      r?.data?.inviter_name, r?.data?.sender_name, r?.data?.from_name,
-      r?.payload?.inviter_name, r?.payload?.sender_name, r?.payload?.from_name,
+      r?.inviter_name,
+      r?.sender_name,
+      r?.from_name,
+      r?.from_user_name,
+      r?.created_by_name,
+      r?.creator_name,
+      r?.owner_name,
+      r?.host_name,
+      r?.data?.inviter_name,
+      r?.data?.sender_name,
+      r?.data?.from_name,
+      r?.payload?.inviter_name,
+      r?.payload?.sender_name,
+      r?.payload?.from_name,
     ];
     return cands.find((x) => x && String(x).trim()) || null;
   };
@@ -130,16 +141,20 @@ export default function NotificationsScreen({ navigation }) {
 
       const [ru, rr] = await Promise.all([
         fetch(`${API_BASE}/notifications/unread`, { headers }),
-        fetch(`${API_BASE}/notifications/read`,   { headers }),
+        fetch(`${API_BASE}/notifications/read`, { headers }),
       ]);
 
-       if (!ru.ok) throw new Error(t("alerts.load_unread_fail"));
+      if (!ru.ok) throw new Error(t("alerts.load_unread_fail"));
       if (!rr.ok) throw new Error(t("alerts.load_read_fail"));
 
       const [unreadList, readList] = await Promise.all([ru.json(), rr.json()]);
 
-      const mappedUnread = sortByDateDesc((unreadList || []).map(mapItem).map(x => ({ ...x, is_read: false })));
-      const mappedRead   = sortByDateDesc((readList   || []).map(mapItem).map(x => ({ ...x, is_read: true })) );
+      const mappedUnread = sortByDateDesc(
+        (unreadList || []).map(mapItem).map((x) => ({ ...x, is_read: false }))
+      );
+      const mappedRead = sortByDateDesc(
+        (readList || []).map(mapItem).map((x) => ({ ...x, is_read: true }))
+      );
 
       setUnread(mappedUnread);
       setRead(mappedRead);
@@ -157,7 +172,10 @@ export default function NotificationsScreen({ navigation }) {
       });
       if (r.ok) {
         const data = await r.json();
-        setMe({ full_name: data?.full_name || null, email: data?.email || null });
+        setMe({
+          full_name: data?.full_name || null,
+          email: data?.email || null,
+        });
       }
     } catch {}
   }, [user?.token]);
@@ -174,15 +192,26 @@ export default function NotificationsScreen({ navigation }) {
   }, [fetchReadUnread]);
 
   const getAllItems = () => [...unread, ...read];
-  const findById = (id) => getAllItems().find((x) => String(x.id) === String(id));
+  const findById = (id) =>
+    getAllItems().find((x) => String(x.id) === String(id));
 
   const tryGetGuestIdDirect = (item) => {
     const r = item?.raw || {};
     const cands = [
-      r?.guest_id, r?.guestId, r?.invitee_id, r?.inviteeId,
-      r?.data?.guest_id, r?.data?.guestId, r?.data?.invitee_id, r?.data?.inviteeId,
-      r?.payload?.guest_id, r?.payload?.guestId, r?.payload?.invitee_id, r?.payload?.inviteeId,
-      item?.guest_id, item?.guestId,
+      r?.guest_id,
+      r?.guestId,
+      r?.invitee_id,
+      r?.inviteeId,
+      r?.data?.guest_id,
+      r?.data?.guestId,
+      r?.data?.invitee_id,
+      r?.data?.inviteeId,
+      r?.payload?.guest_id,
+      r?.payload?.guestId,
+      r?.payload?.invitee_id,
+      r?.payload?.inviteeId,
+      item?.guest_id,
+      item?.guestId,
     ];
     const found = cands.find(
       (v) => typeof v === "number" || (typeof v === "string" && v.trim() !== "")
@@ -192,7 +221,8 @@ export default function NotificationsScreen({ navigation }) {
 
   const parseTokenFromAny = (item) => {
     const r = item?.raw || {};
-    const direct = r?.token || r?.invitation_token || r?.invite_token || item?.token;
+    const direct =
+      r?.token || r?.invitation_token || r?.invite_token || item?.token;
     if (typeof direct === "string" && direct.trim()) return direct.trim();
 
     const link = r?.link || r?.url || item?.url || item?.message || "";
@@ -214,23 +244,35 @@ export default function NotificationsScreen({ navigation }) {
     if (!r.ok) return null;
     const guests = await r.json();
     const g = (guests || []).find(
-      (x) => String(x?.email || "").toLowerCase().trim() === String(email).toLowerCase().trim()
+      (x) =>
+        String(x?.email || "")
+          .toLowerCase()
+          .trim() === String(email).toLowerCase().trim()
     );
     return g?.guest_id ?? null;
   };
 
   const toNum = (v) => {
     if (typeof v === "number" && !Number.isNaN(v)) return v;
-    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
+    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v)))
+      return Number(v);
     return null;
   };
 
   const getEventIdFromItem = (item) => {
     const r = item?.raw || {};
     const cands = [
-      item?.event_id, item?.eventId, r?.event_id, r?.eventId,
-      r?.data?.event_id, r?.data?.eventId, r?.payload?.event_id, r?.payload?.eventId,
-      r?.event?.event_id, r?.data?.event?.event_id, r?.payload?.event?.event_id,
+      item?.event_id,
+      item?.eventId,
+      r?.event_id,
+      r?.eventId,
+      r?.data?.event_id,
+      r?.data?.eventId,
+      r?.payload?.event_id,
+      r?.payload?.eventId,
+      r?.event?.event_id,
+      r?.data?.event?.event_id,
+      r?.payload?.event?.event_id,
     ];
     for (const c of cands) {
       const n = toNum(c);
@@ -249,22 +291,34 @@ export default function NotificationsScreen({ navigation }) {
         if (!eid) {
           const token = parseTokenFromAny(item);
           if (token) {
-            const r = await fetch(`${API_BASE}/guests/invite/validate?token=${encodeURIComponent(token)}`);
+            const r = await fetch(
+              `${API_BASE}/guests/invite/validate?token=${encodeURIComponent(
+                token
+              )}`
+            );
             if (r.ok) {
               const data = await r.json();
               if (data?.event_id) eid = Number(data.event_id);
             }
           }
         }
-        if (!eid) { setInviteImgLoading(false); return; }
+        if (!eid) {
+          setInviteImgLoading(false);
+          return;
+        }
         setEventIdForSelected(eid);
         const res = await fetch(`${API_BASE}/events/${eid}/invitation-photo/`, {
           headers: { Authorization: `Bearer ${user.token}` },
         });
-        if (!res.ok) { setInviteImgUrl(null); return; }
+        if (!res.ok) {
+          setInviteImgUrl(null);
+          return;
+        }
         const json = await res.json();
         const url = json?.url_invitation;
-        setInviteImgUrl(url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : null);
+        setInviteImgUrl(
+          url ? `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}` : null
+        );
       } catch {
         setInviteImgUrl(null);
       } finally {
@@ -282,9 +336,13 @@ export default function NotificationsScreen({ navigation }) {
         });
         if (!r.ok) return null;
         const guests = await r.json();
-        const g = (guests || []).find((x) => Number(x?.guest_id) === Number(guestId));
+        const g = (guests || []).find(
+          (x) => Number(x?.guest_id) === Number(guestId)
+        );
         return typeof g?.rsvp_status === "number" ? g.rsvp_status : null;
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     },
     [user?.token]
   );
@@ -301,22 +359,41 @@ export default function NotificationsScreen({ navigation }) {
         setRsvpDone(true);
         setRsvpResult(status === 1 ? "aceptado" : "declinado");
         setRsvpByNotif((prev) => ({ ...prev, [selected.id]: status }));
-        setUnread((prev) => prev.map((n) => (n.id === selected.id ? { ...n, __rsvp_status: status } : n)));
-        setRead((prev) => prev.map((n) => (n.id === selected.id ? { ...n, __rsvp_status: status } : n)));
+        setUnread((prev) =>
+          prev.map((n) =>
+            n.id === selected.id ? { ...n, __rsvp_status: status } : n
+          )
+        );
+        setRead((prev) =>
+          prev.map((n) =>
+            n.id === selected.id ? { ...n, __rsvp_status: status } : n
+          )
+        );
       }
       setRsvpChecking(false);
     };
     run();
-  }, [detailOpen, selected?.id, resolvedGuestId, eventIdForSelected, rsvpByNotif, selected?.__rsvp_status, fetchGuestRsvp]);
+  }, [
+    detailOpen,
+    selected?.id,
+    resolvedGuestId,
+    eventIdForSelected,
+    rsvpByNotif,
+    selected?.__rsvp_status,
+    fetchGuestRsvp,
+  ]);
 
   const apiMarkAsRead = async (notificationId) => {
-    const r = await fetch(`${API_BASE}/notifications/${notificationId}/mark-as-read`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${user.token}` },
-    });
+    const r = await fetch(
+      `${API_BASE}/notifications/${notificationId}/mark-as-read`,
+      {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${user.token}` },
+      }
+    );
     if (!r.ok) {
       const msg = await r.text();
-       throw new Error(msg || t("alerts.mark_read_fail"));
+      throw new Error(msg || t("alerts.mark_read_fail"));
     }
     return r.json();
   };
@@ -350,7 +427,11 @@ export default function NotificationsScreen({ navigation }) {
         setUnread((prevUnread) => sortByDateDesc([itemBack, ...prevUnread]));
         return newRead;
       });
-      if (!silent) Alert.alert(t("alerts.error"), e?.message || t("alerts.mark_read_fail"));
+      if (!silent)
+        Alert.alert(
+          t("alerts.error"),
+          e?.message || t("alerts.mark_read_fail")
+        );
     } finally {
       if (!silent) setMarkingRead(false);
     }
@@ -397,7 +478,9 @@ export default function NotificationsScreen({ navigation }) {
 
     const token = parseTokenFromAny(item);
     if (token) {
-      const r = await fetch(`${API_BASE}/guests/invite/validate?token=${encodeURIComponent(token)}`);
+      const r = await fetch(
+        `${API_BASE}/guests/invite/validate?token=${encodeURIComponent(token)}`
+      );
       if (r.ok) {
         const data = await r.json();
         if (data?.guest_id) return Number(data.guest_id);
@@ -411,6 +494,7 @@ export default function NotificationsScreen({ navigation }) {
     return null;
   };
 
+  // --- MODIFICADO ---
   const deleteOne = async (item) => {
     try {
       setDeleting(true);
@@ -420,24 +504,30 @@ export default function NotificationsScreen({ navigation }) {
       });
       if (!r.ok) {
         const txt = await r.text();
-        throw new Error(txt || "No se pudo eliminar.");
+        throw new Error(txt || "No se pudo eliminar."); // Sin 'o' acentuada
       }
       setDetailOpen(false);
       setUnread((prev) => prev.filter((x) => x.id !== item.id));
       setRead((prev) => prev.filter((x) => x.id !== item.id));
-      Alert.alert(t("alerts.ok"), t("alerts.deleted"));
+
+      // En lugar del Alert, mostramos el modal de exito
+      setShowDeleteSuccessModal(true);
     } catch (e) {
-       Alert.alert(t("alerts.error"), e?.message || t("alerts.cannot_delete"));
+      Alert.alert(t("alerts.error"), e?.message || t("alerts.cannot_delete"));
     } finally {
       setDeleting(false);
     }
   };
+  // --- FIN MODIFICADO ---
 
   const handleRSVP = async (status) => {
     if (!selected) return;
     const guestId = resolvedGuestId;
     if (!guestId) {
-      return Alert.alert(t("alerts.missing_info_title"), t("alerts.missing_guest_id"));
+      return Alert.alert(
+        t("alerts.missing_info_title"),
+        t("alerts.missing_guest_id")
+      );
     }
     try {
       setRsvpLoading(true);
@@ -457,10 +547,17 @@ export default function NotificationsScreen({ navigation }) {
       setRsvpResult(resultTxt);
 
       setRsvpByNotif((prev) => ({ ...prev, [selected.id]: status }));
-      setRead((prev) => prev.map((n) => (n.id === selected.id ? { ...n, __rsvp_status: status } : n)));
+      setRead((prev) =>
+        prev.map((n) =>
+          n.id === selected.id ? { ...n, __rsvp_status: status } : n
+        )
+      );
 
       Alert.alert(t("alerts.ok"), t("alerts.rsvp_done", { result: resultTxt }));
-      if (status === 1) { setDetailOpen(false); navigation.navigate("Events"); }
+      if (status === 1) {
+        setDetailOpen(false);
+        navigation.navigate("Events");
+      }
     } catch (e) {
       Alert.alert("Error", e?.message || "No se pudo actualizar el RSVP.");
     } finally {
@@ -485,7 +582,10 @@ export default function NotificationsScreen({ navigation }) {
 
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text style={[styles.title, isRead && styles.titleRead]} numberOfLines={1}>
+            <Text
+              style={[styles.title, isRead && styles.titleRead]}
+              numberOfLines={1}
+            >
               {item.title}
             </Text>
             {isRead && (
@@ -497,7 +597,10 @@ export default function NotificationsScreen({ navigation }) {
           </View>
 
           {!!item.message && (
-            <Text style={[styles.subtitle, isRead && styles.subtitleRead]} numberOfLines={2}>
+            <Text
+              style={[styles.subtitle, isRead && styles.subtitleRead]}
+              numberOfLines={2}
+            >
               {stripUrls(item.message)}
             </Text>
           )}
@@ -517,7 +620,9 @@ export default function NotificationsScreen({ navigation }) {
     const nombre = me?.full_name || t("invite_message.guest_generic");
     const eventName = getEventName(item);
     const inviter = getInviterName(item);
-    let text = `${t("invite_message.hello_name", { name: nombre })}, ${t("invite_message.lead")}`;
+    let text = `${t("invite_message.hello_name", { name: nombre })}, ${t(
+      "invite_message.lead"
+    )}`;
     if (eventName) text += ` "${eventName}"`;
     if (inviter) text += ` ${t("invite_message.by", { inviter })}`;
     return text + ".";
@@ -527,13 +632,16 @@ export default function NotificationsScreen({ navigation }) {
     ? rsvpByNotif[selected.id] ?? selected?.__rsvp_status ?? null
     : null;
   const alreadyAnswered =
-    isInvite(selected) && (rsvpDone || selectedStatus === 1 || selectedStatus === 2);
+    isInvite(selected) &&
+    (rsvpDone || selectedStatus === 1 || selectedStatus === 2);
   const answeredText =
-    selectedStatus === 1 ? t("statuses.accepted") : selectedStatus === 2 ? t("statuses.declined") : rsvpResult;
+    selectedStatus === 1
+      ? t("statuses.accepted")
+      : selectedStatus === 2
+      ? t("statuses.declined")
+      : rsvpResult;
 
-  const selectedIsRead =
-    selected &&
-    (findById(selected.id)?.is_read === true);
+  const selectedIsRead = selected && findById(selected.id)?.is_read === true;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -557,7 +665,12 @@ export default function NotificationsScreen({ navigation }) {
           style={[styles.segBtn, activeTab === "unread" && styles.segBtnActive]}
           onPress={() => setActiveTab("unread")}
         >
-          <Text style={[styles.segText, activeTab === "unread" && styles.segTextActive]}>
+          <Text
+            style={[
+              styles.segText,
+              activeTab === "unread" && styles.segTextActive,
+            ]}
+          >
             {t("tabs.unread")} ({unread.length})
           </Text>
         </TouchableOpacity>
@@ -566,28 +679,39 @@ export default function NotificationsScreen({ navigation }) {
           style={[styles.segBtn, activeTab === "read" && styles.segBtnActive]}
           onPress={() => setActiveTab("read")}
         >
-          <Text style={[styles.segText, activeTab === "read" && styles.segTextActive]}>
+          <Text
+            style={[
+              styles.segText,
+              activeTab === "read" && styles.segTextActive,
+            ]}
+          >
             {t("tabs.read")} ({read.length})
           </Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
           <ActivityIndicator size="large" />
         </View>
       ) : (
         <FlatList
           data={dataForTab}
           keyExtractor={(it) => String(it.id)}
-          contentContainerStyle={dataForTab.length ? styles.list : styles.listEmpty}
+          contentContainerStyle={
+            dataForTab.length ? styles.list : styles.listEmpty
+          }
           renderItem={renderItem}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           ListEmptyComponent={
             <Text style={{ color: "#6B7280" }}>
-              {activeTab === "unread" ? t("tabs.empty_unread") : t("tabs.empty_read")}
+              {activeTab === "unread"
+                ? t("tabs.empty_unread")
+                : t("tabs.empty_read")}
             </Text>
           }
         />
@@ -602,8 +726,18 @@ export default function NotificationsScreen({ navigation }) {
       >
         <View style={styles.backdrop}>
           <View style={styles.card}>
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-              <Ionicons name={iconFor(selected?.type)} size={20} color="#6B21A8" />
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
+              <Ionicons
+                name={iconFor(selected?.type)}
+                size={20}
+                color="#6B21A8"
+              />
               <Text style={styles.cardTitle} numberOfLines={2}>
                 {selected?.title}
               </Text>
@@ -617,97 +751,208 @@ export default function NotificationsScreen({ navigation }) {
 
             {selected && (
               <Text style={styles.cardText}>
-                {isInvite(selected) ? inviteCleanMessage(selected) : stripUrls(selected?.message)}
+                {isInvite(selected)
+                  ? inviteCleanMessage(selected)
+                  : stripUrls(selected?.message)}
               </Text>
             )}
 
             {!!selected?.created_at && (
-              <Text style={styles.cardMeta}>{new Date(selected.created_at).toLocaleString("es-MX")}</Text>
+              <Text style={styles.cardMeta}>
+                {new Date(selected.created_at).toLocaleString("es-MX")}
+              </Text>
             )}
 
             {isInvite(selected) && (
               <View style={{ marginTop: 12 }}>
                 {inviteImgLoading ? (
-                  <View style={{ alignItems: "center", justifyContent: "center", paddingVertical: 12 }}>
+                  <View
+                    style={{
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingVertical: 12,
+                    }}
+                  >
                     <ActivityIndicator />
-                    <Text style={{ marginTop: 6, color: "#6B7280" }}>{t("labels.loading_invite")}</Text>
+                    <Text style={{ marginTop: 6, color: "#6B7280" }}>
+                      {t("labels.loading_invite")}
+                    </Text>
                   </View>
                 ) : inviteImgUrl ? (
                   <Image
                     source={{ uri: inviteImgUrl }}
-                    style={{ width: "100%", height: 420, borderRadius: 10, backgroundColor: "#F3F4F6" }}
+                    style={{
+                      width: "100%",
+                      height: 420,
+                      borderRadius: 10,
+                      backgroundColor: "#F3F4F6",
+                    }}
                     resizeMode="cover"
                     onError={() => setInviteImgUrl(null)}
                   />
                 ) : (
-                  <Text style={{ color: "#9CA3AF" }}>{t("labels.no_invite")}</Text>
+                  <Text style={{ color: "#9CA3AF" }}>
+                    {t("labels.no_invite")}
+                  </Text>
                 )}
               </View>
             )}
 
             {isInvite(selected) && !alreadyAnswered && (
               <>
-                {(resolving || rsvpChecking) ? (
+                {resolving || rsvpChecking ? (
                   <View style={{ marginTop: 12, alignItems: "center" }}>
                     <ActivityIndicator />
-                    <Text style={{ marginTop: 6, color: "#6B7280" }}>{t("labels.searching_invite")}</Text>
-                    <Text style={{ marginTop: 6, color: "#6B7280" }}>{t("labels.checking_rsvp")}</Text>
+                    <Text style={{ marginTop: 6, color: "#6B7280" }}>
+                      {t("labels.searching_invite")}
+                    </Text>
+                    <Text style={{ marginTop: 6, color: "#6B7280" }}>
+                      {t("labels.checking_rsvp")}
+                    </Text>
                   </View>
                 ) : resolvedGuestId ? (
                   <View style={styles.rsvpRow}>
                     <TouchableOpacity
-                      style={[styles.btn, { backgroundColor: "#10B981" }, rsvpLoading && { opacity: 0.6 }]}
+                      style={[
+                        styles.btn,
+                        { backgroundColor: "#10B981" },
+                        rsvpLoading && { opacity: 0.6 },
+                      ]}
                       onPress={() => handleRSVP(1)}
                       disabled={rsvpLoading}
                     >
-                      {rsvpLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t("labels.accept_invite")}</Text>}
+                      {rsvpLoading ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.btnText}>
+                          {t("labels.accept_invite")}
+                        </Text>
+                      )}
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.btn, { backgroundColor: "#6B7280" }, rsvpLoading && { opacity: 0.6 }]}
+                      style={[
+                        styles.btn,
+                        { backgroundColor: "#6B7280" },
+                        rsvpLoading && { opacity: 0.6 },
+                      ]}
                       onPress={() => handleRSVP(2)}
                       disabled={rsvpLoading}
                     >
-                     {rsvpLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t("labels.decline")}</Text>}
+                      {rsvpLoading ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.btnText}>
+                          {t("labels.decline")}
+                        </Text>
+                      )}
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <Text style={{ marginTop: 12, color: "#B91C1C" }}>{t("alerts.missing_guest_id")}</Text>
+                  <Text style={{ marginTop: 12, color: "#B91C1C" }}>
+                    {t("alerts.missing_guest_id")}
+                  </Text>
                 )}
               </>
             )}
 
             {isInvite(selected) && alreadyAnswered && (
-              <Text style={{ marginTop: 12, fontWeight: "700", color: answeredText === t("statuses.accepted") ? "#065F46" : "#4B5563" }}>
+              <Text
+                style={{
+                  marginTop: 12,
+                  fontWeight: "700",
+                  color:
+                    answeredText === t("statuses.accepted")
+                      ? "#065F46"
+                      : "#4B5563",
+                }}
+              >
                 {t("invite_message.answered_prefix", { status: answeredText })}
               </Text>
             )}
 
             {!selectedIsRead && (
               <TouchableOpacity
-                style={[styles.btn, { backgroundColor: "#E5F9F2", marginTop: 12 }]}
-                onPress={async () => { if (!selected) return; await markOneAsRead(selected, { silent: false }); }}
+                style={[
+                  styles.btn,
+                  { backgroundColor: "#E5F9F2", marginTop: 12 },
+                ]}
+                onPress={async () => {
+                  if (!selected) return;
+                  await markOneAsRead(selected, { silent: false });
+                }}
                 disabled={markingRead}
               >
-                {markingRead ? <ActivityIndicator color="#065F46" /> : <Text style={[styles.btnText, { color: "#065F46" }]}>{t("labels.mark_read")}</Text>}
+                {markingRead ? (
+                  <ActivityIndicator color="#065F46" />
+                ) : (
+                  <Text style={[styles.btnText, { color: "#065F46" }]}>
+                    {t("labels.mark_read")}
+                  </Text>
+                )}
               </TouchableOpacity>
             )}
 
             <View style={styles.actionsRow}>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: "#efeff4" }]} onPress={() => setDetailOpen(false)}>
-                <Text style={[styles.btnText, { color: "#111827" }]}>{t("labels.close")}</Text>
+              <TouchableOpacity
+                style={[styles.btn, { backgroundColor: "#efeff4" }]}
+                onPress={() => setDetailOpen(false)}
+              >
+                <Text style={[styles.btnText, { color: "#111827" }]}>
+                  {t("labels.close")}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.btn, { backgroundColor: "#DC2626" }, deleting && { opacity: 0.6 }]}
+                style={[
+                  styles.btn,
+                  { backgroundColor: "#DC2626" },
+                  deleting && { opacity: 0.6 },
+                ]}
                 onPress={() => deleteOne(selected)}
                 disabled={deleting}
               >
-                {deleting ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>{t("labels.delete")}</Text>}
+                {deleting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.btnText}>{t("labels.delete")}</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+      {/* --- NUEVO --- */}
+      {/* Modal de Exito al Eliminar */}
+      <Modal
+        visible={showDeleteSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteSuccessModal(false)}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.card}>
+            <View style={{ alignItems: "center" }}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={50}
+                color="#10B981"
+              />
+              <Text style={styles.deleteModalTitle}>{t("alerts.ok")}</Text>
+              <Text style={styles.deleteModalText}>{t("alerts.deleted")}</Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.btn,
+                { backgroundColor: "#6B21A8", marginTop: 20, flex: 0 },
+              ]} // flex: 0 para que no ocupe todo el espacio
+              onPress={() => setShowDeleteSuccessModal(false)}
+            >
+              <Text style={styles.btnText}>{t("labels.close")}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      {/* --- FIN NUEVO --- */}
     </SafeAreaView>
   );
 }

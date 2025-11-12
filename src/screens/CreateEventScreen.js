@@ -23,6 +23,8 @@ import { AuthContext } from '../context/AuthContext';
 import { EventsContext } from '../context/EventsContext';
 import { Dropdown } from 'react-native-element-dropdown';
 import { useTranslation } from 'react-i18next';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
+
 
 const EVENT_TYPES = [
   'Boda',
@@ -62,11 +64,15 @@ export default function CreateEventScreen({ navigation }) {
   const [tempTimeIOS, setTempTimeIOS] = useState(new Date());
 
   const [location, setLocation]               = useState('');
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [selectedCoords, setSelectedCoords] = useState(null);
   const [tempImageUri, setTempImageUri]       = useState(null);
   const [status, setStatus]                   = useState(STATUS_OPTIONS[0].value);
   const [budget, setBudget] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+
 
   const [successVisible, setSuccessVisible] = useState(false);
 
@@ -201,16 +207,9 @@ export default function CreateEventScreen({ navigation }) {
   };
 
   const confirmCancel = () => {
-    if (submitting) return;
-     Alert.alert(
-      t('cancel_create.title'),
-      t('cancel_create.message'),
-      [
-        { text: t('cancel_create.cancel'), style: 'cancel' },
-        { text: t('cancel_create.accept'), onPress: () => navigation.goBack() },
-      ]
-    );
-  };
+  if (submitting) return;
+  setCancelModalVisible(true);
+};
 
   const openDateFlow = () => {
     if (submitting) return;
@@ -383,13 +382,19 @@ export default function CreateEventScreen({ navigation }) {
         )}
 
         <Text style={styles.label}>{t('labels.location')}</Text>
-        <TextInput
-          style={styles.input}
-          placeholder={t('placeholders.location')}
-          value={location}
-          editable={!submitting}
-          onChangeText={setLocation}
-        />
+<TouchableOpacity
+  onPress={() => !submitting && setShowMapModal(true)}
+  disabled={submitting}
+>
+  <TextInput
+    style={styles.input}
+    placeholder={t('placeholders.location')}
+    value={location}
+    editable={false} // evita escribir manualmente
+    pointerEvents="none"
+  />
+</TouchableOpacity>
+
 
         {/* Presupuesto */}
         <Text style={styles.label}>{t('labels.budget')}</Text>
@@ -510,6 +515,118 @@ export default function CreateEventScreen({ navigation }) {
     </View>
   </Modal>
 )}
+
+  {/* MODAL DE CONFIRMACIÓN CANCELAR */}
+<Modal
+  visible={cancelModalVisible}
+  transparent
+  animationType="fade"
+  onRequestClose={() => setCancelModalVisible(false)}
+>
+  <View style={styles.modalBackdrop}>
+    <View style={styles.modalCard}>
+      <Ionicons
+        name="alert-circle-outline"
+        size={48}
+        color="#F59E0B"
+        style={{ alignSelf: 'center', marginBottom: 12 }}
+      />
+      <Text style={styles.modalTitle}>{t('cancel_create.title')}</Text>
+      <Text style={styles.cancelMessage}>{t('cancel_create.message')}</Text>
+      <View style={styles.modalActions}>
+        <TouchableOpacity
+          style={[styles.modalBtn, styles.btnCancel]}
+          onPress={() => setCancelModalVisible(false)}
+        >
+          <Text style={styles.btnCancelText}>{t('cancel_create.cancel')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modalBtn, styles.btnAccept]}
+          onPress={() => {
+            setCancelModalVisible(false);
+            navigation.goBack();
+          }}
+        >
+          <Text style={styles.btnAcceptText}>{t('cancel_create.accept')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+
+
+{/* MODAL SELECCIONAR UBICACIÓN */}
+<Modal
+  visible={showMapModal}
+  transparent={false}
+  animationType="slide"
+  onRequestClose={() => setShowMapModal(false)}
+>
+  <View style={{ flex: 1 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#FFF', elevation: 3 }}>
+      <TouchableOpacity onPress={() => setShowMapModal(false)}>
+        <Ionicons name="arrow-back" size={26} color="#6B21A8" />
+      </TouchableOpacity>
+      <Text style={{ fontSize: 18, fontWeight: '700', marginLeft: 12, color: '#6B21A8' }}>
+        Selecciona ubicación
+      </Text>
+    </View>
+
+    <MapView
+      style={{ flex: 1 }}
+      provider={null} // usa default, no Google
+      initialRegion={{
+        latitude: 19.4326, // CDMX como punto base
+        longitude: -99.1332,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }}
+      onPress={async (e) => {
+        const { latitude, longitude } = e.nativeEvent.coordinate;
+        setSelectedCoords({ latitude, longitude });
+
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await response.json();
+          const address = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          setLocation(address);
+        } catch (error) {
+          console.log('Reverse geocode error:', error);
+          setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        }
+      }}
+    >
+      <UrlTile
+        urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        maximumZ={19}
+      />
+      {selectedCoords && (
+        <Marker coordinate={selectedCoords} />
+      )}
+    </MapView>
+
+    <View style={{ padding: 16, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E5E7EB' }}>
+      <Text style={{ color: '#374151', marginBottom: 8 }}>
+        {location ? `Dirección: ${location}` : 'Toca en el mapa para seleccionar ubicación'}
+      </Text>
+      <TouchableOpacity
+        style={{
+          backgroundColor: '#6B21A8',
+          paddingVertical: 12,
+          borderRadius: 8,
+          alignItems: 'center',
+        }}
+        onPress={() => setShowMapModal(false)}
+      >
+        <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar ubicación</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</Modal>
+
+
     </View>
   );
 }
@@ -598,7 +715,7 @@ const styles = StyleSheet.create({
   },
   pickerIOS: { alignSelf: 'center' },
   modalActions: {
-    flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8,
+    flexDirection: 'row', justifyContent: 'space-between', marginTop: 8,
   },
   modalBtn: {
     paddingVertical: 10, paddingHorizontal: 14, borderRadius: 8, marginLeft: 8,
@@ -635,4 +752,14 @@ modalOptionText: {
   color: '#374151',
   fontWeight: '500',
 },
+
+cancelMessage: {
+  textAlign: 'center',
+  color: '#6B7280',
+  fontSize: 14,
+  marginTop: 8,
+  marginBottom: 16,
+  lineHeight: 20,
+},
+
 });

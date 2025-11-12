@@ -46,6 +46,49 @@ const AnimatedTouchableOpacity =
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 const HERO_H = Math.max(280, SCREEN_H * 0.5);
 
+// ========== MODAL DE ÉXITO (con cierre automático) ==========
+function SuccessModal({ visible, title, message, onClose }) {
+  useEffect(() => {
+    if (visible) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [visible, onClose]);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.customModalOverlay}>
+        <View style={styles.customModalContainer}>
+          <Ionicons name="checkmark-circle" size={64} color="#10B981" style={{ marginBottom: 16 }} />
+          <Text style={styles.customModalTitle}>{title}</Text>
+          <Text style={styles.customModalMessage}>{message}</Text>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ========== MODAL DE ERROR ==========
+function ErrorModal({ visible, title, message, onClose }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.customModalOverlay}>
+        <View style={styles.customModalContainer}>
+          <Ionicons name="close-circle" size={64} color="#DC2626" style={{ marginBottom: 16 }} />
+          <Text style={styles.customModalTitle}>{title}</Text>
+          <Text style={styles.customModalMessage}>{message}</Text>
+          <TouchableOpacity style={styles.customModalBtn} onPress={onClose}>
+            <Text style={styles.customModalBtnText}>Cerrar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function EventDetailScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -96,6 +139,12 @@ export default function EventDetailScreen() {
   const [role, setRole] = useState(null);
   const [roleLoading, setRoleLoading] = useState(true);
   const [roleLabel, setRoleLabel] = useState("");
+
+  // Estados para modales personalizados
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [successModalData, setSuccessModalData] = useState({ title: "", message: "" });
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorModalData, setErrorModalData] = useState({ title: "", message: "" });
 
   const isOwner = role === 1;
   const isGuest = role === 2;
@@ -439,17 +488,19 @@ export default function EventDetailScreen() {
     if (assigningOwner) return;
     const email = ownerEmail.trim();
     if (!isValidEmail(email)) {
-      Alert.alert(
-        t("owner_modal.validations.email_invalid_title"),
-        t("owner_modal.validations.email_invalid_msg")
-      );
+      setErrorModalData({
+        title: t("owner_modal.validations.email_invalid_title"),
+        message: t("owner_modal.validations.email_invalid_msg"),
+      });
+      setErrorModalVisible(true);
       return;
     }
     if (!eventData?.event_id) {
-      Alert.alert(
-        t("owner_modal.errors.id_missing_title"),
-        t("owner_modal.errors.id_missing_msg")
-      );
+      setErrorModalData({
+        title: t("owner_modal.errors.id_missing_title"),
+        message: t("owner_modal.errors.id_missing_msg"),
+      });
+      setErrorModalVisible(true);
       return;
     }
 
@@ -472,29 +523,36 @@ export default function EventDetailScreen() {
           const data = JSON.parse(raw);
           if (data?.detail) detail = data.detail;
         } catch {}
+        
         if (res.status === 404) {
-          Alert.alert(
-            t("owner_modal.api.not_found_title"),
-            t("owner_modal.api.not_found_user")
-          );
+          setErrorModalData({
+            title: t("owner_modal.api.not_found_title"),
+            message: t("owner_modal.api.not_found_user"),
+          });
         } else {
-          Alert.alert(t("owner_modal.api.notice_title"), String(detail));
+          setErrorModalData({
+            title: t("owner_modal.api.notice_title"),
+            message: String(detail),
+          });
         }
+        setErrorModalVisible(true);
         return;
       }
 
-      Alert.alert(
-        t("owner_modal.success.title"),
-        t("owner_modal.success.assigned")
-      );
+      setSuccessModalData({
+        title: t("owner_modal.success.title"),
+        message: t("owner_modal.success.assigned"),
+      });
+      setSuccessModalVisible(true);
       setOwnerEmail("");
       setOwnerVisible(false);
     } catch (e) {
       console.error("Error asignando owner:", e);
-      Alert.alert(
-        t("owner_modal.errors.assign_title"),
-        t("owner_modal.errors.assign_msg")
-      );
+      setErrorModalData({
+        title: t("owner_modal.errors.assign_title"),
+        message: t("owner_modal.errors.assign_msg"),
+      });
+      setErrorModalVisible(true);
     } finally {
       setAssigningOwner(false);
     }
@@ -541,17 +599,19 @@ export default function EventDetailScreen() {
     if (removingOwner) return;
     const email = removeEmail.trim();
     if (!isValidEmail(email)) {
-      Alert.alert(
-        t("owner_modal.validations.email_invalid_title"),
-        t("owner_modal.validations.email_invalid_msg")
-      );
+      setErrorModalData({
+        title: t("owner_modal.validations.email_invalid_title"),
+        message: t("owner_modal.validations.email_invalid_msg"),
+      });
+      setErrorModalVisible(true);
       return;
     }
     if (!eventData?.event_id) {
-      Alert.alert(
-        t("owner_modal.errors.id_missing_title"),
-        t("owner_modal.errors.id_missing_msg")
-      );
+      setErrorModalData({
+        title: t("owner_modal.errors.id_missing_title"),
+        message: t("owner_modal.errors.id_missing_msg"),
+      });
+      setErrorModalVisible(true);
       return;
     }
 
@@ -560,10 +620,11 @@ export default function EventDetailScreen() {
 
       const uid = await resolveUserIdByEmail(email);
       if (!uid) {
-        Alert.alert(
-          "No encontrado",
-          "No se pudo encontrar el usuario por ese correo."
-        );
+        setErrorModalData({
+          title: "No encontrado",
+          message: "No se pudo encontrar el usuario por ese correo.",
+        });
+        setErrorModalVisible(true);
         return;
       }
 
@@ -582,22 +643,28 @@ export default function EventDetailScreen() {
           const data = JSON.parse(raw);
           if (data?.detail) msg = data.detail;
         } catch {}
-        Alert.alert(t("owner_modal.api.notice_title"), msg);
+        setErrorModalData({
+          title: t("owner_modal.api.notice_title"),
+          message: msg,
+        });
+        setErrorModalVisible(true);
         return;
       }
 
-      Alert.alert(
-        t("owner_modal.success.title"),
-        t("owner_modal.success.removed")
-      );
+      setSuccessModalData({
+        title: t("owner_modal.success.title"),
+        message: t("owner_modal.success.removed"),
+      });
+      setSuccessModalVisible(true);
       setRemoveEmail("");
       setOwnerVisible(false);
     } catch (e) {
       console.error("Error eliminando owner:", e);
-      Alert.alert(
-        t("owner_modal.errors.remove_title"),
-        t("owner_modal.errors.remove_msg")
-      );
+      setErrorModalData({
+        title: t("owner_modal.errors.remove_title"),
+        message: t("owner_modal.errors.remove_msg"),
+      });
+      setErrorModalVisible(true);
     } finally {
       setRemovingOwner(false);
     }
@@ -1392,6 +1459,21 @@ export default function EventDetailScreen() {
           </View>
         </Modal>
       )}
+
+      {/* MODALES PERSONALIZADOS */}
+      <SuccessModal
+        visible={successModalVisible}
+        title={successModalData.title}
+        message={successModalData.message}
+        onClose={() => setSuccessModalVisible(false)}
+      />
+
+      <ErrorModal
+        visible={errorModalVisible}
+        title={errorModalData.title}
+        message={errorModalData.message}
+        onClose={() => setErrorModalVisible(false)}
+      />
     </View>
   );
 }
@@ -1786,8 +1868,6 @@ ownerModalBackdrop: {
 },
 ownerModalSheet: {
   backgroundColor: "#FFFFFF",
-  // borderTopLeftRadius: 24,
-  // borderTopRightRadius: 24,
   height: SCREEN_H * 0.45,
   shadowColor: "#000",
   shadowOpacity: 0.2,
@@ -1859,11 +1939,55 @@ typePillInline: {
   flexDirection: "row",
   alignItems: "center",
   gap: 6,
-  // paddingHorizontal: 12,
-  // paddingVertical: 6,
-  // borderRadius: 12,
   overflow: "hidden",
   alignSelf: 'flex-start',
-  // backgroundColor: 'rgba(0,0,0,0.3)',
 },
+
+  // ===== MODALES PERSONALIZADOS =====
+  customModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  customModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  customModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  customModalMessage: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  customModalBtn: {
+    width: '100%',
+    backgroundColor: '#6B21A8',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  customModalBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+  },
 });

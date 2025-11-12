@@ -3,15 +3,18 @@ import { View, Text, StyleSheet, Dimensions, Animated, Easing } from 'react-nati
 import LottieView from 'lottie-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
+import * as SecureStore from 'expo-secure-store';
 
 const { width, height } = Dimensions.get('window');
 const BACKGROUND_COLOR = '#FFE8D6';
-const SPLASH_DURATION = 3000; 
+const MIN_SPLASH_DURATION = 3000; 
 
+const TOKEN_KEY = "galeriq_token";
+const API_BASE = "http://143.198.138.35:8000";
 export default function SplashScreen() {
   const navigation = useNavigation();
   const animRef = useRef(null);
-  const { user } = useContext(AuthContext);
+  const { user, setUser } = useContext(AuthContext);
 
   const topRightProg = useRef(new Animated.Value(0)).current;
   const bottomLeftProg = useRef(new Animated.Value(0)).current;
@@ -49,16 +52,39 @@ export default function SplashScreen() {
   }, []);
 
  useEffect(() => {
-  const timeout = setTimeout(() => {
-    if (user?.token) {
-      navigation.replace('Events');
-    } else {
-      navigation.replace('Login');
-    }
-  }, SPLASH_DURATION); 
-  
-  return () => clearTimeout(timeout);
-}, [user, navigation]);
+    const startTime = Date.now();
+
+    const checkAuth = async () => {
+      try {
+        const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+        if (savedToken) {
+          const profileRes = await fetch(`${API_BASE}/me`, {
+            headers: { Authorization: `Bearer ${savedToken}` },
+          });
+
+          if (profileRes.ok) {
+            const profile = await profileRes.json();
+            setUser({ id: profile.user_id, token: savedToken });
+            // El usuario está autenticado, irá a Events
+            return 'Events';
+          } else {
+            // Token inválido, limpiar
+            await SecureStore.deleteItemAsync(TOKEN_KEY);
+          }
+        }
+      } catch (e) {
+        console.log("Splash auto-login error:", e);
+      }
+      // Si no hay token o falló, irá a Login
+      return 'Login';
+    };
+
+    checkAuth().then(routeName => {
+      const elapsedTime = Date.now() - startTime;
+      const delay = Math.max(0, MIN_SPLASH_DURATION - elapsedTime);
+      setTimeout(() => navigation.replace(routeName), delay);
+    });
+  }, [navigation, setUser]);
 
   const circleSize = Math.max(width, height) * 0.4;
   const topRightStyle = {
@@ -108,7 +134,7 @@ export default function SplashScreen() {
       <View style={styles.centerBox}>
         <LottieView
           ref={animRef}
-          source={require('../assets/lottie/Photos.json')}
+          source={require('../assets/lottie/Photos-TOw11.json')}
           autoPlay
           loop={false}
           style={styles.lottie}
