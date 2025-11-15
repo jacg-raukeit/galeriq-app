@@ -14,7 +14,8 @@
     "description_title": "Description :",
     "description_empty": "No description",
     "role_title": "Your role in this event is :",
-    "role_loading": "Loading…"
+    "role_loading": "Loading…",
+    "location_title": "Location :"
   },
 
   "pill": {

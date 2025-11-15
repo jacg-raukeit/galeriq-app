@@ -34,6 +34,8 @@ import * as ImageManipulator from "expo-image-manipulator";
 
 import { AuthContext } from "../context/AuthContext";
 import { useTranslation } from "react-i18next";
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 const API_URL = "http://143.198.138.35:8000";
 
@@ -41,6 +43,7 @@ const { width: SCREEN_W } = Dimensions.get("window");
 const GUTTER = 12;
 const COLS = 2;
 const COL_W = (SCREEN_W - GUTTER * (COLS + 1)) / COLS;
+
 
 // URLs de Albumes y Fotos
 const CREATE_ALBUM_URL = `${API_URL}/albums/`;
@@ -276,6 +279,29 @@ const ReactionsBar = ({
   );
 };
 
+const SkeletonPhoto = ({ height }) => {
+  return (
+    <View style={{ 
+      width: "100%", 
+      height, 
+      borderRadius: 12, 
+      overflow: "hidden", 
+      backgroundColor: "#E5E7EB", 
+      marginBottom: 12
+    }}>
+      <LinearGradient
+        colors={["#E5E7EB", "#F3F4F6", "#E5E7EB"]}
+        start={{ x: -1, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{
+          flex: 1,
+          transform: [{ translateX: -200 }],
+        }}
+      />
+    </View>
+  );
+};
+
 export default function AlbumsScreen({ navigation, route }) {
   const { t } = useTranslation("albums_photos");
   const { eventId, albumId: initialAlbumId } = route?.params || {};
@@ -285,6 +311,14 @@ export default function AlbumsScreen({ navigation, route }) {
 
   const [albums, setAlbums] = useState([]);
   const [activeAlbumId, setActiveAlbumId] = useState(null);
+  const [selectMode, setSelectMode] = useState(false);
+const [selectedPhotos, setSelectedPhotos] = useState(new Set());
+const scaleAnims = useRef({}).current;
+const currentIndexRef = useRef(0);
+const translateX = useRef(new Animated.Value(0)).current;
+
+
+
 
   const [pickerBusy, setPickerBusy] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -1233,10 +1267,243 @@ export default function AlbumsScreen({ navigation, route }) {
     [] 
   );
 
-  const openViewer = (p) => {
+const openViewer = (p) => {
     setViewerPhoto(p);
     setViewerOpen(true);
   };
+
+
+
+
+
+  const toggleSelect = useCallback((id) => {
+  triggerBounce(id);
+
+  setSelectedPhotos((prev) => {
+    const newSet = new Set(prev);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+      if (newSet.size === 0) {
+        setSelectMode(false);
+      }
+    } else {
+      newSet.add(id);
+    }
+    return newSet;
+  });
+}, []);
+
+
+const triggerBounce = (id) => {
+  if (!scaleAnims[id]) {
+    scaleAnims[id] = new Animated.Value(1);
+  }
+
+  Animated.sequence([
+    Animated.spring(scaleAnims[id], {
+      toValue: 0.85,
+      friction: 4,
+      tension: 90,
+      useNativeDriver: true,
+    }),
+    Animated.spring(scaleAnims[id], {
+      toValue: 1,
+      friction: 5,
+      tension: 90,
+      useNativeDriver: true,
+    })
+  ]).start();
+};
+
+
+// Añade estas funciones después de la función toggleSelect
+
+const handleShareMultiple = useCallback(async () => {
+  if (selectedPhotos.size === 0) return;
+  
+  try {
+    const selectedPhotoIds = Array.from(selectedPhotos);
+    const selectedPhotosData = activeAlbum?.photos?.filter(p => 
+      selectedPhotoIds.includes(p.id)
+    ) || [];
+
+    if (selectedPhotosData.length === 0) return;
+
+    // Si es solo una foto, compartir normalmente
+    if (selectedPhotosData.length === 1) {
+      await sharePhoto(selectedPhotosData[0]);
+      setSelectMode(false);
+      setSelectedPhotos(new Set());
+      return;
+    }
+
+    // Para múltiples fotos, compartir una por una
+    let sharedCount = 0;
+    
+    for (const photo of selectedPhotosData) {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 500)); // Pequeña pausa
+        await sharePhoto(photo);
+        sharedCount++;
+      } catch (error) {
+        console.error(`Error sharing photo ${photo.id}:`, error);
+      }
+    }
+
+    Alert.alert(
+      "Compartido",
+      `Se compartieron ${sharedCount} de ${selectedPhotosData.length} fotos`
+    );
+
+    setSelectMode(false);
+    setSelectedPhotos(new Set());
+    
+  } catch (error) {
+    console.log("Error sharing multiple photos:", error);
+    Alert.alert(
+      t("alerts.error_title"),
+      "Error al compartir las fotos"
+    );
+  }
+}, [selectedPhotos, activeAlbum, sharePhoto]);
+
+const handleDownloadMultiple = useCallback(async () => {
+  if (selectedPhotos.size === 0) return;
+
+  try {
+    const ok = await ensureWritePermission();
+    if (!ok) {
+      Alert.alert(t("alerts.perm_title"), t("alerts.download_perm"));
+      return;
+    }
+
+    const selectedPhotoIds = Array.from(selectedPhotos);
+    const selectedPhotosData = activeAlbum?.photos?.filter(p => 
+      selectedPhotoIds.includes(p.id)
+    ) || [];
+
+    let successCount = 0;
+
+    for (const photo of selectedPhotosData) {
+      try {
+        let ext = "jpg";
+        try {
+          const u = new URL(photo.uri);
+          const match = (u.pathname || "").match(/\.(\w+)(?:$|\?)/i);
+          if (match?.[1]) {
+            ext = match[1].toLowerCase();
+            if (ext === "jpeg" || ext === "heic") ext = "jpg";
+          }
+        } catch {}
+
+        const fileUri = FileSystem.documentDirectory + `${photo.id}.${ext}`;
+        const downloadResult = await FileSystem.downloadAsync(
+          photo.uri,
+          fileUri
+        );
+
+        if (downloadResult.uri) {
+          await MediaLibrary.createAssetAsync(downloadResult.uri);
+          successCount++;
+        }
+      } catch (e) {
+        console.error(`Error downloading photo ${photo.id}:`, e);
+      }
+    }
+
+    if (successCount > 0) {
+      Alert.alert(
+        t("alerts.success_title") || "Éxito",
+        `Se descargaron ${successCount} de ${selectedPhotosData.length} fotos`
+      );
+    }
+
+    // Salir del modo selección
+    setSelectMode(false);
+    setSelectedPhotos(new Set());
+
+  } catch (error) {
+    console.error("Error in multiple download:", error);
+    Alert.alert(
+      t("alerts.error_title"),
+      t("alerts.download_failed") || "Error al descargar las fotos"
+    );
+  }
+}, [selectedPhotos, activeAlbum, ensureWritePermission, t]);
+
+const handleDeleteMultiple = useCallback(async () => {
+  if (selectedPhotos.size === 0) return;
+
+  Alert.alert(
+    t("alerts.confirm_delete_title") || "Confirmar eliminación",
+    `¿Estás seguro de que quieres eliminar ${selectedPhotos.size} fotos?`,
+    [
+      {
+        text: t("actions.cancel") || "Cancelar",
+        style: "cancel"
+      },
+      {
+        text: t("actions.delete") || "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const selectedPhotoIds = Array.from(selectedPhotos);
+            let successCount = 0;
+
+            for (const photoId of selectedPhotoIds) {
+              try {
+                const response = await fetch(DELETE_PHOTO_URL(photoId), {
+                  method: "DELETE",
+                  headers: authHeaders,
+                });
+
+                if (response.ok) {
+                  successCount++;
+                }
+              } catch (error) {
+                console.error(`Error deleting photo ${photoId}:`, error);
+              }
+            }
+
+            // Actualizar el estado local
+            setAlbums(prev =>
+              prev.map(album =>
+                album.id === activeAlbumId
+                  ? {
+                      ...album,
+                      photos: album.photos.filter(p => !selectedPhotos.has(p.id)),
+                    }
+                  : album
+              )
+            );
+
+            if (successCount > 0) {
+              Alert.alert(
+                t("alerts.success_title") || "Éxito",
+                `Se eliminaron ${successCount} de ${selectedPhotoIds.length} fotos`
+              );
+            }
+
+            // Salir del modo selección
+            setSelectMode(false);
+            setSelectedPhotos(new Set());
+
+          } catch (error) {
+            console.error("Error in multiple delete:", error);
+            Alert.alert(
+              t("alerts.error_title"),
+              t("alerts.delete_failed") || "Error al eliminar las fotos"
+            );
+          }
+        }
+      }
+    ]
+  );
+}, [selectedPhotos, activeAlbumId, authHeaders, t]);
+
+
+
+
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -1305,10 +1572,17 @@ export default function AlbumsScreen({ navigation, route }) {
         contentContainerStyle={{ paddingHorizontal: GUTTER, paddingTop: 0 }}
       >
         {loadingPhotos && (
-          <View style={{ paddingVertical: 16, alignItems: "center" }}>
-            <ActivityIndicator />
-          </View>
-        )}
+  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+    {[0, 1].map(col => (
+      <View key={col} style={{ width: COL_W }}>
+        {[0,0,0,0].map((_, index) => (
+          <SkeletonPhoto key={index} height={COL_W * (1.2 + Math.random())} />
+        ))}
+      </View>
+    ))}
+  </View>
+)}
+
 
         {!loadingPhotos && !loadingAlbums && !preparing && (activeAlbum?.photos?.length ?? 0) === 0 && (
          <View style={{ paddingVertical: 24, alignItems: "center" }}>
@@ -1330,20 +1604,54 @@ export default function AlbumsScreen({ navigation, route }) {
 
                 return (
                   <View key={p.id} style={{ marginBottom: GUTTER }}>
-                    <TouchableOpacity
-                      activeOpacity={0.9}
-                      onPress={() => openViewer(p)}
-                      style={styles.card}
-                    >
-                      <Image
-                        source={{ uri: p.uri }}
-                        style={{
-                          width: "100%",
-                          height: p._h,
-                          borderRadius: 12,
-                        }}
-                      />
-                    </TouchableOpacity>
+                  <Animated.View
+  style={{
+    transform: [{ scale: scaleAnims[p.id] || 1 }],
+    marginBottom: GUTTER,
+  }}
+>
+  <TouchableOpacity
+    activeOpacity={0.9}
+    onPress={() => {
+      if (selectMode) {
+        toggleSelect(p.id);
+      } else {
+        openViewer(p);
+      }
+    }}
+    onLongPress={() => {
+      setSelectMode(true);
+      toggleSelect(p.id);
+    }}
+    style={[styles.card]}
+  >
+    {/* Imagen */}
+    <Image
+      source={{ uri: p.uri }}
+      style={{
+        width: "100%",
+        height: p._h,
+        borderRadius: 12,
+      }}
+    />
+
+    {/* CHECKBOX FLOTANTE */}
+    {selectMode && (
+      <View style={styles.checkboxWrapper}>
+        <View
+          style={[
+            styles.checkboxCircle,
+            selectedPhotos.has(p.id) && styles.checkboxCircleSelected
+          ]}
+        >
+          {selectedPhotos.has(p.id) && (
+            <Ionicons name="checkmark" size={16} color="white" />
+          )}
+        </View>
+      </View>
+    )}
+  </TouchableOpacity>
+</Animated.View>
 
                     {p.title ? (
                       <Text style={styles.caption} numberOfLines={1}>
@@ -1520,18 +1828,26 @@ export default function AlbumsScreen({ navigation, route }) {
 
       {/* Modal Visor de Foto (Existente) */}
       <Modal
-        visible={viewerOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setViewerOpen(false)}
-      >
-        <View style={styles.viewerBg}>
-          <TouchableOpacity
-            style={styles.viewerClose}
-            onPress={() => setViewerOpen(false)}
-          >
-            <Ionicons name="close" size={26} color="#fff" />
-          </TouchableOpacity>
+  visible={viewerOpen}
+  transparent
+  animationType="fade"
+>
+  <View style={styles.viewerBg}>
+    
+    <BlurView
+      intensity={80}
+      tint="dark"
+      style={StyleSheet.absoluteFill}
+    />
+
+    <TouchableOpacity
+      style={styles.viewerClose}
+      onPress={() => setViewerOpen(false)}
+    >
+      <Ionicons name="close" size={26} color="#fff" />
+    </TouchableOpacity>
+
+
 
           {viewerPhoto && (
             <>
@@ -1736,6 +2052,44 @@ export default function AlbumsScreen({ navigation, route }) {
       </Modal>
 
       {/* --- FIN MODALES MODIFICADOS --- */}
+                {selectMode && (
+  <View style={styles.multiBar}>
+    <Text style={styles.multiCount}>
+      {selectedPhotos.size} seleccionadas
+    </Text>
+
+    {/* <TouchableOpacity
+      style={styles.multiBtn}
+      onPress={handleShareMultiple}
+    >
+      <Ionicons name="share-social-outline" size={22} color="#fff" />
+    </TouchableOpacity> */}
+
+    <TouchableOpacity
+      style={styles.multiBtn}
+      onPress={handleDownloadMultiple}
+    >
+      <Ionicons name="download-outline" size={22} color="#fff" />
+    </TouchableOpacity>
+
+    <TouchableOpacity
+      style={styles.multiBtn}
+      onPress={handleDeleteMultiple}
+    >
+      <Ionicons name="trash-outline" size={22} color="#fff" />
+    </TouchableOpacity>
+
+    <TouchableOpacity
+      style={[styles.multiBtn, { backgroundColor: "#EF4444" }]}
+      onPress={() => {
+        setSelectMode(false);
+        setSelectedPhotos(new Set());
+      }}
+    >
+      <Ionicons name="close" size={22} color="#fff" />
+    </TouchableOpacity>
+  </View>
+)}
 
     </SafeAreaView>
   );
@@ -1814,16 +2168,16 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   reactionsBarFullscreen: {
-    position: "absolute",
-    bottom: 120,
-    left: 20,
-    right: 20,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    borderRadius: 25,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    justifyContent: "center",
-  },
+  position: "absolute",
+  bottom: 120,
+  alignSelf: "center",
+  backgroundColor: "rgba(0,0,0,0.7)",
+  borderRadius: 25,
+  paddingVertical: 10,
+  paddingHorizontal: 14,
+  justifyContent: "center",
+  width: "60%", // ← Ancho fijo
+},
   reactionsBarLarge: {
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -2042,5 +2396,63 @@ const styles = StyleSheet.create({
   modalGeneralButtonDestructive: {
     backgroundColor: "#DC2626", // Rojo para eliminar
   },
+ cardSelected: {
+  borderWidth: 3,
+  borderColor: "#6F4C8C",
+  opacity: 0.8,
+  transform: [{ scale: 0.95 }],
+},
+multiBar: {
+  position: "absolute",
+  bottom: 47,
+  left: 0,
+  right: 0,
+  backgroundColor: "#C7A7E0",
+  paddingHorizontal: 16,
+  paddingVertical: 12,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  borderTopLeftRadius: 16,
+  borderTopRightRadius: 16,
+},
+multiBtn: {
+  padding: 10,
+  backgroundColor: "#3E2757",
+  borderRadius: 10,
+},
+multiCount: {
+  color: "#fff",
+  fontWeight: "700",
+  fontSize: 16,
+},
+
+checkboxWrapper: {
+  position: "absolute",
+  top: 8,
+  right: 8,
+  zIndex: 20,
+  backgroundColor: "rgba(0,0,0,0.15)",
+  borderRadius: 20,
+  padding: 2,
+},
+
+checkboxCircle: {
+  width: 22,
+  height: 22,
+  borderRadius: 50,
+  borderWidth: 2,
+  borderColor: "#fff",
+  backgroundColor: "rgba(255,255,255,0.3)",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+checkboxCircleSelected: {
+  backgroundColor: "#6F4C8C",
+  borderColor: "#6F4C8C",
+},
+
+
   // --- FIN NUEVOS ESTILOS ---
 });

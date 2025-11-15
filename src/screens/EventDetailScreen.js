@@ -27,9 +27,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTranslation } from "react-i18next";
+import { Linking } from "react-native";
+import { WebView } from 'react-native-webview';
+
 import i18n from "../i18n/i18n";
 
 const API_URL = "http://143.198.138.35:8000";
+const LOCATIONIQ_API_KEY = 'pk.dc572d89c709070b0784944b1a9daba6';
 
 const EVENT_TYPES = [
   "Boda",
@@ -96,12 +100,25 @@ export default function EventDetailScreen() {
   const initialEvent = route?.params?.event || null;
   const { t } = useTranslation("event_detail");
   const locale = i18n.language?.startsWith("es") ? "es-ES" : "en-US";
+  const [editLocationVisible, setEditLocationVisible] = useState(false);
+const [tempAddress, setTempAddress] = useState("");
+const [tempCoords, setTempCoords] = useState({ lat: null, lng: null });
+const [searchingLocation, setSearchingLocation] = useState(false);
+// === Estados para mapa con LocationIQ ===
+const [suggestions, setSuggestions] = useState([]);
+const [debounceTimer, setDebounceTimer] = useState(null);
+const controllerRef = useRef(null);
+const webRef = useRef(null);
+
+
 
   const { user } = useContext(AuthContext);
   const bearer = useMemo(() => user?.token || user?.access_token || "", [user]);
 
   const [loading, setLoading] = useState(true);
   const [eventData, setEventData] = useState(null);
+  const [webLocationVisible, setWebLocationVisible] = useState(false);
+
 
   const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState(new Date());
@@ -409,6 +426,84 @@ export default function EventDetailScreen() {
     if (!result.canceled) setCoverUri(result.assets[0].uri);
   };
 
+    const handleSearchLocation = async () => {
+    if (!tempAddress.trim()) {
+      Alert.alert("Ubicación", "Escribe una dirección para buscar en el mapa.");
+      return;
+    }
+
+    try {
+      setSearchingLocation(true);
+      const encoded = encodeURIComponent(tempAddress.trim());
+      const url = `https://us1.locationiq.com/v1/search?key=${LOCATIONIQ_API_KEY}&q=${encoded}&format=json&limit=1`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        Alert.alert("Ubicación", "No se encontró esa dirección. Intenta con más detalles.");
+        return;
+      }
+
+      const { lat, lon } = data[0];
+      setTempCoords({
+        lat: parseFloat(lat),
+        lng: parseFloat(lon),
+      });
+    } catch (e) {
+      console.error("Error buscando ubicación:", e);
+      Alert.alert("Error", "No se pudo buscar la ubicación. Intenta de nuevo.");
+    } finally {
+      setSearchingLocation(false);
+    }
+  };
+
+  // === BUSCADOR DE DIRECCIONES (LocationIQ) ===
+const handleSearch = async (text) => {
+  if (text.length < 3) {
+    setSuggestions([]);
+    return;
+  }
+
+  try {
+    // Cancela petición anterior
+    if (controllerRef.current) controllerRef.current.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    const res = await fetch(
+      `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_API_KEY}&q=${encodeURIComponent(text)}&format=json&countrycodes=mx&limit=5&addressdetails=1`,
+      { signal: controller.signal }
+    );
+
+    const results = await res.json();
+    setSuggestions(results || []);
+  } catch (err) {
+    if (err.name !== "AbortError") console.log("Error en sugerencias:", err);
+  }
+};
+
+
+ const handleConfirmLocation = () => {
+  if (!tempCoords.lat || !tempCoords.lng) {
+    Alert.alert("Ubicación", "Selecciona un punto en el mapa.");
+    return;
+  }
+
+  setEventAddress(tempAddress);
+
+  setEventData(prev => ({
+    ...prev,
+    event_address: tempAddress,
+    event_latitude: tempCoords.lat,
+    event_longitude: tempCoords.lng
+  }));
+
+  setWebLocationVisible(false);   // Cierra el mapa correcto
+};
+
+
+
   const handleUpdate = async () => {
     if (updatingEvent) return;
 
@@ -428,6 +523,8 @@ export default function EventDetailScreen() {
       form.append("event_address", eventAddress);
       form.append("event_type", eventType);
       form.append("event_description", eventDescription);
+      form.append("event_latitude", eventData.event_latitude || "");
+form.append("event_longitude", eventData.event_longitude || "");
 
       let res = await fetch(`${API_URL}/events/${eventData.event_id}`, {
         method: "PUT",
@@ -820,14 +917,14 @@ export default function EventDetailScreen() {
 
           {/* Dirección y tag en columna */}
   <View style={styles.bottomMetaContainer}>
-    {!!eventData.event_address && (
+    {/* {!!eventData.event_address && (
       <View style={[styles.metaItem, { marginBottom: 4 }]}>
         <Ionicons name="location-outline" size={16} color="#F9FAFB" />
         <Text style={styles.metaText} numberOfLines={2}>
           {eventData.event_address}
         </Text>
       </View>
-    )}
+    )} */}
         </View>
 
        {!!eventData.event_type && (
@@ -851,6 +948,55 @@ export default function EventDetailScreen() {
               t("section.description_empty")}
           </Text>
         </View>
+        {eventData.event_address ? (
+  <View style={[styles.sectionCard, { marginTop: -8 }]}>
+    <SectionTitle
+      icon="location-outline"
+      title={t("section.location_title") || "Ubicación"}
+    />
+
+    {/* Preview estático */}
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => {
+        const encoded = encodeURIComponent(eventData.event_address);
+
+        if (eventData.event_latitude && eventData.event_longitude) {
+          const { event_latitude, event_longitude } = eventData;
+          const url = Platform.select({
+            ios: `http://maps.apple.com/?ll=${event_latitude},${event_longitude}&q=${encoded}`,
+            android: `geo:${event_latitude},${event_longitude}?q=${encoded}`,
+          });
+          Linking.openURL(url);
+        } else {
+          const url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+          Linking.openURL(url);
+        }
+      }}
+      style={{
+        borderRadius: 12,
+        overflow: "hidden",
+        marginTop: 10,
+      }}
+    >
+      <Image
+        source={{
+          uri: `https://maps.locationiq.com/v3/staticmap?key=${LOCATIONIQ_API_KEY}&center=${eventData.event_latitude || 19.4326},${eventData.event_longitude || -99.1332}&zoom=15&size=600x350&format=png&markers=icon:small-red-cutout|${eventData.event_latitude || 19.4326},${eventData.event_longitude || -99.1332}`,
+        }}
+        style={{ width: "100%", height: 180 }}
+        resizeMode="cover"
+      />
+
+      {/* Dirección */}
+      <View style={{ paddingTop: 10 }}>
+        <Text style={[styles.sectionText, { fontWeight: "600" }]}>
+          {eventData.event_address}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  </View>
+) : null}
+
       </ScrollView>
 
       {/* SUBMENÚ flotante (solo owners) */}
@@ -1091,6 +1237,21 @@ export default function EventDetailScreen() {
                 placeholderTextColor="#6B7280"
               />
             </Field>
+            <TouchableOpacity
+  style={[styles.iconBtn, { marginTop: 6, alignSelf: "flex-start" }]}
+  onPress={() => {
+    setTempAddress(eventAddress);
+    setTempCoords({
+      lat: eventData.event_latitude,
+      lng: eventData.event_longitude,
+    });
+   setWebLocationVisible(true);
+  }}
+>
+  <Ionicons name="location-outline" size={18} color="#fff" />
+  <Text style={styles.iconBtnText}>Editar ubicación en mapa</Text>
+</TouchableOpacity>
+
 
             <Field label={t("edit_modal.fields.type.label")}>
               <TouchableOpacity
@@ -1170,64 +1331,242 @@ export default function EventDetailScreen() {
         </Modal>
       )}
 
-      {/* TYPE PICKER */}
       <Modal
-        visible={typePickerVisible}
+        visible={editLocationVisible}
         transparent
-        animationType="fade"
-        onRequestClose={() => setTypePickerVisible(false)}
-        presentationStyle="overFullScreen"
-        statusBarTranslucent
+        animationType="slide"
+        onRequestClose={() => setEditLocationVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.pickerBackdrop}
-          activeOpacity={1}
-          onPress={() => setTypePickerVisible(false)}
-        />
-        <View style={styles.pickerSheet}>
-          <View style={styles.pickerHeader}>
-            <Text style={styles.pickerTitle}>{t("type_picker.title")}</Text>
-            <TouchableOpacity onPress={() => setTypePickerVisible(false)}>
-              <Ionicons name="close" size={22} color="#111827" />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Editar ubicación</Text>
 
-          {EVENT_TYPES.map((opt) => {
-            const selected =
-              (!isOtherType && eventType === opt) ||
-              (opt === "Otro" && isOtherType);
-            return (
+            <Text style={styles.fieldLabel}>Dirección</Text>
+            <TextInput
+              style={styles.input}
+              value={tempAddress}
+              onChangeText={setTempAddress}
+              placeholder="Escribe la dirección"
+              placeholderTextColor="#6B7280"
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                searchingLocation && { opacity: 0.6 },
+              ]}
+              onPress={handleSearchLocation}
+              disabled={searchingLocation}
+            >
+              {searchingLocation ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Text style={styles.saveText}>Buscar en el mapa</Text>
+              )}
+            </TouchableOpacity>
+
+            {tempCoords.lat && tempCoords.lng && (
+              <View style={{ marginTop: 16 }}>
+                <Image
+                  source={{
+                    uri: `https://maps.locationiq.com/v3/staticmap?key=${LOCATIONIQ_API_KEY}&center=${tempCoords.lat},${tempCoords.lng}&zoom=15&size=600x350&format=png&markers=icon:small-red-cutout|${tempCoords.lat},${tempCoords.lng}`,
+                  }}
+                  style={{ width: "100%", height: 180, borderRadius: 12 }}
+                  resizeMode="cover"
+                />
+              </View>
+            )}
+
+            <View style={styles.modalActions}>
               <TouchableOpacity
-                key={opt}
-                style={styles.pickerRow}
-                activeOpacity={0.85}
-                onPress={() => {
-                  if (opt === "Otro") {
-                    setIsOtherType(true);
-                    if (EVENT_TYPES.includes(eventType)) setEventType("");
-                  } else {
-                    setIsOtherType(false);
-                    setEventType(opt);
-                  }
-                  setTypePickerVisible(false);
-                }}
+                style={[styles.modalBtn, styles.btnCancel]}
+                onPress={() => setEditLocationVisible(false)}
               >
-                <Text
-                  style={[
-                    styles.pickerText,
-                    selected && styles.pickerTextSelected,
-                  ]}
-                >
-                  {opt}
-                </Text>
-                {selected && (
-                  <Ionicons name="checkmark" size={18} color="#6B21A8" />
-                )}
+                <Text style={styles.btnCancelText}>Cancelar</Text>
               </TouchableOpacity>
-            );
-          })}
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.btnAccept]}
+                onPress={handleConfirmLocation}
+              >
+                <Text style={styles.btnAcceptText}>Usar esta ubicación</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
+
+      {/* TYPE PICKER */}
+      {/* MODAL DE MAPA CON LOCATIONIQ + LEAFLET */}
+{/* === MODAL DE UBICACIÓN (Leaflet + LocationIQ, igual que CreateEvent) === */}
+<Modal
+  visible={webLocationVisible}
+  transparent={false}
+  animationType="slide"
+  onRequestClose={() => setWebLocationVisible(false)}
+>
+  <View style={{ flex: 1, backgroundColor: '#FFF' }}>
+
+    {/* HEADER */}
+    <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#FFF' }}>
+      <TouchableOpacity onPress={() => setWebLocationVisible(false)}>
+        <Ionicons name="arrow-back" size={26} color="#6B21A8" />
+      </TouchableOpacity>
+      <Text style={{ fontSize: 18, fontWeight: '700', marginLeft: 12, color: '#6B21A8' }}>
+        Selecciona ubicación
+      </Text>
+    </View>
+
+    {/* BUSCADOR */}
+   <View style={{ paddingHorizontal: 10, paddingTop: 10, backgroundColor: '#FFF', zIndex: 3, height: 50 }}>
+      <TextInput
+        placeholder="Buscar lugar o dirección..."
+        placeholderTextColor="#9CA3AF"
+        value={tempAddress}
+        onChangeText={(text) => {
+          setTempAddress(text);
+          if (debounceTimer) clearTimeout(debounceTimer);
+
+          const timer = setTimeout(() => {
+            handleSearch(text);
+          }, 800);
+
+          setDebounceTimer(timer);
+        }}
+        style={{
+          flex: 1,
+          borderWidth: 1,
+          borderColor: '#E5E7EB',
+          borderRadius: 8,
+          paddingHorizontal: 10,
+          height: 40,
+          backgroundColor: '#F9FAFB',
+          color: '#111827',
+        }}
+      />
+    </View>
+
+    {/* SUGERENCIAS */}
+    {suggestions.length > 0 && (
+      <View style={{
+        backgroundColor: '#FFF',
+        marginTop: 5,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        maxHeight: 180,
+        zIndex: 5,
+        marginHorizontal: 10,
+      }}>
+        <ScrollView>
+          {suggestions.map((sug, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={{
+                padding: 10,
+                borderBottomWidth: idx < suggestions.length - 1 ? 1 : 0,
+                borderColor: '#EEE',
+              }}
+              onPress={() => {
+                const lat = parseFloat(sug.lat);
+                const lon = parseFloat(sug.lon);
+                const display = sug.display_name;
+
+                webRef.current.injectJavaScript(`
+                  map.setView([${lat}, ${lon}], 15);
+                  if (marker) map.removeLayer(marker);
+                  marker = L.marker([${lat}, ${lon}]).addTo(map);
+                `);
+
+                setTempAddress(display);
+                setTempCoords({ lat, lng: lon });
+                setSuggestions([]);
+              }}
+            >
+              <Text style={{ color: '#111827', fontWeight: '500' }}>
+                {sug.display_name.split(',')[0]}
+              </Text>
+              <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                {sug.display_name.split(',').slice(1, 3).join(', ')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    )}
+
+    {/* MAPA */}
+    <View style={{ flex: 1 }}>
+      <WebView
+        ref={webRef}
+        originWhitelist={['*']}
+        source={{
+          html: `
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                <style>
+                  html, body, #map { height: 100%; margin: 0; padding: 0; }
+                </style>
+              </head>
+              <body>
+                <div id="map"></div>
+                <script>
+                  const map = L.map('map').setView([${eventData.event_latitude || 19.4326}, ${eventData.event_longitude || -99.1332}], 16);
+
+                 L.tileLayer('https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_API_KEY}', {
+   maxZoom: 18,
+   attribution: '© LocationIQ © OpenStreetMap'
+}).addTo(map);
+const style = document.createElement('style');
+style.innerHTML = '.leaflet-control-attribution { display: none !important; }';
+document.head.appendChild(style);
+
+                  let marker = L.marker([${eventData.event_latitude || 19.4326}, ${eventData.event_longitude || -99.1332}]).addTo(map);
+
+                  map.on('click', function(e) {
+                    const { lat, lng } = e.latlng;
+                    if (marker) map.removeLayer(marker);
+                    marker = L.marker([lat, lng]).addTo(map);
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ lat, lng }));
+                  });
+                </script>
+              </body>
+            </html>
+          `
+        }}
+        onMessage={async (event) => {
+          const { lat, lng } = JSON.parse(event.nativeEvent.data);
+
+          setTempCoords({ lat, lng });
+
+          const res = await fetch(
+            `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_API_KEY}&lat=${lat}&lon=${lng}&format=json`
+          );
+          const data = await res.json();
+          setTempAddress(data.display_name || `${lat}, ${lng}`);
+        }}
+      />
+    </View>
+
+    {/* FOOTER */}
+    <View style={{ padding: 16, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E5E7EB' }}>
+      <Text style={{ color: '#374151', marginBottom: 8 }}>
+        {tempAddress ? `Dirección: ${tempAddress}` : 'Toca en el mapa para seleccionar ubicación'}
+      </Text>
+      <TouchableOpacity
+        style={{ backgroundColor: '#6B21A8', paddingVertical: 12, borderRadius: 8, alignItems: 'center' }}
+        onPress={handleConfirmLocation}
+      >
+        <Text style={{ color: '#FFF', fontWeight: '700' }}>Guardar ubicación</Text>
+      </TouchableOpacity>
+    </View>
+
+  </View>
+</Modal>
+
 
       {/* MODAL OWNER */}
       {isOwner && (
@@ -1475,7 +1814,9 @@ export default function EventDetailScreen() {
         onClose={() => setErrorModalVisible(false)}
       />
     </View>
+    
   );
+  
 }
 
 function SectionTitle({ icon, title }) {
@@ -1532,6 +1873,8 @@ function MiniAction({ icon, label, onPress }) {
     </TouchableOpacity>
   );
 }
+
+
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#F5F7FA" },

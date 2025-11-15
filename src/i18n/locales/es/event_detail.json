@@ -14,7 +14,8 @@
     "description_title": "Descripción :",
     "description_empty": "Sin descripción",
     "role_title": "Tu rol en el evento es :",
-    "role_loading": "Cargando…"
+    "role_loading": "Cargando…",
+    "location_title": "Ubicación :"
   },
 
   "pill": {

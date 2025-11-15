@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,8 +24,13 @@ import { AuthContext } from '../context/AuthContext';
 import { EventsContext } from '../context/EventsContext';
 import { Dropdown } from 'react-native-element-dropdown';
 import { useTranslation } from 'react-i18next';
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 
+
+
+
+
+const LOCATIONIQ_API_KEY = 'pk.dc572d89c709070b0784944b1a9daba6';
 
 const EVENT_TYPES = [
   'Boda',
@@ -47,6 +53,8 @@ export default function CreateEventScreen({ navigation }) {
   const { user }     = useContext(AuthContext);
   const { addEvent } = useContext(EventsContext);
   const { t } = useTranslation('create_event');
+  const [debounceTimer, setDebounceTimer] = useState(null);
+const controllerRef = React.useRef(null);
 
   const [name, setName]               = useState('');
   const [description, setDescription] = useState('');
@@ -72,6 +80,10 @@ export default function CreateEventScreen({ navigation }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const webRef = React.useRef(null);
+  const [userCoords, setUserCoords] = useState({ lat: 19.4326, lng: -99.1332 }); // CDMX por defecto
+  const [searchText, setSearchText] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
 
 
   const [successVisible, setSuccessVisible] = useState(false);
@@ -99,6 +111,29 @@ export default function CreateEventScreen({ navigation }) {
       setTempImageUri(result.assets?.[0]?.uri ?? result.uri);
     }
   };
+
+  const handleSearch = async (text) => {
+  if (text.length < 3) {
+    setSuggestions([]);
+    return;
+  }
+
+  try {
+    // Cancela petición anterior si existe
+    if (controllerRef.current) controllerRef.current.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    const res = await fetch(
+      `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_API_KEY}&q=${encodeURIComponent(text)}&format=json&countrycodes=mx&limit=5&addressdetails=1`,
+        { signal: controller.signal }
+      );
+    const results = await res.json();
+    setSuggestions(results || []);
+  } catch (err) {
+    if (err.name !== 'AbortError') console.log('Error buscando sugerencias:', err);
+  }
+};
 
   const pickFromGallery = async () => {
     if (Platform.OS !== 'web') {
@@ -192,8 +227,8 @@ export default function CreateEventScreen({ navigation }) {
         event_type:        finalType,
         event_coverUri:    tempImageUri,
         event_status:      status,
-        // event_latitude:    '',
-        // event_longitude:   '',
+        event_latitude: selectedCoords?.latitude || null,
+  event_longitude: selectedCoords?.longitude || null,
         budget:            cleanBudget,
       });
 
@@ -224,6 +259,26 @@ export default function CreateEventScreen({ navigation }) {
     setSuccessVisible(false);
     navigation.navigate('Events');
   };
+
+  React.useEffect(() => {
+  (async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.warn('Permiso de ubicación denegado');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = loc.coords;
+      setUserCoords({ lat: latitude, lng: longitude });
+    } catch (error) {
+      console.error('Error obteniendo ubicación:', error);
+    }
+  })();
+}, []);
+
+
+
 
   return (
     <View style={[styles.screen, { marginTop: insets.top }]}>
@@ -555,14 +610,15 @@ export default function CreateEventScreen({ navigation }) {
 </Modal>
 
 
-{/* MODAL SELECCIONAR UBICACIÓN */}
+{/* MODAL DE UBICACIÓN CON BUSCADOR Y BOTÓN DE REGRESAR */}
 <Modal
   visible={showMapModal}
   transparent={false}
   animationType="slide"
   onRequestClose={() => setShowMapModal(false)}
 >
-  <View style={{ flex: 1 }}>
+  <View style={{ flex: 1, backgroundColor: '#FFF' }}>
+    {/* HEADER */}
     <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#FFF', elevation: 3 }}>
       <TouchableOpacity onPress={() => setShowMapModal(false)}>
         <Ionicons name="arrow-back" size={26} color="#6B21A8" />
@@ -572,41 +628,202 @@ export default function CreateEventScreen({ navigation }) {
       </Text>
     </View>
 
-    <MapView
-      style={{ flex: 1 }}
-      provider={null} // usa default, no Google
-      initialRegion={{
-        latitude: 19.4326, // CDMX como punto base
-        longitude: -99.1332,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      }}
-      onPress={async (e) => {
-        const { latitude, longitude } = e.nativeEvent.coordinate;
-        setSelectedCoords({ latitude, longitude });
 
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await response.json();
-          const address = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-          setLocation(address);
-        } catch (error) {
-          console.log('Reverse geocode error:', error);
-          setLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-        }
+
+{/* BUSCADOR */}
+<View style={{ paddingHorizontal: 10, paddingTop: 10, backgroundColor: '#FFF', zIndex: 3 }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <TextInput
+      placeholder="Buscar lugar o dirección..."
+      placeholderTextColor="#9CA3AF"
+      value={searchText}
+      onChangeText={(text) => {
+        setSearchText(text);
+
+        // Cancelar el debounce previo
+        if (debounceTimer) clearTimeout(debounceTimer);
+
+        // Nuevo debounce
+        const timer = setTimeout(() => {
+          handleSearch(text);
+        }, 800);
+
+        setDebounceTimer(timer);
+      }}
+      style={{
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        height: 40,
+        backgroundColor: '#F9FAFB',
+        color: '#111827',
+      }}
+    />
+
+    {/* LUPA */}
+    {/* <TouchableOpacity
+  onPress={() => {
+    // 1. ¡Cancela el timer automático pendiente!
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      setDebounceTimer(null); // Importante limpiar la referencia
+    }
+    
+    // 2. Ahora sí, ejecuta la búsqueda manual
+    handleSearch(searchText);
+  }}
+>
+      <Ionicons
+        name="search-outline"
+        size={22}
+        color="#6B21A8"
+        style={{ marginLeft: 8 }}
+      />
+    </TouchableOpacity> */}
+  </View>
+
+  {/* LISTA DE SUGERENCIAS */}
+  {suggestions.length > 0 && (
+    <View
+      style={{
+        backgroundColor: '#FFF',
+        marginTop: 5,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        maxHeight: 180,
+        zIndex: 5,
       }}
     >
-      <UrlTile
-        urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maximumZ={19}
-      />
-      {selectedCoords && (
-        <Marker coordinate={selectedCoords} />
-      )}
-    </MapView>
+      <ScrollView keyboardShouldPersistTaps="handled">
+        {suggestions.map((sug, idx) => (
+          <TouchableOpacity
+            key={idx}
+            style={{
+              padding: 10,
+              borderBottomWidth: idx < suggestions.length - 1 ? 1 : 0,
+              borderColor: '#EEE',
+            }}
+            onPress={() => {
+              const lat = parseFloat(sug.lat);
+              const lon = parseFloat(sug.lon);
+              const display = sug.display_name;
 
+              webRef.current.injectJavaScript(`
+                map.setView([${lat}, ${lon}], 15);
+                if (marker) map.removeLayer(marker);
+                marker = L.marker([${lat}, ${lon}]).addTo(map);
+              `);
+
+              setSearchText(display.split(',')[0]);
+              setLocation(display);
+              setSuggestions([]);
+              setSelectedCoords({ latitude: lat, longitude: lon });
+            }}
+          >
+            <Text style={{ color: '#111827', fontWeight: '500' }}>
+              {sug.display_name.split(',')[0]}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#6B7280' }}>
+              {sug.display_name.split(',').slice(1, 3).join(', ')}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  )}
+</View>
+
+
+{/* MAPA */}
+<View style={{ flex: 1 }}>
+  <WebView
+    ref={webRef}
+    originWhitelist={['*']}
+    source={{
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+            <style>
+              html, body, #map { height: 100%; margin: 0; padding: 0; }
+              .leaflet-control-attribution { font-size: 10px; color: #aaa !important; }
+              .locate-btn {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                background-color: #6B21A8;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px 10px;
+                font-size: 16px;
+                z-index: 9999;
+              }
+            </style>
+          </head>
+          <body>
+           <button class="locate-btn" onclick="recenter()">
+  <i class="fas fa-location-crosshairs" style="color: white;"></i>
+</button>
+            <div id="map"></div>
+            <script>
+              const map = L.map('map').setView([${userCoords.lat}, ${userCoords.lng}], 14);
+             L.tileLayer('https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${LOCATIONIQ_API_KEY}', {
+   maxZoom: 18,
+   attribution: '© LocationIQ © OpenStreetMap'
+}).addTo(map);
+const style = document.createElement('style');
+style.innerHTML = '.leaflet-control-attribution { display: none !important; }';
+document.head.appendChild(style);
+              const currentMarker = L.marker([${userCoords.lat}, ${userCoords.lng}])
+                .addTo(map)
+                .bindPopup('Tu ubicación actual')
+                .openPopup();
+
+              let marker = null;
+
+              function recenter() {
+                map.setView([${userCoords.lat}, ${userCoords.lng}], 14);
+              }
+
+              map.on('click', function(e) {
+                const { lat, lng } = e.latlng;
+                if (marker) map.removeLayer(marker);
+                marker = L.marker([lat, lng]).addTo(map);
+                window.ReactNativeWebView.postMessage(JSON.stringify({ lat, lng }));
+              });
+            </script>
+          </body>
+        </html>
+      `,
+    }}
+    onMessage={async (event) => {
+      try {
+        const { lat, lng } = JSON.parse(event.nativeEvent.data);
+        setSelectedCoords({ latitude: lat, longitude: lng });
+        const response = await fetch(
+        `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_API_KEY}&lat=${lat}&lon=${lng}&format=json`
+      );
+        const data = await response.json();
+        const address =
+          data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        setLocation(address);
+      } catch (error) {
+        console.error('Error al procesar coordenadas:', error);
+      }
+    }}
+  />
+</View>
+
+
+    {/* FOOTER */}
     <View style={{ padding: 16, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E5E7EB' }}>
       <Text style={{ color: '#374151', marginBottom: 8 }}>
         {location ? `Dirección: ${location}` : 'Toca en el mapa para seleccionar ubicación'}
@@ -625,6 +842,9 @@ export default function CreateEventScreen({ navigation }) {
     </View>
   </View>
 </Modal>
+
+
+
 
 
     </View>

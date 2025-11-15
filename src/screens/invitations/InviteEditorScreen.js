@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import ViewShot from 'react-native-view-shot';
@@ -529,11 +529,9 @@ export default function InviteEditorScreen() {
       pTY.value = Math.max(-maxY, Math.min(maxY, ny));
     });
 
-  const doubleTapReset = Gesture.Tap().numberOfTaps(2).onEnd(() => {
-    resetPreviewTransform();
-  });
+ 
 
-  const previewGestures = Gesture.Simultaneous(doubleTapReset, pinchPreview, panPreview);
+  const previewGestures = Gesture.Simultaneous( pinchPreview, panPreview);
 
   const previewAStyle = useAnimatedStyle(() => ({
     width: PREV_W,
@@ -1021,34 +1019,35 @@ export default function InviteEditorScreen() {
 
       {/* MODAL DE PREVISUALIZACIÓN */}
       <Modal
-        visible={previewVisible}
-        animationType="slide"
-        onRequestClose={() => setPreviewVisible(false)}
-      >
-        <View style={{ flex:1, backgroundColor:'#000' }}>
-          {/* Header modal */}
-          <View style={[styles.header, { marginTop: 36 }]}>
-            <TouchableOpacity onPress={() => setPreviewVisible(false)} style={styles.backBtn}>
-              <Ionicons name="close" size={20} color="#111827" />
-            </TouchableOpacity>
-            <Text style={[styles.brand, { color:'#fff' }]}>{t('previewModal.title')}</Text>
-            <View style={{ width: 40 }} />
-          </View>
+  visible={previewVisible}
+  animationType="slide"
+  onRequestClose={() => setPreviewVisible(false)}
+>
+  <GestureHandlerRootView style={{ flex:1, backgroundColor:'#000' }}>
+    
+    {/* Header */}
+    <View style={[styles.header, { marginTop: 36 }]}>
+      <TouchableOpacity onPress={() => setPreviewVisible(false)} style={styles.backBtn}>
+        <Ionicons name="close" size={20} color="#111827" />
+      </TouchableOpacity>
+      <Text style={[styles.brand, { color:'#fff' }]}>{t('previewModal.title')}</Text>
+      <View style={{ width: 40 }} />
+    </View>
 
-          {/* Área imagen con zoom/pan */}
-          <View style={{ flex:1, alignItems:'center', justifyContent:'center', padding:16 }}>
-            {!previewUri ? (
-              <ActivityIndicator size="large" color="#fff" />
-            ) : (
-              <GestureDetector gesture={previewGestures}>
-                <Animated.Image
-                  source={{ uri: previewUri }}
-                  style={previewAStyle}
-                  resizeMode="contain"
-                />
-              </GestureDetector>
-            )}
-          </View>
+    {/* Zoom/Pan */}
+    <View style={{ flex:1, alignItems:'center', justifyContent:'center', padding:16 }}>
+      {!previewUri ? (
+        <ActivityIndicator size="large" color="#fff" />
+      ) : (
+        <GestureDetector gesture={previewGestures}>
+          <Animated.Image
+            source={{ uri: previewUri }}
+            style={previewAStyle}
+            resizeMode="contain"
+          />
+        </GestureDetector>
+      )}
+    </View>
 
           {/* Nota y acciones */}
           <Text style={{ color:'#9CA3AF', textAlign:'center', marginHorizontal:16, marginBottom:8 }}>
@@ -1078,7 +1077,8 @@ export default function InviteEditorScreen() {
               <Text style={styles.bottomBtnText}>{t('actions.share')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        
+        </GestureHandlerRootView>
       </Modal>
 
       {/* MODAL DE CONFIRMACIÓN */}
@@ -1461,11 +1461,11 @@ const styles = StyleSheet.create({
   modalBtnTextPrimary: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 12,
   },
   modalBtnTextSecondary: {
     color: '#111827',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 12,
   },
 });

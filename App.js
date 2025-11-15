@@ -17,6 +17,8 @@ import * as AuthSession from 'expo-auth-session';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as Linking from 'expo-linking';
+import * as Splash from 'expo-splash-screen';
+import { Asset } from 'expo-asset';
 
 import { useFonts } from 'expo-font';
 import { Montserrat_700Bold } from '@expo-google-fonts/montserrat';
@@ -29,7 +31,7 @@ import { DancingScript_700Bold } from '@expo-google-fonts/dancing-script';
 import { AuthProvider } from './src/context/AuthContext';
 import { EventsProvider } from './src/context/EventsContext';
 
-import SplashScreen from './src/screens/SplashScreen';
+// import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import EventsScreen from './src/screens/EventsScreen';
@@ -61,6 +63,8 @@ import PdfViewerScreen from './src/screens/PdfViewerScreen';
 import QuienesSomosScreen from './src/screens/QuienesSomosScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ShareAppScreen from './src/screens/ShareAppScreen';
+import IntroScreen from './src/screens/IntroScreen';
+import TransitionScreen from './src/screens/TransitionScreen';
 
 const Stack = createStackNavigator();
 LogBox.ignoreLogs(['useInsertionEffect']);
@@ -193,6 +197,7 @@ export default function App() {
   const notificationListener = useRef();
   const responseListener = useRef();
   const [i18nReady, setI18nReady] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Montserrat_700Bold,
@@ -274,8 +279,10 @@ export default function App() {
       <AuthProvider>
         <EventsProvider>
           <NavigationContainer ref={navigationRef}>
-            <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false, gestureEnabled: false, animationEnabled: false }}>
-              <Stack.Screen name="Splash" component={SplashScreen} />
+            <Stack.Navigator initialRouteName="Transition" screenOptions={{ headerShown: false, gestureEnabled: false, animationEnabled: false, contentStyle: { backgroundColor: '#000' } }}>
+              <Stack.Screen name="Transition" component={TransitionScreen} />
+              <Stack.Screen name="Intro" component={IntroScreen} />
+              {/* <Stack.Screen name="Splash" component={SplashScreen} /> */}
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="MiPerfil" component={MiPerfilScreen} />
               <Stack.Screen name="Faq" component={FaqScreen} />

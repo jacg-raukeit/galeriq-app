@@ -1,11 +1,11 @@
-// src/screens/PortadaAlbumsScreens.js
-import React, { useCallback, useEffect, useMemo, useState, useContext } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useContext, useRef } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList,
   Image, TextInput, Modal, Alert, Platform, RefreshControl, ActivityIndicator, Animated
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { AuthContext } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -83,6 +83,12 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+  const [justCreated, setJustCreated] = useState(null);
+
+
+
   const [query, setQuery] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -121,6 +127,9 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
       }, 1500);
     });
   };
+
+  
+
 
   const toRoleNumber = (data) => {
     if (typeof data === 'number') return data;
@@ -427,21 +436,66 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
   };
 
   const AlbumCard = ({ item }) => {
-    const hasTimes = !!(item.startTimeLabel && item.endTimeLabel);
-    const isDeleting = String(deletingId) === String(item.id);
-    return (
-      <View style={styles.card}>
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => navigation.navigate('Albums', {
-            albumId: item.id, albumName: item.name, coverUrl: item.coverUri, eventId
-          })}
-        >
+  const hasTimes = !!(item.startTimeLabel && item.endTimeLabel);
+  const isDeleting = String(deletingId) === String(item.id);
+
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  const animatePress = () => {
+    Haptics.selectionAsync();
+
+    Animated.parallel([
+      Animated.timing(scale, {
+        toValue: 0.95,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0.8,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      Animated.parallel([
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 130,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 130,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        navigation.navigate("Albums", {
+          albumId: item.id,
+          albumName: item.name,
+          coverUrl: item.coverUri,
+          eventId,
+        });
+      });
+    });
+  };
+
+  return (
+    <View style={styles.card}> 
+      
+      {/* 👉 SOLO esto se anima, NO el contenedor del grid */}
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          opacity,
+        }}
+      >
+        <TouchableOpacity activeOpacity={0.9} onPress={animatePress}>
           <Image source={{ uri: item.coverUri }} style={styles.cover} />
+
           {isDeleting && (
             <View style={styles.cardOverlay}>
               <ActivityIndicator color="#fff" />
-              <Text style={styles.overlayTxt}>{t('overlay.deleting')}</Text>
+              <Text style={styles.overlayTxt}>{t("overlay.deleting")}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -449,7 +503,10 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
         {!isGuest && (
           <TouchableOpacity
             style={styles.menuBtn}
-            onPress={() => { setMenuAlbum(item); setMenuOpen(true); }}
+            onPress={() => {
+              setMenuAlbum(item);
+              setMenuOpen(true);
+            }}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             disabled={isDeleting}
           >
@@ -457,11 +514,18 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.cardTitle} numberOfLines={1}>
+          {item.name}
+        </Text>
 
         {hasTimes && (
           <View style={styles.timeRow}>
-            <Ionicons name="time-outline" size={12} color="#555" style={{ marginRight: 3 }} />
+            <Ionicons
+              name="time-outline"
+              size={12}
+              color="#555"
+              style={{ marginRight: 3 }}
+            />
             <Text style={styles.timeText} numberOfLines={1}>
               {item.startTimeLabel} — {item.endTimeLabel}
             </Text>
@@ -470,14 +534,22 @@ export default function PortadaAlbumsScreens({ navigation, route }) {
 
         {Number.isFinite(item.photosCount) ? (
           <Text style={styles.cardSubtitle}>
-            {t(item.photosCount === 1 ? 'cards.photos_count_one' : 'cards.photos_count_other', { count: item.photosCount })}
+            {t(
+              item.photosCount === 1
+                ? "cards.photos_count_one"
+                : "cards.photos_count_other",
+              { count: item.photosCount }
+            )}
           </Text>
         ) : (
-          <Text style={[styles.cardSubtitle, { color: '#aaa' }]}>—</Text>
+          <Text style={[styles.cardSubtitle, { color: "#aaa" }]}>—</Text>
         )}
-      </View>
-    );
-  };
+      </Animated.View>
+    </View>
+  );
+};
+
+
 
   return (
     <SafeAreaView style={styles.screen}>

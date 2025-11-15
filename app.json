@@ -13,7 +13,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
@@ -59,7 +59,8 @@
       "@react-native-google-signin/google-signin",
       "expo-notifications",
       "expo-router",
-      "expo-localization"
+      "expo-localization",
+      "expo-video"
     ],
     "extra": {
       "eas": {
