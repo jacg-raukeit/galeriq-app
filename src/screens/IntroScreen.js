@@ -40,6 +40,7 @@ export default function IntroScreen() {
     };
 
     checkAuth();
+    
 
     // Timer fijo para evitar bloqueo en iOS
     const timer = setTimeout(() => {
