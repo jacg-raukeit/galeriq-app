@@ -60,6 +60,8 @@ export default function EventsScreen() {
 
   const [archivedById, setArchivedById] = useState({});
   const [notificationsCount, setNotificationsCount] = useState(0);
+  const [logoutModal, setLogoutModal] = useState(false);
+
 
   const [filterVisible, setFilterVisible] = useState(false);
   const [filterMode, setFilterMode] = useState("all");
@@ -287,30 +289,29 @@ export default function EventsScreen() {
     navigation.navigate(screen);
   };
 
-  const handleLogout = async () => {
-    Alert.alert("Cerrar sesión", "¿Deseas salir de tu cuenta?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Salir",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await SecureStore.deleteItemAsync(TOKEN_KEY);
-            await SecureStore.deleteItemAsync(USER_ID_KEY);
-          } catch (e) {
-            console.log("Error limpiando SecureStore:", e);
-          } finally {
-            closeDrawer();
-            setUser(null);
-            navigation.reset({
-              index: 0,
-              routes: [{ name: "Login" }],
-            });
-          }
-        },
-      },
-    ]);
-  };
+  const handleLogout = () => {
+  setLogoutModal(true);
+};
+
+
+const confirmLogout = async () => {
+  try {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await SecureStore.deleteItemAsync(USER_ID_KEY);
+  } catch (e) {
+    console.log("Error limpiando SecureStore:", e);
+  } finally {
+    setLogoutModal(false);
+    closeDrawer();
+    setUser(null);
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
+  }
+};
+
+
 
   const toLocalEndOfDay = (dateLike) => {
     if (!dateLike) return null;
@@ -737,6 +738,42 @@ export default function EventsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* MODAL DE CONFIRMACIÓN DE LOGOUT */}
+<Modal
+  visible={logoutModal}
+  animationType="fade"
+  transparent
+  statusBarTranslucent
+>
+  <View style={styles.expiredBackdrop}>
+    <View style={styles.logoutCard}>
+      <Text style={styles.logoutTitle}>Cerrar sesión</Text>
+      <Text style={styles.logoutText}>
+        ¿Estás seguro de que deseas salir de tu cuenta?
+      </Text>
+
+      <View style={{ height: 18 }} />
+
+      <View style={styles.logoutButtonsRow}>
+        <TouchableOpacity
+          style={styles.logoutCancel}
+          onPress={() => setLogoutModal(false)}
+        >
+          <Text style={styles.logoutCancelText}>Cancelar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.logoutConfirm}
+          onPress={confirmLogout}
+        >
+          <Text style={styles.logoutConfirmText}>Salir</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+
     </View>
   );
 }
@@ -1003,4 +1040,62 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontSize: 15,
   },
+
+  logoutCard: {
+  width: "88%",
+  maxWidth: 420,
+  backgroundColor: "#FFFFFF",
+  borderRadius: 16,
+  padding: 20,
+  shadowColor: "#000",
+  shadowOpacity: 0.20,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 8 },
+  elevation: 6,
+},
+logoutTitle: {
+  fontSize: 18,
+  fontWeight: "800",
+  color: "#6B21A8",
+  textAlign: "center",
+  marginBottom: 6,
+},
+logoutText: {
+  fontSize: 15,
+  color: "#374151",
+  textAlign: "center",
+  lineHeight: 20,
+},
+logoutButtonsRow: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  marginTop: 10,
+},
+logoutCancel: {
+  flex: 1,
+  paddingVertical: 12,
+  marginRight: 8,
+  borderRadius: 10,
+  backgroundColor: "#F3F4F6",
+  alignItems: "center",
+},
+logoutCancelText: {
+  color: "#374151",
+  fontWeight: "700",
+  fontSize: 15,
+},
+logoutConfirm: {
+  flex: 1,
+  paddingVertical: 12,
+  marginLeft: 8,
+  borderRadius: 10,
+  backgroundColor: "#EF4444",
+  alignItems: "center",
+},
+logoutConfirmText: {
+  color: "#fff",
+  fontWeight: "700",
+  fontSize: 15,
+},
+
 });
