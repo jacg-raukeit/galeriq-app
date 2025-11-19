@@ -15,7 +15,6 @@ export default function IntroScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const nextRouteRef = useRef('Login');
 
-  // Verifica token y define siguiente ruta
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -40,9 +39,8 @@ export default function IntroScreen() {
     };
 
     checkAuth();
-    
 
-    // Timer fijo para evitar bloqueo en iOS
+
     const timer = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -59,7 +57,7 @@ export default function IntroScreen() {
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <Image
-        source={require('../assets/images/Sin título.jpg')}
+        source={require('../assets/images/Sintitulo.jpg')}
         style={styles.background}
         resizeMode="cover"
       />
